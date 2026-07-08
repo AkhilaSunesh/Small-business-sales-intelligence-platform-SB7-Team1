@@ -1,0 +1,95 @@
+
+
+services:
+  # Database Service
+  postgres:
+    image: postgres:15-alpine
+    container_name: mmind-postgres
+    restart: always
+    environment:
+      POSTGRES_USER: ${POSTGRES_USER:-postgres}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-postgres}
+      POSTGRES_DB: ${POSTGRES_DB:-marketmind_db}
+    ports:
+      - "${POSTGRES_PORT:-5432}:5432"
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    networks:
+      - mmind-network
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U $${POSTGRES_USER:-postgres} -d $${POSTGRES_DB:-marketmind_db}"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 10s
+
+  # Core Backend API
+  backend:
+    build:
+      context: ../
+      dockerfile: Devops_Integration/Dockerfile.backend
+    container_name: mmind-backend
+    restart: always
+    environment:
+      DATABASE_URL: ${DATABASE_URL:-postgresql://postgres:postgres@postgres:5432/marketmind_db?schema=public}
+      JWT_SECRET: ${JWT_SECRET:-supersecretjwtkey123!}
+      PORT: 5000
+    ports:
+      - "${BACKEND_PORT:-5000}:5000"
+    volumes:
+      - logs:/app/logs
+    networks:
+      - mmind-network
+    depends_on:
+      postgres:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD-SHELL", "wget --no-verbose --tries=1 --spider http://localhost:5000/ || exit 1"]
+      interval: 10s
+      timeout: 5s
+      retries: 3
+      start_period: 10s
+
+  # AI Forecasting Service
+  ai-service:
+    build:
+      context: ../
+      dockerfile: Devops_Integration/Dockerfile.ai
+    container_name: mmind-ai
+    restart: always
+    environment:
+      PORT: 5001
+    ports:
+      - "${AI_SERVICE_PORT:-5001}:5001"
+    networks:
+      - mmind-network
+    healthcheck:
+      test: ["CMD-SHELL", "wget --no-verbose --tries=1 --spider http://localhost:5001/ || exit 1"]
+      interval: 10s
+      timeout: 5s
+      retries: 3
+      start_period: 15s
+
+  # Frontend Web UI
+  frontend:
+    build:
+      context: ../
+      dockerfile: Devops_Integration/Dockerfile.frontend
+    container_name: mmind-frontend
+    restart: always
+    ports:
+      - "${FRONTEND_PORT:-3000}:3000"
+    networks:
+      - mmind-network
+    depends_on:
+      - backend
+
+volumes:
+  postgres_data:
+    driver: local
+  logs:
+    driver: local
+
+networks:
+  mmind-network:
+    driver: bridge
