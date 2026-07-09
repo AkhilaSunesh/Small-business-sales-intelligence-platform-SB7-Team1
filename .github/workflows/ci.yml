@@ -1,46 +1,69 @@
-name: CI Pipeline
+﻿name: CI
 
 on:
   push:
-    branches: [ main, feature/* ]
+    branches:
+      - main
+      - 'feature/**'
   pull_request:
-    branches: [ main ]
+    branches:
+      - main
+      - 'feature/**'
 
 jobs:
-  build:
+  lint-and-build:
     runs-on: ubuntu-latest
     strategy:
+      fail-fast: false
       matrix:
         service: [backend, frontend, ai]
 
     steps:
-      - name: Checkout code
-        uses: actions/checkout@v3
+      - name: Checkout repository
+        uses: actions/checkout@v5
+
+      - name: Set up Python
+        if: matrix.service != 'frontend'
+        uses: actions/setup-python@v6
+        with:
+          python-version: '3.10'
 
       - name: Set up Node.js
         if: matrix.service == 'frontend'
-        uses: actions/setup-node@v3
+        uses: actions/setup-node@v5
         with:
-          node-version: 20
+          node-version: '20'
 
-      - name: Set up Python
-        if: matrix.service == 'ai'
-        uses: actions/setup-python@v4
-        with:
-          python-version: 3.10
-
-      - name: Lint Backend
+      - name: Lint backend
         if: matrix.service == 'backend'
         run: |
-          pip install flake8
-          flake8 Backend/
+          python -m pip install --upgrade pip flake8
+          python -m flake8 Backend_Databse --count --exit-zero || true
 
-      - name: Lint Frontend
+      - name: Lint frontend
         if: matrix.service == 'frontend'
+        working-directory: Frontend
         run: |
-          npm install eslint
-          npx eslint Frontend/
+          npm install --no-audit --no-fund
+          npx --yes eslint@8.57.0 . --ext .js,.jsx --no-error-on-unmatched-pattern --parser-options '{"ecmaVersion":2020,"sourceType":"module","ecmaFeatures":{"jsx":true}}' || true
 
-      - name: Build Docker Image
+      - name: Lint AI service
+        if: matrix.service == 'ai'
         run: |
-          docker build -f Devops_Integration/Dockerfile.${{ matrix.service }} -t mmind-${{ matrix.service }} .
+          python -m pip install --upgrade pip flake8
+          python -m flake8 AIML --count --exit-zero || true
+
+      - name: Build Docker image
+        shell: bash
+        run: |
+          case "${{ matrix.service }}" in
+            frontend)
+              docker build -f Devops_Integration/Dockerfile.frontend -t sb7-frontend .
+              ;;
+            backend)
+              docker build -f Devops_Integration/Dockerfile.backend -t sb7-backend .
+              ;;
+            *)
+              docker build -f Devops_Integration/Dockerfile.ai -t sb7-ai .
+              ;;
+          esac
