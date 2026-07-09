@@ -1,0 +1,46 @@
+name: CI Pipeline
+
+on:
+  push:
+    branches: [ main, feature/* ]
+  pull_request:
+    branches: [ main ]
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        service: [backend, frontend, ai]
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v3
+
+      - name: Set up Node.js
+        if: matrix.service == 'frontend'
+        uses: actions/setup-node@v3
+        with:
+          node-version: 20
+
+      - name: Set up Python
+        if: matrix.service == 'ai'
+        uses: actions/setup-python@v4
+        with:
+          python-version: 3.10
+
+      - name: Lint Backend
+        if: matrix.service == 'backend'
+        run: |
+          pip install flake8
+          flake8 Backend/
+
+      - name: Lint Frontend
+        if: matrix.service == 'frontend'
+        run: |
+          npm install eslint
+          npx eslint Frontend/
+
+      - name: Build Docker Image
+        run: |
+          docker build -f Devops_Integration/Dockerfile.${{ matrix.service }} -t mmind-${{ matrix.service }} .
