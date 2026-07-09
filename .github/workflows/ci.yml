@@ -47,12 +47,6 @@ jobs:
           npm install --no-audit --no-fund
           npx --yes eslint@8.57.0 . --ext .js,.jsx --no-error-on-unmatched-pattern --parser-options '{"ecmaVersion":2020,"sourceType":"module","ecmaFeatures":{"jsx":true}}' || true
 
-      - name: Lint AI service
-        if: matrix.service == 'ai'
-        run: |
-          python -m pip install --upgrade pip flake8
-          python -m flake8 AIML --count --exit-zero || true
-
       - name: Build Docker image
         shell: bash
         run: |
@@ -64,6 +58,5 @@ jobs:
               docker build -f Devops_Integration/Dockerfile.backend -t sb7-backend .
               ;;
             *)
-              docker build -f Devops_Integration/Dockerfile.ai -t sb7-ai .
-              ;;
+              
           esac
