@@ -1,27 +1,120 @@
-# MarketMind AI – AI/ML Module
+# AIML Module - MarketMind AI
 
 ## Overview
 
-The AI/ML module is responsible for developing intelligent analytics for the **MarketMind AI – Small Business Sales Intelligence Platform**. During Milestone 1, the primary focus is to build a baseline sales forecasting system that analyzes historical sales data and predicts future sales trends.
-
-This module will later be extended to support advanced analytics such as customer segmentation, product recommendation, churn prediction, and anomaly detection in future milestones.
+The AIML module is responsible for data analysis, preprocessing, baseline sales forecasting, and exposing forecasting results through an API for integration with the backend and frontend components.
 
 ---
 
-## Milestone 1 Objectives
+## Folder Structure
 
-- Understand the project architecture and data flow
-- Analyze the sales transaction dataset
-- Perform Exploratory Data Analysis (EDA)
-- Build a reusable data preprocessing pipeline
-- Develop a baseline sales forecasting model
-- Evaluate model performance using standard metrics
-- Expose forecasting results through a FastAPI endpoint
-- Prepare documentation for integration with the backend and frontend modules
+```
+AIML/
+│
+├── api/
+│   └── app.py
+│
+├── data/
+│   ├── Retail_Transaction_Dataset.csv
+│   └── preprocessed_data.csv
+│
+├── models/
+│   └── prophet_sales_forecast.pkl
+│
+├── notebooks/
+│   ├── 01_EDA.ipynb
+│   ├── 02_Preprocessing.ipynb
+│   └── 03_Baseline_Forecasting.ipynb
+│
+├── utils/
+│
+└── README.md
+```
 
 ---
 
-## Technology Stack
+## Dataset
+
+- Source: Kaggle Retail Transaction Dataset
+- Records: 100,000
+- Features:
+  - CustomerID
+  - ProductID
+  - Quantity
+  - Price
+  - TransactionDate
+  - PaymentMethod
+  - StoreLocation
+  - ProductCategory
+  - DiscountApplied(%)
+  - TotalAmount
+
+---
+
+## Completed Work
+
+### 1. Exploratory Data Analysis (EDA)
+
+- Dataset inspection
+- Shape and data types
+- Missing value analysis
+- Duplicate record analysis
+- Statistical summary
+- Distribution visualizations
+
+---
+
+### 2. Data Preprocessing
+
+- Converted TransactionDate to datetime format
+- Encoded categorical variables
+- Feature engineering
+- Created cleaned dataset
+- Saved preprocessed dataset
+
+Output:
+
+```
+data/preprocessed_data.csv
+```
+
+---
+
+### 3. Baseline Forecasting
+
+Implemented a baseline sales forecasting model using Prophet.
+
+Evaluation Metrics:
+
+- Mean Absolute Error (MAE)
+- Root Mean Squared Error (RMSE)
+
+The model serves as the baseline for future model comparison.
+
+Saved Model:
+
+```
+models/prophet_sales_forecast.pkl
+```
+
+---
+
+### 4. API Integration
+
+Developed a FastAPI service to expose the forecasting model.
+
+Available Endpoints:
+
+| Method | Endpoint | Description |
+|---------|----------|-------------|
+| GET | / | API Health Check |
+| POST | /forecast | Returns forecast values |
+
+The API returns responses in JSON format for backend integration.
+
+---
+
+## Technologies Used
 
 - Python
 - Pandas
@@ -30,55 +123,28 @@ This module will later be extended to support advanced analytics such as custome
 - Scikit-learn
 - Prophet
 - FastAPI
+- Joblib
+- Jupyter Notebook
 
 ---
 
-## Proposed Folder Structure
-```
-AIML/
-│
-├── data/                 # Raw and processed datasets
-├── notebooks/            # Jupyter notebooks for EDA and experiments
-├── preprocessing/        # Data cleaning and preprocessing scripts
-├── models/               # Forecasting models
-├── api/                  # FastAPI service
-├── outputs/              # Forecast results and visualizations
-├── docs/                 # Project documentation
-├── requirements.txt      # Python dependencies
-└── README.md
-```
+## Future Improvements
+
+The following models are planned for future milestones:
+
+- Random Forest Regressor
+- XGBoost Regressor
+- Hyperparameter Tuning
+- Model Comparison
+- Advanced Sales Forecasting
+- API Enhancement
 
 ---
 
-## Milestone 1 Deliverables
+## Team
 
-- Exploratory Data Analysis (EDA)
-- Data Preprocessing Pipeline
-- Baseline Sales Forecasting Model
-- Model Evaluation (MAE, RMSE)
-- Forecast API using FastAPI
-- AI Module Documentation
+Project: **MarketMind AI**
 
----
+Module: **Artificial Intelligence & Machine Learning**
 
-## Current Progress
-
-**Status:** Day 1
-
-Completed:
-- Reviewed project architecture and AI module responsibilities
-- Planned module structure and development workflow
-- Documented technology stack and milestone deliverables
-
-Next Steps:
-- Set up the Python development environment
-- Obtain sample sales dataset from the Backend team
-- Begin Exploratory Data Analysis (EDA)
-
-
-## Author
-
-**Aviral Singh**  
-AI/ML Engineer  
-Infosys Springboard Internship 7.0
-MarketMind AI – Small Business Sales Intelligence Platform
+Week 1 Status: **Completed**
