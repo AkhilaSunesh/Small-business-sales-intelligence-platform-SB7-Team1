@@ -1,0 +1,16 @@
+FROM node:18-alpine
+
+WORKDIR /app
+
+RUN apk add --no-cache openssl
+
+COPY Security_API_gateway/package*.json ./
+RUN npm install
+
+COPY Security_API_gateway/ ./
+
+RUN npx prisma generate
+
+EXPOSE 6000
+
+CMD ["node", "src/server.js"]
