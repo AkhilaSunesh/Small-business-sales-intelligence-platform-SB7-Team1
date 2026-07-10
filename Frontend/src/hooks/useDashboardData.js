@@ -8,7 +8,21 @@ export default function useDashboardData() {
   const [trend, setTrend] = useState([]);
   const [topProducts, setTopProducts] = useState([]);
 
+  const hasAuthToken = () => {
+    try {
+      return Boolean(localStorage.getItem('authToken'));
+    } catch (err) {
+      return false;
+    }
+  };
+
   const fetchAll = useCallback(async () => {
+    if (!hasAuthToken()) {
+      setLoading(false);
+      setError(null);
+      return;
+    }
+
     setLoading(true);
     setError(null);
     try {

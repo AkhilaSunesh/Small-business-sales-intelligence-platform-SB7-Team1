@@ -76,7 +76,9 @@ export default function UploadPage() {
     setCsvData(parsed);
     const missing = validateCSVHeaders(parsed.headers);
     setErrors(missing.map((m) => `Missing column: ${m}`));
-    if (missing.length === 0) setSuccess('CSV validation passed (mock)');
+    if (missing.length === 0) {
+      toast.show('CSV validation passed (mock)', 'info');
+    }
   };
 
   return (
