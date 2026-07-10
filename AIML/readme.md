@@ -34,7 +34,6 @@ This module will later be extended to support advanced analytics such as custome
 ---
 
 ## Proposed Folder Structure
-
 ```
 AIML/
 │
