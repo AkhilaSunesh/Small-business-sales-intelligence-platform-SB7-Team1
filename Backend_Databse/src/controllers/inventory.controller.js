@@ -50,10 +50,14 @@ exports.addStock=async(req,res)=>{
 try{
 
 
-const {
-productCode,
-quantity
-}=req.body;
+        const {
+        productCode,
+        quantity
+        }=req.body;
+
+        if (!productCode || quantity === undefined) {
+            return res.status(400).json({ success: false, message: 'productCode and quantity are required' });
+        }
 
 
 
@@ -67,15 +71,15 @@ productCode
 
 
 
-if(!product){
+        if(!product){
 
-return res.status(404).json({
+            return res.status(404).json({
 
-message:"Product not found"
+                message:"Product not found"
 
-});
+            });
 
-}
+        }
 
 
 
@@ -126,6 +130,10 @@ exports.updateStock = async(req,res)=>{
             productCode,
             quantity
         } = req.body;
+
+        if (!productCode || quantity === undefined) {
+            return res.status(400).json({ success: false, message: 'productCode and quantity are required' });
+        }
 
 
         const product = await prisma.product.findUnique({
@@ -180,4 +188,34 @@ exports.updateStock = async(req,res)=>{
 
     }
 
+};
+
+
+// DELETE INVENTORY
+
+exports.deleteInventory = async (req, res) => {
+    try {
+        const { productCode } = req.body;
+
+        if (!productCode) {
+            return res.status(400).json({ message: "productCode is required" });
+        }
+
+        const product = await prisma.product.findUnique({
+            where: { productCode }
+        });
+
+        if (!product) {
+            return res.status(404).json({ message: "Product not found" });
+        }
+
+        // delete inventory record for the product
+        await prisma.inventory.deleteMany({
+            where: { productId: product.id }
+        });
+
+        res.json({ success: true, message: "Inventory deleted" });
+    } catch (error) {
+        res.status(500).json({ message: error.message });
+    }
 };

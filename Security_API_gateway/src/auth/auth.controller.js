@@ -1,21 +1,49 @@
-const bcrypt = require("bcrypt");
+﻿const bcrypt = require("bcrypt");
 const jwt = require("jsonwebtoken");
 const prisma = require("../config/prisma");
+const { logEvent } = require("../middleware/auditLogger");
 
-// ================= REGISTER =================
+const ACCESS_TOKEN_EXPIRES_IN = "1h";
+const REFRESH_TOKEN_EXPIRES_IN = "7d";
+
+function createAccessToken(user) {
+    return jwt.sign(
+        {
+            id: user.id,
+            email: user.email,
+            roleId: user.roleId
+        },
+        process.env.JWT_SECRET,
+        {
+            expiresIn: ACCESS_TOKEN_EXPIRES_IN
+        }
+    );
+}
+
+function createRefreshToken(user) {
+    return jwt.sign(
+        {
+            id: user.id
+        },
+        process.env.REFRESH_TOKEN_SECRET,
+        {
+            expiresIn: REFRESH_TOKEN_EXPIRES_IN
+        }
+    );
+}
+
+function respondServerError(res, error) {
+    console.error(error);
+    return res.status(500).json({
+        success: false,
+        message: "Internal Server Error"
+    });
+}
+
 exports.register = async (req, res) => {
     try {
         const { name, email, password, roleId } = req.body;
 
-        // Validate input
-        if (!name || !email || !password || !roleId) {
-            return res.status(400).json({
-                success: false,
-                message: "All fields are required."
-            });
-        }
-
-        // Check if email already exists
         const existingUser = await prisma.user.findUnique({
             where: { email }
         });
@@ -27,10 +55,8 @@ exports.register = async (req, res) => {
             });
         }
 
-        // Hash password
         const hashedPassword = await bcrypt.hash(password, 10);
 
-        // Create user
         const user = await prisma.user.create({
             data: {
                 name,
@@ -50,135 +76,118 @@ exports.register = async (req, res) => {
                 roleId: user.roleId
             }
         });
-
     } catch (error) {
-        console.error(error);
-
-        return res.status(500).json({
-            success: false,
-            message: "Internal Server Error"
-        });
+        return respondServerError(res, error);
     }
 };
 
-// ================= LOGIN =================
 exports.login = async (req, res) => {
     try {
         const { email, password } = req.body;
 
-        if (!email || !password) {
-            return res.status(400).json({
-                success: false,
-                message: "Email and password are required."
-            });
-        }
-
-        // Find user
         const user = await prisma.user.findUnique({
             where: { email }
         });
 
         if (!user) {
-            return res.status(404).json({
+            logEvent("warn", "Login Failure", {
+                userId: "unknown",
+                ip: req.ip || req.headers["x-forwarded-for"],
+                endpoint: req.originalUrl,
+                status: 401,
+                reason: "User not found",
+                email: req.body.email
+            });
+
+            return res.status(401).json({
                 success: false,
-                message: "User not found."
+                message: "Invalid email or password."
             });
         }
 
-        // Compare password
         const isMatch = await bcrypt.compare(password, user.password);
 
         if (!isMatch) {
+            logEvent("warn", "Login Failure", {
+                userId: user.id,
+                ip: req.ip || req.headers["x-forwarded-for"],
+                endpoint: req.originalUrl,
+                status: 401,
+                reason: "Invalid password"
+            });
+
             return res.status(401).json({
                 success: false,
-                message: "Invalid password."
+                message: "Invalid email or password."
             });
         }
 
-        // Generate JWT Access Token
-        const accessToken = jwt.sign(
-            {
+        const accessToken = createAccessToken(user);
+        const refreshToken = createRefreshToken(user);
+
+        logEvent("info", "User Login", {
+            userId: user.id,
+            ip: req.ip || req.headers["x-forwarded-for"],
+            endpoint: req.originalUrl,
+            status: 200
+        });
+
+        return res.status(200).json({
+            success: true,
+            message: "Login successful.",
+            accessToken,
+            refreshToken,
+            user: {
                 id: user.id,
+                name: user.name,
                 email: user.email,
                 roleId: user.roleId
-            },
-            process.env.JWT_SECRET,
-            {
-                expiresIn: "1h"
             }
-        );
-const refreshToken = jwt.sign(
-    {
-        id: user.id
-    },
-    process.env.REFRESH_TOKEN_SECRET,
-    {
-        expiresIn: "7d"
-    }
-);
-       return res.status(200).json({
-    success: true,
-    message: "Login successful.",
-    accessToken,
-    refreshToken,
-    user: {
-        id: user.id,
-        name: user.name,
-        email: user.email,
-        roleId: user.roleId
-    }
-});
-    } catch (error) {
-        console.error(error);
-
-        return res.status(500).json({
-            success: false,
-            message: "Internal Server Error"
         });
+    } catch (error) {
+        return respondServerError(res, error);
     }
 };
+
 exports.refreshToken = async (req, res) => {
-
-    const { refreshToken } = req.body;
-
-    if (!refreshToken) {
-        return res.status(401).json({
-            success: false,
-            message: "Refresh token required."
-        });
-    }
-
     try {
+        const { refreshToken } = req.body;
 
-        const decoded = jwt.verify(
-            refreshToken,
-            process.env.REFRESH_TOKEN_SECRET
-        );
+        if (!refreshToken) {
+            return res.status(400).json({
+                success: false,
+                message: "Refresh token is required."
+            });
+        }
 
-        const accessToken = jwt.sign(
-            {
-                id: decoded.id
-            },
-            process.env.JWT_SECRET,
-            {
-                expiresIn: "1h"
-            }
-        );
+        let decoded;
+        try {
+            decoded = jwt.verify(refreshToken, process.env.REFRESH_TOKEN_SECRET);
+        } catch (error) {
+            return res.status(403).json({
+                success: false,
+                message: "Invalid refresh token."
+            });
+        }
 
-        return res.json({
+        const user = await prisma.user.findUnique({
+            where: { id: decoded.id }
+        });
+
+        if (!user) {
+            return res.status(403).json({
+                success: false,
+                message: "Invalid refresh token."
+            });
+        }
+
+        const accessToken = createAccessToken(user);
+
+        return res.status(200).json({
             success: true,
             accessToken
         });
-
-} catch (err) {
-
-    console.error(err);
-
-    return res.status(403).json({
-        success: false,
-        message: "Invalid refresh token."
-    });
-
+    } catch (error) {
+        return respondServerError(res, error);
     }
-
 };

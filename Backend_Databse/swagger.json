@@ -1,0 +1,16 @@
+{
+  "openapi": "3.0.3",
+  "info": {
+    "title": "Backend Database API",
+    "version": "1.0.0",
+    "description": "Backend service APIs for inventory and sales (used by gateway)."
+  },
+  "servers": [{ "url": "http://localhost:5000", "description": "Backend" }],
+  "paths": {
+    "/api/inventory": { "get": { "summary": "List inventory", "responses": { "200": { "description": "OK" } } } },
+    "/api/inventory/add": { "post": { "summary": "Add stock", "requestBody": { "content": { "application/json": { "schema": { "type": "object", "properties": { "productCode": { "type": "string" }, "quantity": { "type": "integer" } }, "required": ["productCode","quantity"] } } } }, "responses": { "200": { "description": "OK" }, "400": { "description": "Validation failed" } } } },
+    "/api/inventory/update": { "put": { "summary": "Update stock", "responses": { "200": { "description": "OK" } } } },
+    "/api/inventory/delete": { "delete": { "summary": "Delete inventory", "responses": { "200": { "description": "OK" } } } },
+    "/api/sales/upload": { "post": { "summary": "Upload sales CSV", "requestBody": { "content": { "multipart/form-data": { "schema": { "type": "object", "properties": { "file": { "type": "string", "format": "binary" } }, "required": ["file"] } } } }, "responses": { "200": { "description": "OK" }, "400": { "description": "Bad Request" } } } }
+  }
+}
