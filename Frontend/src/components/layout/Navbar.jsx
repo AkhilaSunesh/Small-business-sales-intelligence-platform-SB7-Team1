@@ -1,4 +1,4 @@
-import { FiMenu, FiSearch } from 'react-icons/fi';
+import { FiMenu } from 'react-icons/fi';
 import { useLocation } from 'react-router-dom';
 import { getPageMeta } from '../../constants/navigation';
 import { useAppContext } from '../../context/AppContext';
@@ -25,11 +25,6 @@ function Navbar({ onToggle }) {
           <p className="text-xs uppercase tracking-[0.32em] text-cyan-300/70">Dashboard</p>
           <h2 className="truncate text-xl font-semibold text-white">{meta.title}</h2>
           <p className="truncate text-sm text-slate-400">{meta.description}</p>
-        </div>
-
-        <div className="hidden max-w-sm flex-1 items-center gap-3 rounded-2xl border border-white/10 bg-white/5 px-4 py-3 text-slate-400 md:flex">
-          <FiSearch className="shrink-0" />
-          <span className="text-sm">Search products, uploads, or inventory...</span>
         </div>
 
         {user ? (

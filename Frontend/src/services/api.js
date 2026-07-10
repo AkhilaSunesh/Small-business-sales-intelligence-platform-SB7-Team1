@@ -27,11 +27,11 @@ api.interceptors.response.use(
   (error) => {
     const status = error?.response?.status;
     if (status === 401) {
-      // Remove token and redirect to login
+      // Remove token and notify the app without forcing a hard reload.
       try {
         localStorage.removeItem('authToken');
+        window.dispatchEvent(new Event('marketmind:auth-expired'));
       } catch (e) {}
-      window.location.href = '/login';
     }
     return Promise.reject(error);
   },
