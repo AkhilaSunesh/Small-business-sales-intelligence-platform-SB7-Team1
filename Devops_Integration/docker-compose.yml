@@ -70,6 +70,27 @@ services:
       retries: 3
       start_period: 15s
 
+  # Security Gateway
+  security-gateway:
+    build:
+      context: ../
+      dockerfile: Devops_Integration/Dockerfile.security
+    container_name: mmind-security-gateway
+    restart: always
+    environment:
+      PORT: 6000
+      DATABASE_URL: ${DATABASE_URL:-postgresql://postgres:postgres@postgres:5432/marketmind_db?schema=public}
+      JWT_SECRET: ${JWT_SECRET:-supersecretjwtkey123!}
+    ports:
+      - "${SECURITY_GATEWAY_PORT:-6000}:6000"
+    volumes:
+      - logs:/app/logs
+    networks:
+      - mmind-network
+    depends_on:
+      postgres:
+        condition: service_healthy
+
   # Frontend Web UI
   frontend:
     build:
