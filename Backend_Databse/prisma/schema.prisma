@@ -8,70 +8,89 @@ datasource db {
 }
 
 model Role {
-  id    Int    @id @default(autoincrement())
-  name  String @unique
+  id   Int    @id @default(autoincrement())
+  name String @unique
 
   users User[]
 }
 
 model User {
   id        String   @id @default(uuid())
+
   name      String
   email     String   @unique
   password  String
+
   roleId    Int
+  role      Role @relation(fields: [roleId], references: [id])
 
-  role      Role               @relation(fields: [roleId], references: [id])
   sales     SalesTransaction[]
-
-  createdAt DateTime @default(now())
-}
+} 
 
 model Customer {
-  id        String   @id @default(uuid())
-  name      String
-  email     String   @unique
-  phone     String
-  address   String
+  id           String   @id @default(uuid())
+  customerCode String   @unique
+  name         String
 
-  sales     SalesTransaction[]
+  email        String?  @unique
+  phone        String?
+  address      String?
 
-  createdAt DateTime @default(now())
+  createdAt    DateTime @default(now())
+
+  sales        SalesTransaction[]
 }
 
 model Product {
-  id        String   @id @default(uuid())
-  name      String
-  category  String
-  price     Float
+  id          String   @id @default(uuid())
 
-  inventory Inventory?
-  sales     SalesTransaction[]
+  productCode String   @unique
 
-  createdAt DateTime @default(now())
+  name        String
+
+  category    String
+
+  price       Float
+
+  createdAt   DateTime @default(now())
+
+  inventory   Inventory?
+
+  sales       SalesTransaction[]
 }
 
 model Inventory {
-  id        String @id @default(uuid())
-  quantity  Int
 
-  productId String  @unique
-  product   Product @relation(fields: [productId], references: [id])
+ id String @id @default(uuid())
+
+ productId String @unique
+
+ quantity Int
+
+ lowStockThreshold Int @default(10)
+
+ product Product @relation(fields:[productId], references:[id])
+
 }
 
 model SalesTransaction {
-  id          String   @id @default(uuid())
 
-  customerId  String
-  productId   String
-  userId      String
+ id String @id @default(uuid())
 
-  quantity    Int
-  totalAmount Float
+ invoiceNo String @unique
 
-  saleDate    DateTime @default(now())
+ customerId String
+ customer Customer @relation(fields:[customerId], references:[id])
 
-  customer    Customer @relation(fields: [customerId], references: [id])
-  product     Product  @relation(fields: [productId], references: [id])
-  user        User     @relation(fields: [userId], references: [id])
+ productId String
+ product Product @relation(fields:[productId], references:[id])
+
+ userId String
+ user User @relation(fields:[userId], references:[id])
+
+ quantity Int
+
+ totalAmount Float
+
+ transactionDate DateTime
 }
