@@ -10,6 +10,7 @@ import {
   FiUsers,
 } from 'react-icons/fi';
 import { useAppContext } from '../../context/AppContext';
+import { useTranslation } from 'react-i18next';
 import { cn } from '../../utils/classNames';
 
 const iconMap = {
@@ -24,6 +25,7 @@ const iconMap = {
 
 function Sidebar({ collapsed = false }) {
   const { navItems } = useAppContext();
+  const { t } = useTranslation();
 
   return (
     <>
@@ -41,7 +43,7 @@ function Sidebar({ collapsed = false }) {
           {!collapsed && (
             <div>
               <p className="text-sm uppercase tracking-[0.24em] text-cyan-300/80">MarketMind AI</p>
-              <h1 className="text-lg font-semibold text-white">Dashboard</h1>
+              <h1 className="text-lg font-semibold text-white">{t('dashboard')}</h1>
             </div>
           )}
         </div>
@@ -64,15 +66,15 @@ function Sidebar({ collapsed = false }) {
                 }
               >
                 <Icon className="text-lg" />
-                {!collapsed && <span>{item.label}</span>}
+                {!collapsed && <span>{t(item.label === 'User Management' ? 'userManagement' : item.label.toLowerCase())}</span>}
               </NavLink>
             );
           })}
         </nav>
 
         <div className="mt-auto rounded-3xl border border-white/10 bg-white/5 p-5 text-sm text-slate-300">
-          <p className="font-medium text-white">Dashboard navigation</p>
-          <p className="mt-2 leading-6 text-slate-300">Role-based access to dashboard features.</p>
+          <p className="font-medium text-white">{t('navigation')}</p>
+          <p className="mt-2 leading-6 text-slate-300">{t('roleNavDesc')}</p>
         </div>
       </aside>
 
@@ -89,7 +91,7 @@ function Sidebar({ collapsed = false }) {
               <NavLink
                 key={item.label}
                 to={item.path}
-                title={item.label}
+                title={t(item.label === 'User Management' ? 'userManagement' : item.label.toLowerCase())}
                 className={({ isActive }) =>
                   cn(
                     'flex h-12 w-12 items-center justify-center rounded-2xl text-sm font-medium transition-colors',
