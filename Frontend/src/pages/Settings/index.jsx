@@ -1,16 +1,18 @@
 import { useState } from 'react';
 import { usePageTitle } from '../../hooks/usePageTitle';
 import { useAuth } from '../../context/AuthContext';
+import { useTranslation } from 'react-i18next';
 import Button from '../../components/ui/Button';
 import Input from '../../components/ui/Input';
 
 function SettingsPage() {
   usePageTitle('Settings');
 
+  const { t, i18n } = useTranslation();
   const { user, logout, theme, setTheme } = useAuth();
-  const [language, setLanguage] = useState('en');
   const [showPasswordForm, setShowPasswordForm] = useState(false);
   const [showEditProfile, setShowEditProfile] = useState(false);
+
   const [notificationSettings, setNotificationSettings] = useState({
     emailNotifications: true,
     smsNotifications: false,
@@ -80,9 +82,9 @@ function SettingsPage() {
     <div className="space-y-6">
       {/* Page Header */}
       <section className="rounded-3xl border border-white/10 bg-slate-950/80 p-8">
-        <h1 className="text-3xl font-semibold text-white">Settings</h1>
+        <h1 className="text-3xl font-semibold text-white">{t('settings')}</h1>
         <p className="mt-2 text-sm text-slate-400">
-          Manage your profile, preferences, and account settings.
+          {t('manageProfile')}
         </p>
       </section>
 
@@ -90,42 +92,42 @@ function SettingsPage() {
       <section className="rounded-3xl border border-white/10 bg-slate-950/80 p-6">
         <div className="flex items-start justify-between">
           <div>
-            <h2 className="text-xl font-semibold text-white mb-1">User Profile</h2>
-            <p className="text-sm text-slate-400 mb-4">Manage your profile information</p>
+            <h2 className="text-xl font-semibold text-white mb-1">{t('userProfile')}</h2>
+            <p className="text-sm text-slate-400 mb-4">{t('manageProfileInfo')}</p>
           </div>
           <Button
             variant="secondary"
             onClick={() => setShowEditProfile(!showEditProfile)}
             className="text-sm"
           >
-            {showEditProfile ? '✕ Cancel' : '✎ Edit Profile'}
+            {showEditProfile ? `${t('cancel')}` : `${t('editProfile')}`}
           </Button>
         </div>
 
         {showEditProfile ? (
           <div className="space-y-4">
             <Input
-              label="Full Name"
+              label={t('fullName')}
               type="text"
               value={profileForm.name}
               onChange={(e) => handleProfileChange('name', e.target.value)}
             />
             <Input
-              label="Email Address"
+              label={t('emailAddress')}
               type="email"
               value={profileForm.email}
               onChange={(e) => handleProfileChange('email', e.target.value)}
             />
             <div className="grid grid-cols-2 gap-3">
               <Input
-                label="Role"
+                label={t('role')}
                 type="text"
                 value={user?.role || 'Owner'}
                 disabled
                 className="bg-white/2 cursor-not-allowed"
               />
               <Input
-                label="Member Since"
+                label={t('memberSince')}
                 type="text"
                 value="July 2025"
                 disabled
@@ -134,32 +136,32 @@ function SettingsPage() {
             </div>
             <div className="flex gap-3">
               <Button variant="primary" onClick={handleSaveProfile}>
-                Save Changes
+                {t('saveChanges')}
               </Button>
               <Button
                 variant="secondary"
                 onClick={() => setShowEditProfile(false)}
               >
-                Cancel
+                {t('cancel')}
               </Button>
             </div>
           </div>
         ) : (
           <div className="grid gap-4 sm:grid-cols-2">
             <div className="rounded-2xl bg-white/5 p-4">
-              <p className="text-xs font-medium text-slate-400 mb-1">Full Name</p>
+              <p className="text-xs font-medium text-slate-400 mb-1">{t('fullName')}</p>
               <p className="text-base text-white font-medium">{profileForm.name}</p>
             </div>
             <div className="rounded-2xl bg-white/5 p-4">
-              <p className="text-xs font-medium text-slate-400 mb-1">Email Address</p>
+              <p className="text-xs font-medium text-slate-400 mb-1">{t('emailAddress')}</p>
               <p className="text-base text-white font-medium">{profileForm.email}</p>
             </div>
             <div className="rounded-2xl bg-white/5 p-4">
-              <p className="text-xs font-medium text-slate-400 mb-1">Role</p>
+              <p className="text-xs font-medium text-slate-400 mb-1">{t('role')}</p>
               <p className="text-base text-white font-medium">{user?.role || 'Owner'}</p>
             </div>
             <div className="rounded-2xl bg-white/5 p-4">
-              <p className="text-xs font-medium text-slate-400 mb-1">Member Since</p>
+              <p className="text-xs font-medium text-slate-400 mb-1">{t('memberSince')}</p>
               <p className="text-base text-white font-medium">July 2025</p>
             </div>
           </div>
@@ -170,36 +172,36 @@ function SettingsPage() {
       <section className="rounded-3xl border border-white/10 bg-slate-950/80 p-6">
         <div className="flex items-start justify-between">
           <div>
-            <h2 className="text-xl font-semibold text-white mb-1">Change Password</h2>
-            <p className="text-sm text-slate-400">Keep your account secure with a strong password</p>
+            <h2 className="text-xl font-semibold text-white mb-1">{t('changePassword')}</h2>
+            <p className="text-sm text-slate-400">{t('keepSecure')}</p>
           </div>
           <Button
             variant="secondary"
             onClick={() => setShowPasswordForm(!showPasswordForm)}
             className="text-sm"
           >
-            {showPasswordForm ? '✕ Cancel' : '🔐 Change'}
+            {showPasswordForm ? `${t('cancel')}` : `${t('change')}`}
           </Button>
         </div>
 
         {showPasswordForm && (
           <div className="mt-4 space-y-4">
             <Input
-              label="Current Password"
+              label={t('currentPassword')}
               type="password"
               placeholder="Enter your current password"
               value={passwordForm.currentPassword}
               onChange={(e) => handlePasswordChange('currentPassword', e.target.value)}
             />
             <Input
-              label="New Password"
+              label={t('newPassword')}
               type="password"
               placeholder="Enter new password"
               value={passwordForm.newPassword}
               onChange={(e) => handlePasswordChange('newPassword', e.target.value)}
             />
             <Input
-              label="Confirm Password"
+              label={t('confirmPassword')}
               type="password"
               placeholder="Confirm new password"
               value={passwordForm.confirmPassword}
@@ -207,13 +209,13 @@ function SettingsPage() {
             />
             <div className="flex gap-3">
               <Button variant="primary" onClick={handleSavePassword}>
-                Update Password
+                {t('updatePassword')}
               </Button>
               <Button
                 variant="secondary"
                 onClick={() => setShowPasswordForm(false)}
               >
-                Cancel
+                {t('cancel')}
               </Button>
             </div>
           </div>
@@ -222,24 +224,22 @@ function SettingsPage() {
 
       {/* Notification Preferences */}
       <section className="rounded-3xl border border-white/10 bg-slate-950/80 p-6">
-        <h2 className="text-xl font-semibold text-white mb-4">Notification Preferences</h2>
+        <h2 className="text-xl font-semibold text-white mb-4">{t('notificationPreferences')}</h2>
         <div className="space-y-3">
           {Object.entries(notificationSettings).map(([key, value]) => (
             <div key={key} className="flex items-center justify-between rounded-2xl bg-white/5 p-4">
               <div>
                 <p className="text-sm font-medium text-white capitalize">
-                  {key
-                    .replace(/([A-Z])/g, ' $1')
-                    .replace(/^./, (str) => str.toUpperCase())}
+                  {key === 'emailNotifications' && t('emailNotifications')}
+                  {key === 'smsNotifications' && t('smsNotifications')}
+                  {key === 'pushNotifications' && t('pushNotifications')}
+                  {key === 'marketingEmails' && t('marketingEmails')}
                 </p>
                 <p className="text-xs text-slate-400 mt-1">
-                  {key === 'emailNotifications' &&
-                    'Receive email updates about your account activity'}
-                  {key === 'smsNotifications' && 'Get SMS alerts for important notifications'}
-                  {key === 'pushNotifications' &&
-                    'Enable browser push notifications'}
-                  {key === 'marketingEmails' &&
-                    'Receive promotional offers and news'}
+                  {key === 'emailNotifications' && t('emailDesc')}
+                  {key === 'smsNotifications' && t('smsDesc')}
+                  {key === 'pushNotifications' && t('pushDesc')}
+                  {key === 'marketingEmails' && t('marketingDesc')}
                 </p>
               </div>
               <label className="flex items-center cursor-pointer">
@@ -270,7 +270,7 @@ function SettingsPage() {
       <section className="grid gap-6 lg:grid-cols-2">
         {/* Theme Toggle */}
         <div className="rounded-3xl border border-white/10 bg-slate-950/80 p-6">
-          <h2 className="text-xl font-semibold text-white mb-4">Theme</h2>
+          <h2 className="text-xl font-semibold text-white mb-4">{t('theme')}</h2>
           <div className="flex gap-4">
             <button
               type="button"
@@ -281,7 +281,7 @@ function SettingsPage() {
                   : 'bg-white/5 border border-white/10 text-slate-400 hover:bg-white/10'
               }`}
             >
-              🌙 Dark Mode
+              {t('darkMode')}
             </button>
             <button
               type="button"
@@ -292,64 +292,65 @@ function SettingsPage() {
                   : 'bg-white/5 border border-white/10 text-slate-400 hover:bg-white/10'
               }`}
             >
-              ☀️ Light Mode
+              {t('lightMode')}
             </button>
           </div>
           <p className="text-xs text-slate-400 mt-3">
-            Currently using {theme === 'dark' ? 'Dark' : 'Light'} mode
+            {t('themeDesc', { theme: theme === 'dark' ? 'Dark' : 'Light' })}
           </p>
         </div>
 
         {/* Language Selection */}
         <div className="rounded-3xl border border-white/10 bg-slate-950/80 p-6">
-          <h2 className="text-xl font-semibold text-white mb-4">Language</h2>
+          <h2 className="text-xl font-semibold text-white mb-4">{t('language')}</h2>
           <select
-            value={language}
-            onChange={(e) => setLanguage(e.target.value)}
-            className="w-full rounded-2xl border border-white/10 bg-slate-950 px-4 py-3 text-white outline-none transition focus:border-cyan-400/50 focus:ring-2 focus:ring-cyan-400/20"
+            value={i18n.language}
+            onChange={(e) => {
+              i18n.changeLanguage(e.target.value);
+              localStorage.setItem('marketmindLang', e.target.value);
+            }}
+            className="w-full rounded-2xl border border-white/10 bg-slate-950 px-4 py-3 text-slate-200 outline-none transition focus:border-cyan-400/50 focus:ring-2 focus:ring-cyan-400/20"
           >
-            <option value="en" className="bg-slate-950 text-white">🇬🇧 English</option>
-            <option value="es" className="bg-slate-950 text-white">🇪🇸 Español</option>
-            <option value="fr" className="bg-slate-950 text-white">🇫🇷 Français</option>
-            <option value="de" className="bg-slate-950 text-white">🇩🇪 Deutsch</option>
-            <option value="it" className="bg-slate-950 text-white">🇮🇹 Italiano</option>
+            <option value="en" className="bg-slate-950 text-slate-200">🇬🇧 English</option>
+            <option value="hi" className="bg-slate-950 text-slate-200">🇮🇳 हिन्दी</option>
+            <option value="ta" className="bg-slate-950 text-slate-200">🇮🇳 தமிழ்</option>
           </select>
           <p className="text-xs text-slate-400 mt-3">
-            Interface language set to: {language === 'en' ? 'English' : language.toUpperCase()}
+            {t('langDesc', { lang: i18n.language === 'en' ? 'English' : i18n.language === 'ta' ? 'தமிழ்' : 'हिन्दी' })}
           </p>
         </div>
       </section>
 
       {/* System Status Section */}
       <section className="rounded-3xl border border-white/10 bg-slate-950/80 p-6">
-        <h2 className="text-xl font-semibold text-white mb-4">System Status</h2>
+        <h2 className="text-xl font-semibold text-white mb-4">{t('systemStatus')}</h2>
         <div className="grid gap-4 sm:grid-cols-2">
           <div className="rounded-2xl bg-white/5 p-4">
             <div className="flex items-center justify-between mb-2">
-              <p className="text-sm font-medium text-slate-300">API / Backend</p>
+              <p className="text-sm font-medium text-slate-300">{t('apiBackend')}</p>
               <span className="inline-flex items-center gap-1 text-xs font-medium">
                 <span className="w-2 h-2 rounded-full bg-emerald-500"></span>
-                Connected
+                {t('connected')}
               </span>
             </div>
-            <p className="text-xs text-slate-400">All services operational</p>
+            <p className="text-xs text-slate-400">{t('allOperational')}</p>
           </div>
           <div className="rounded-2xl bg-white/5 p-4">
             <div className="flex items-center justify-between mb-2">
-              <p className="text-sm font-medium text-slate-300">Database</p>
+              <p className="text-sm font-medium text-slate-300">{t('database')}</p>
               <span className="inline-flex items-center gap-1 text-xs font-medium">
                 <span className="w-2 h-2 rounded-full bg-emerald-500"></span>
-                Connected
+                {t('connected')}
               </span>
             </div>
-            <p className="text-xs text-slate-400">Sync completed</p>
+            <p className="text-xs text-slate-400">{t('syncCompleted')}</p>
           </div>
           <div className="rounded-2xl bg-white/5 p-4">
-            <p className="text-sm font-medium text-slate-300 mb-2">Application Version</p>
+            <p className="text-sm font-medium text-slate-300 mb-2">{t('appVersion')}</p>
             <p className="text-base font-semibold text-cyan-300">v1.0.0</p>
           </div>
           <div className="rounded-2xl bg-white/5 p-4">
-            <p className="text-sm font-medium text-slate-300 mb-2">Last Updated</p>
+            <p className="text-sm font-medium text-slate-300 mb-2">{t('lastUpdated')}</p>
             <p className="text-base font-semibold text-slate-200">
               {new Date().toLocaleDateString()}
             </p>
@@ -359,16 +360,16 @@ function SettingsPage() {
 
       {/* Danger Zone - Logout */}
       <section className="rounded-3xl border border-red-500/20 bg-red-500/5 p-6">
-        <h2 className="text-xl font-semibold text-red-400 mb-2">Danger Zone</h2>
+        <h2 className="text-xl font-semibold text-red-400 mb-2">{t('dangerZone')}</h2>
         <p className="text-sm text-slate-400 mb-4">
-          Logging out will end your current session. You can log back in anytime.
+          {t('logoutDesc')}
         </p>
         <Button
           variant="secondary"
           onClick={handleLogout}
           className="border-red-500/30 bg-red-500/10 text-red-300 hover:bg-red-500/20"
         >
-          🚪 Logout
+          {t('logout')}
         </Button>
       </section>
     </div>

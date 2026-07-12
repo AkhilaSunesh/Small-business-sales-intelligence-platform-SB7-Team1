@@ -3,6 +3,7 @@ import ReactDOM from 'react-dom/client';
 import { BrowserRouter } from 'react-router-dom';
 import App from './App';
 import './index.css';
+import './utils/i18n';
 import { AppProvider } from './context/AppContext';
 import { ToastProvider } from './components/common/Toast';
 
