@@ -1,3 +1,8 @@
+// Security API Gateway — Prisma schema
+// Must stay in sync with Backend_Databse/prisma/schema.prisma
+// The gateway uses this schema ONLY for auth (User / Role lookups).
+// All business data queries are proxied to the backend service.
+
 generator client {
   provider = "prisma-client-js"
 }
@@ -14,52 +19,61 @@ model Role {
 }
 
 model User {
-  id        String             @id @default(uuid())
-  name      String
-  email     String             @unique
-  password  String
-  roleId    Int
-  createdAt DateTime           @default(now())
-  sales     SalesTransaction[]
-  role      Role               @relation(fields: [roleId], references: [id])
+  id       String @id @default(uuid())
+  name     String
+  email    String @unique
+  password String
+  roleId   Int
+  role     Role   @relation(fields: [roleId], references: [id])
+
+  sales SalesTransaction[]
 }
 
 model Customer {
-  id        String             @id @default(uuid())
-  name      String
-  email     String             @unique
-  phone     String
-  address   String
-  createdAt DateTime           @default(now())
-  sales     SalesTransaction[]
+  id           String  @id @default(uuid())
+  customerCode String  @unique
+  name         String
+  email        String? @unique
+  phone        String?
+  address      String?
+
+  createdAt DateTime @default(now())
+
+  sales SalesTransaction[]
 }
 
 model Product {
-  id        String             @id @default(uuid())
-  name      String
-  category  String
-  price     Float
-  createdAt DateTime           @default(now())
+  id          String @id @default(uuid())
+  productCode String @unique
+  name        String
+  category    String
+  price       Float
+
+  createdAt DateTime @default(now())
+
   inventory Inventory?
   sales     SalesTransaction[]
 }
 
 model Inventory {
-  id        String  @id @default(uuid())
-  quantity  Int
-  productId String  @unique
-  product   Product @relation(fields: [productId], references: [id])
+  id                String  @id @default(uuid())
+  productId         String  @unique
+  quantity          Int
+  lowStockThreshold Int     @default(10)
+  product           Product @relation(fields: [productId], references: [id])
 }
 
 model SalesTransaction {
-  id          String   @id @default(uuid())
-  customerId  String
-  productId   String
-  userId      String
-  quantity    Int
-  totalAmount Float
-  saleDate    DateTime @default(now())
-  customer    Customer @relation(fields: [customerId], references: [id])
-  product     Product  @relation(fields: [productId], references: [id])
-  user        User     @relation(fields: [userId], references: [id])
+  id              String   @id @default(uuid())
+  invoiceNo       String   @unique
+  customerId      String
+  productId       String
+  userId          String?
+  quantity        Int
+  totalAmount     Float
+  transactionDate DateTime
+
+  customer Customer @relation(fields: [customerId], references: [id])
+  product  Product  @relation(fields: [productId], references: [id])
+  user     User?    @relation(fields: [userId], references: [id])
 }

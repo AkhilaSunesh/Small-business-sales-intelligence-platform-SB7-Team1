@@ -191,3 +191,47 @@ exports.refreshToken = async (req, res) => {
         return respondServerError(res, error);
     }
 };
+
+
+// ─── GET /api/auth/me ─────────────────────────────────────────────────────────
+// Returns the profile of the currently authenticated user.
+// req.user is populated by the authenticate middleware.
+exports.me = async (req, res) => {
+    try {
+        const user = await prisma.user.findUnique({
+            where:  { id: req.user.id },
+            select: {
+                id:     true,
+                name:   true,
+                email:  true,
+                roleId: true,
+                role:   { select: { name: true } }
+            }
+        });
+
+        if (!user) {
+            return res.status(404).json({ success: false, message: "User not found." });
+        }
+
+        return res.status(200).json({ success: true, user });
+    } catch (error) {
+        return respondServerError(res, error);
+    }
+};
+
+// ─── POST /api/auth/logout ────────────────────────────────────────────────────
+// Stateless logout — the client discards its tokens.
+// Logged in audit trail for traceability.
+exports.logout = (req, res) => {
+    logEvent("info", "User Logout", {
+        userId:   req.user ? req.user.id : "anonymous",
+        ip:       req.ip || req.headers["x-forwarded-for"],
+        endpoint: req.originalUrl,
+        status:   200
+    });
+
+    return res.status(200).json({
+        success: true,
+        message: "Logged out successfully. Please discard your tokens."
+    });
+};

@@ -11,16 +11,21 @@ const getResource = (req) => {
 };
 
 const permissions = {
-    1: { "*": ["GET", "POST", "PUT", "DELETE", "PATCH"] },
-    2: {
+    1: { "*": ["GET", "POST", "PUT", "DELETE", "PATCH"] },    // Business Owner — full access
+    2: {                                                        // Store Manager
         inventory: ["GET", "POST", "PUT", "PATCH"],
-        products: ["GET", "POST", "PUT", "PATCH"],
+        products:  ["GET", "POST", "PUT", "PATCH"],
         dashboard: ["GET"],
-        analytics: ["GET"]
+        analytics: ["GET"],
+        customers: ["GET"],
+        sales:     ["GET"]
     },
-    3: {
-        sales: ["POST"]
-    }
+    3: {                                                        // Sales Executive
+        sales:     ["GET", "POST"],
+        customers: ["GET"],
+        products:  ["GET"]
+    },
+    4: { "*": ["GET", "POST", "PUT", "DELETE", "PATCH"] }      // System Administrator — full access
 };
 
 const authorize = (req, res, next) => {

@@ -1,16 +1,382 @@
 {
   "openapi": "3.0.3",
   "info": {
-    "title": "Backend Database API",
+    "title": "MarketMind AI — Backend Database API",
     "version": "1.0.0",
-    "description": "Backend service APIs for inventory and sales (used by gateway)."
+    "description": "Internal backend service. All routes require a Bearer JWT issued by the Security API Gateway."
   },
-  "servers": [{ "url": "http://localhost:5000", "description": "Backend" }],
+  "servers": [
+    { "url": "http://localhost:5000", "description": "Local backend (port 5000)" }
+  ],
+  "tags": [
+    { "name": "Sales",     "description": "Sales transactions and CSV upload" },
+    { "name": "Inventory", "description": "Stock management" },
+    { "name": "Dashboard", "description": "KPI summary" },
+    { "name": "Analytics", "description": "Revenue and top-product analytics" },
+    { "name": "Products",  "description": "Product catalogue (read-only)" },
+    { "name": "Customers", "description": "Customer list (read-only)" }
+  ],
   "paths": {
-    "/api/inventory": { "get": { "summary": "List inventory", "responses": { "200": { "description": "OK" } } } },
-    "/api/inventory/add": { "post": { "summary": "Add stock", "requestBody": { "content": { "application/json": { "schema": { "type": "object", "properties": { "productCode": { "type": "string" }, "quantity": { "type": "integer" } }, "required": ["productCode","quantity"] } } } }, "responses": { "200": { "description": "OK" }, "400": { "description": "Validation failed" } } } },
-    "/api/inventory/update": { "put": { "summary": "Update stock", "responses": { "200": { "description": "OK" } } } },
-    "/api/inventory/delete": { "delete": { "summary": "Delete inventory", "responses": { "200": { "description": "OK" } } } },
-    "/api/sales/upload": { "post": { "summary": "Upload sales CSV", "requestBody": { "content": { "multipart/form-data": { "schema": { "type": "object", "properties": { "file": { "type": "string", "format": "binary" } }, "required": ["file"] } } } }, "responses": { "200": { "description": "OK" }, "400": { "description": "Bad Request" } } } }
+    "/api/sales": {
+      "get": {
+        "tags": ["Sales"],
+        "summary": "List sales transactions (paginated)",
+        "security": [{ "bearerAuth": [] }],
+        "parameters": [
+          { "name": "page",        "in": "query", "schema": { "type": "integer", "default": 1,  "minimum": 1 } },
+          { "name": "pageSize",    "in": "query", "schema": { "type": "integer", "default": 20, "minimum": 1, "maximum": 100 } },
+          { "name": "customerId",  "in": "query", "schema": { "type": "string" } },
+          { "name": "productId",   "in": "query", "schema": { "type": "string" } },
+          { "name": "startDate",   "in": "query", "schema": { "type": "string", "format": "date", "example": "2024-01-01" } },
+          { "name": "endDate",     "in": "query", "schema": { "type": "string", "format": "date", "example": "2024-12-31" } }
+        ],
+        "responses": {
+          "200": {
+            "description": "Paginated list of sales with customer/product/user details",
+            "content": { "application/json": { "schema": { "$ref": "#/components/schemas/SalesListResponse" } } }
+          },
+          "401": { "$ref": "#/components/responses/Unauthorized" },
+          "500": { "$ref": "#/components/responses/ServerError" }
+        }
+      }
+    },
+    "/api/sales/{id}": {
+      "get": {
+        "tags": ["Sales"],
+        "summary": "Get a single sale by ID",
+        "security": [{ "bearerAuth": [] }],
+        "parameters": [
+          { "name": "id", "in": "path", "required": true, "schema": { "type": "string", "format": "uuid" } }
+        ],
+        "responses": {
+          "200": { "description": "Single sale transaction" },
+          "401": { "$ref": "#/components/responses/Unauthorized" },
+          "404": { "$ref": "#/components/responses/NotFound" },
+          "500": { "$ref": "#/components/responses/ServerError" }
+        }
+      }
+    },
+    "/api/sales/upload": {
+      "post": {
+        "tags": ["Sales"],
+        "summary": "Upload a CSV file of sales rows",
+        "security": [{ "bearerAuth": [] }],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "multipart/form-data": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "file": {
+                    "type": "string",
+                    "format": "binary",
+                    "description": "CSV file. Required columns: CustomerID, ProductID, Quantity, Price, TransactionDate"
+                  }
+                },
+                "required": ["file"]
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Upload summary",
+            "content": {
+              "application/json": {
+                "schema": { "$ref": "#/components/schemas/UploadSummaryResponse" }
+              }
+            }
+          },
+          "400": { "description": "No file, wrong format, or missing columns" },
+          "401": { "$ref": "#/components/responses/Unauthorized" },
+          "500": { "$ref": "#/components/responses/ServerError" }
+        }
+      }
+    },
+    "/api/inventory": {
+      "get": {
+        "tags": ["Inventory"],
+        "summary": "List all inventory with low-stock flags",
+        "security": [{ "bearerAuth": [] }],
+        "responses": {
+          "200": {
+            "description": "Inventory list annotated with lowStock boolean and summary counts",
+            "content": { "application/json": { "schema": { "$ref": "#/components/schemas/InventoryListResponse" } } }
+          },
+          "401": { "$ref": "#/components/responses/Unauthorized" },
+          "500": { "$ref": "#/components/responses/ServerError" }
+        }
+      }
+    },
+    "/api/inventory/low-stock": {
+      "get": {
+        "tags": ["Inventory"],
+        "summary": "List only items at or below their low-stock threshold",
+        "security": [{ "bearerAuth": [] }],
+        "responses": {
+          "200": { "description": "Low-stock items with count summary" },
+          "401": { "$ref": "#/components/responses/Unauthorized" },
+          "500": { "$ref": "#/components/responses/ServerError" }
+        }
+      }
+    },
+    "/api/inventory/add": {
+      "post": {
+        "tags": ["Inventory"],
+        "summary": "Increment stock quantity for a product",
+        "security": [{ "bearerAuth": [] }],
+        "requestBody": {
+          "required": true,
+          "content": { "application/json": { "schema": { "$ref": "#/components/schemas/InventoryWriteRequest" } } }
+        },
+        "responses": {
+          "200": { "description": "Updated inventory record" },
+          "400": { "description": "Validation failed" },
+          "401": { "$ref": "#/components/responses/Unauthorized" },
+          "404": { "$ref": "#/components/responses/NotFound" },
+          "500": { "$ref": "#/components/responses/ServerError" }
+        }
+      }
+    },
+    "/api/inventory/update": {
+      "put": {
+        "tags": ["Inventory"],
+        "summary": "Set absolute stock level for a product",
+        "security": [{ "bearerAuth": [] }],
+        "requestBody": {
+          "required": true,
+          "content": { "application/json": { "schema": { "$ref": "#/components/schemas/InventoryWriteRequest" } } }
+        },
+        "responses": {
+          "200": { "description": "Updated inventory record" },
+          "400": { "description": "Validation failed" },
+          "401": { "$ref": "#/components/responses/Unauthorized" },
+          "404": { "$ref": "#/components/responses/NotFound" },
+          "500": { "$ref": "#/components/responses/ServerError" }
+        }
+      }
+    },
+    "/api/inventory/delete": {
+      "delete": {
+        "tags": ["Inventory"],
+        "summary": "Delete inventory record for a product",
+        "security": [{ "bearerAuth": [] }],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": { "productCode": { "type": "string", "example": "PROD-0001" } },
+                "required": ["productCode"]
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": { "description": "Inventory record deleted" },
+          "400": { "description": "Validation failed" },
+          "401": { "$ref": "#/components/responses/Unauthorized" },
+          "404": { "$ref": "#/components/responses/NotFound" },
+          "500": { "$ref": "#/components/responses/ServerError" }
+        }
+      }
+    },
+    "/api/dashboard/summary": {
+      "get": {
+        "tags": ["Dashboard"],
+        "summary": "KPI summary — total customers, products, sales and revenue",
+        "security": [{ "bearerAuth": [] }],
+        "responses": {
+          "200": {
+            "description": "Dashboard KPI object",
+            "content": {
+              "application/json": {
+                "schema": { "$ref": "#/components/schemas/DashboardSummaryResponse" }
+              }
+            }
+          },
+          "401": { "$ref": "#/components/responses/Unauthorized" },
+          "500": { "$ref": "#/components/responses/ServerError" }
+        }
+      }
+    },
+    "/api/analytics/summary": {
+      "get": {
+        "tags": ["Analytics"],
+        "summary": "Analytics — total revenue, sales count, top 5 products by quantity sold",
+        "security": [{ "bearerAuth": [] }],
+        "responses": {
+          "200": {
+            "description": "Analytics summary",
+            "content": {
+              "application/json": {
+                "schema": { "$ref": "#/components/schemas/AnalyticsSummaryResponse" }
+              }
+            }
+          },
+          "401": { "$ref": "#/components/responses/Unauthorized" },
+          "500": { "$ref": "#/components/responses/ServerError" }
+        }
+      }
+    },
+    "/api/products": {
+      "get": {
+        "tags": ["Products"],
+        "summary": "List all products ordered by id",
+        "security": [{ "bearerAuth": [] }],
+        "responses": {
+          "200": {
+            "description": "Array of products",
+            "content": { "application/json": { "schema": { "$ref": "#/components/schemas/ProductListResponse" } } }
+          },
+          "401": { "$ref": "#/components/responses/Unauthorized" },
+          "500": { "$ref": "#/components/responses/ServerError" }
+        }
+      }
+    },
+    "/api/customers": {
+      "get": {
+        "tags": ["Customers"],
+        "summary": "List customers (up to 100, alphabetical by name)",
+        "security": [{ "bearerAuth": [] }],
+        "responses": {
+          "200": {
+            "description": "Array of customers",
+            "content": { "application/json": { "schema": { "$ref": "#/components/schemas/CustomerListResponse" } } }
+          },
+          "401": { "$ref": "#/components/responses/Unauthorized" },
+          "500": { "$ref": "#/components/responses/ServerError" }
+        }
+      }
+    }
+  },
+  "components": {
+    "securitySchemes": {
+      "bearerAuth": {
+        "type": "http",
+        "scheme": "bearer",
+        "bearerFormat": "JWT",
+        "description": "JWT issued by the Security API Gateway. Include as: Authorization: Bearer <token>"
+      }
+    },
+    "responses": {
+      "Unauthorized": { "description": "Missing or invalid JWT" },
+      "NotFound":      { "description": "Resource not found" },
+      "ServerError":   { "description": "Internal server error" }
+    },
+    "schemas": {
+      "InventoryWriteRequest": {
+        "type": "object",
+        "properties": {
+          "productCode": { "type": "string", "example": "PROD-0001" },
+          "quantity":    { "type": "integer", "minimum": 0, "example": 25 }
+        },
+        "required": ["productCode", "quantity"]
+      },
+      "UploadSummaryResponse": {
+        "type": "object",
+        "properties": {
+          "success":    { "type": "boolean" },
+          "message":    { "type": "string" },
+          "summary": {
+            "type": "object",
+            "properties": {
+              "filename":          { "type": "string" },
+              "uploadedAt":        { "type": "string", "format": "date-time" },
+              "totalRowsRead":     { "type": "integer" },
+              "recordsInserted":   { "type": "integer" },
+              "duplicatesRemoved": { "type": "integer" },
+              "invalidRows":       { "type": "integer" },
+              "validationErrors":  {
+                "type": "array",
+                "items": {
+                  "type": "object",
+                  "properties": {
+                    "row":    { "type": "integer" },
+                    "reason": { "type": "string" },
+                    "data":   { "type": "object" }
+                  }
+                }
+              }
+            }
+          }
+        }
+      },
+      "InventoryListResponse": {
+        "type": "object",
+        "properties": {
+          "success":   { "type": "boolean" },
+          "inventory": { "type": "array", "items": { "type": "object" } },
+          "summary": {
+            "type": "object",
+            "properties": {
+              "total":         { "type": "integer" },
+              "lowStockCount": { "type": "integer" }
+            }
+          }
+        }
+      },
+      "SalesListResponse": {
+        "type": "object",
+        "properties": {
+          "success": { "type": "boolean" },
+          "data":    { "type": "array", "items": { "type": "object" } },
+          "pagination": {
+            "type": "object",
+            "properties": {
+              "total":      { "type": "integer" },
+              "page":       { "type": "integer" },
+              "pageSize":   { "type": "integer" },
+              "totalPages": { "type": "integer" }
+            }
+          }
+        }
+      },
+      "DashboardSummaryResponse": {
+        "type": "object",
+        "properties": {
+          "success": { "type": "boolean" },
+          "data": {
+            "type": "object",
+            "properties": {
+              "totalCustomers": { "type": "integer" },
+              "totalProducts":  { "type": "integer" },
+              "totalSales":     { "type": "integer" },
+              "totalRevenue":   { "type": "number" }
+            }
+          }
+        }
+      },
+      "AnalyticsSummaryResponse": {
+        "type": "object",
+        "properties": {
+          "success": { "type": "boolean" },
+          "data": {
+            "type": "object",
+            "properties": {
+              "totalSales":   { "type": "integer" },
+              "totalRevenue": { "type": "number" },
+              "topProducts":  { "type": "array", "items": { "type": "object" } }
+            }
+          }
+        }
+      },
+      "ProductListResponse": {
+        "type": "object",
+        "properties": {
+          "success": { "type": "boolean" },
+          "data":    { "type": "array", "items": { "type": "object" } }
+        }
+      },
+      "CustomerListResponse": {
+        "type": "object",
+        "properties": {
+          "success": { "type": "boolean" },
+          "data":    { "type": "array", "items": { "type": "object" } }
+        }
+      }
+    }
   }
 }

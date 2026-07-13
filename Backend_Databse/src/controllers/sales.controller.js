@@ -1,167 +1,259 @@
-const { PrismaClient } = require("@prisma/client");
-const csv = require("csv-parser");
-const fs = require("fs");
-const jwt = require("jsonwebtoken");
+const prisma = require("../config/prisma");
+const csv    = require("csv-parser");
+const fs     = require("fs");
+const jwt    = require("jsonwebtoken");
+const { validateKaggleColumns, validateKaggleRow } = require("../utils/csvValidator");
 
-const prisma = new PrismaClient();
-
-exports.uploadSales = async (req, res) => {
-  try {
-    if (!req.file) {
-      return res.status(400).json({ success: false, message: "CSV file required" });
-    }
-
-    const rows = [];
-
-    const cleanupFile = (path) => {
-      try {
-        if (path) fs.unlink(path, () => {});
-      } catch (err) {
-        console.warn("Failed to cleanup uploaded file:", err.message);
-      }
-    };
-
-    // determine userId: prefer req.user (set by backend middleware), fallback to decoding header
-    let requestUserId = null;
-    if (req.user && req.user.id) {
-      requestUserId = req.user.id;
-    } else {
-      try {
-        const authHeader = req.headers && (req.headers.authorization || req.headers.Authorization);
-        if (authHeader && authHeader.startsWith("Bearer ")) {
-          const token = authHeader.split(" ")[1];
-          const decoded = jwt.verify(token, process.env.JWT_SECRET);
-          requestUserId = decoded && decoded.id ? decoded.id : null;
-        }
-      } catch (err) {
-        // ignore; will fallback to null (no user)
-      }
-    }
-
-    fs.createReadStream(req.file.path)
-      .pipe(csv())
-      .on("data", (row) => {
-        rows.push(row);
-      })
-      .on("end", async () => {
-        let inserted = 0;
-        let duplicatesRemoved = 0;
-        let invalidRows = 0;
-
-        const invoices = new Set();
-
-        for (const row of rows) {
-          // validate CSV row with Joi
-          try {
-            const { error } = require("../validations/sales.validation").rowSchema.validate(row, { convert: true });
-            if (error) {
-              invalidRows++;
-              continue;
-            }
-          } catch (e) {
-            invalidRows++;
-            continue;
-          }
-          // VALIDATION
-          // (Joi validation above already ensures required fields and types)
-
-          // DUPLICATE CHECK (file-level)
-          const invoiceNo = `UPLOAD-${row.CustomerID}-${row.ProductID}-${row.TransactionDate}`;
-          if (invoices.has(invoiceNo)) {
-            duplicatesRemoved++;
-            continue;
-          }
-          invoices.add(invoiceNo);
-
-          // FIND CUSTOMER
-          const customer = await prisma.customer.findUnique({ where: { customerCode: row.CustomerID } });
-
-          // FIND PRODUCT
-          const product = await prisma.product.findUnique({ where: { productCode: row.ProductID } });
-
-          if (!customer || !product) {
-            invalidRows++;
-            continue;
-          }
-
-          // INSERT SALE + UPDATE INVENTORY as an atomic transaction
-          try {
-            const qty = Number(row.Quantity);
-            await prisma.$transaction(async (tx) => {
-              // read inventory inside transaction
-              const inv = await tx.inventory.findUnique({ where: { productId: product.id } });
-              if (!inv) {
-                // no inventory record -> treat as invalid
-                const e = new Error('NO_INVENTORY_RECORD');
-                e.code = 'NO_INV';
-                throw e;
-              }
-
-              if (inv.quantity < qty) {
-                const e = new Error('INSUFFICIENT_STOCK');
-                e.code = 'INSUFFICIENT';
-                throw e;
-              }
-
-              // create sale
-              await tx.salesTransaction.create({
-                data: {
-                  invoiceNo: invoiceNo,
-                  customerId: customer.id,
-                  productId: product.id,
-                  quantity: qty,
-                  totalAmount: qty * Number(row.Price),
-                  transactionDate: new Date(row.TransactionDate),
-                  userId: requestUserId || undefined,
-                }
-              });
-
-              // decrement inventory
-              await tx.inventory.update({
-                where: { productId: product.id },
-                data: { quantity: { decrement: qty } }
-              });
-            });
-          } catch (txErr) {
-            // handle expected business failures: insufficient stock or missing inventory
-            if (txErr && (txErr.code === 'INSUFFICIENT' || txErr.message === 'INSUFFICIENT_STOCK')) {
-              // reject this row due to insufficient stock
-              invalidRows++;
-              continue;
-            }
-            if (txErr && (txErr.code === 'NO_INV' || txErr.message === 'NO_INVENTORY_RECORD')) {
-              // no inventory record -> invalid
-              invalidRows++;
-              continue;
-            }
-
-            // other unexpected errors: log and count as invalid row
-            console.warn("Transaction failed for sale row:", txErr && txErr.message ? txErr.message : txErr);
-            invalidRows++;
-            continue;
-          }
-
-          inserted++;
-        }
-
-        cleanupFile(req.file.path);
-
-        if (inserted === 0) {
-          return res.status(400).json({ success: false, message: 'No valid sales rows were processed', recordsInserted: inserted, duplicatesRemoved, invalidRows });
-        }
-
-        res.json({ success: true, message: "Sales uploaded with cleaning", recordsInserted: inserted, duplicatesRemoved, invalidRows });
-      })
-      .on("error", (err) => {
-        cleanupFile(req.file.path);
-        console.error(err);
-        res.status(500).json({ success: false, message: err.message });
-      });
-  } catch (error) {
-    console.log(error);
+// ─── GET /api/sales ───────────────────────────────────────────────────────────
+// Query params: page, pageSize, customerId, productId, startDate, endDate
+exports.getSales = async (req, res) => {
     try {
-      if (req.file && req.file.path) fs.unlink(req.file.path, () => {});
-    } catch (e) {}
-    res.status(500).json({ success: false, message: error.message });
-  }
+        const page     = Math.max(1, parseInt(req.query.page)     || 1);
+        const pageSize = Math.min(100, Math.max(1, parseInt(req.query.pageSize) || 20));
+        const skip     = (page - 1) * pageSize;
+
+        const where = {};
+        if (req.query.customerId) where.customerId = req.query.customerId;
+        if (req.query.productId)  where.productId  = req.query.productId;
+        if (req.query.startDate || req.query.endDate) {
+            where.transactionDate = {};
+            if (req.query.startDate) where.transactionDate.gte = new Date(req.query.startDate);
+            if (req.query.endDate)   where.transactionDate.lte = new Date(req.query.endDate);
+        }
+
+        const [total, sales] = await Promise.all([
+            prisma.salesTransaction.count({ where }),
+            prisma.salesTransaction.findMany({
+                where,
+                skip,
+                take: pageSize,
+                orderBy: { transactionDate: "desc" },
+                include: {
+                    customer: { select: { id: true, name: true, customerCode: true } },
+                    product:  { select: { id: true, name: true, productCode: true, category: true } },
+                    user:     { select: { id: true, name: true, email: true } }
+                }
+            })
+        ]);
+
+        return res.status(200).json({
+            success: true,
+            data: sales,
+            pagination: { total, page, pageSize, totalPages: Math.ceil(total / pageSize) }
+        });
+    } catch (error) {
+        console.error(error);
+        return res.status(500).json({ success: false, message: error.message });
+    }
+};
+
+// ─── GET /api/sales/:id ───────────────────────────────────────────────────────
+exports.getSaleById = async (req, res) => {
+    try {
+        const sale = await prisma.salesTransaction.findUnique({
+            where: { id: req.params.id },
+            include: {
+                customer: { select: { id: true, name: true, customerCode: true } },
+                product:  { select: { id: true, name: true, productCode: true, category: true, price: true } },
+                user:     { select: { id: true, name: true, email: true } }
+            }
+        });
+
+        if (!sale) {
+            return res.status(404).json({ success: false, message: "Sale not found" });
+        }
+
+        return res.status(200).json({ success: true, data: sale });
+    } catch (error) {
+        console.error(error);
+        return res.status(500).json({ success: false, message: error.message });
+    }
+};
+
+// ─── POST /api/sales/upload ───────────────────────────────────────────────────
+exports.uploadSales = async (req, res) => {
+    try {
+        if (!req.file) {
+            return res.status(400).json({ success: false, message: "CSV file required" });
+        }
+
+        const uploadedAt = new Date().toISOString();
+        const filename   = req.file.originalname;
+        const rows       = [];
+
+        const cleanupFile = (filePath) => {
+            try { if (filePath) fs.unlink(filePath, () => {}); } catch (_) {}
+        };
+
+        // Resolve userId from req.user (set by authenticate middleware)
+        // or fall back to decoding the Authorization header directly.
+        let requestUserId = null;
+        if (req.user?.id) {
+            requestUserId = req.user.id;
+        } else {
+            try {
+                const authHeader = req.headers.authorization || req.headers.Authorization;
+                if (authHeader?.startsWith("Bearer ")) {
+                    const decoded = jwt.verify(authHeader.split(" ")[1], process.env.JWT_SECRET);
+                    requestUserId = decoded?.id ?? null;
+                }
+            } catch (_) { /* userId stays null — column is optional */ }
+        }
+
+        fs.createReadStream(req.file.path)
+            .pipe(csv())
+            .on("data", (row) => rows.push(row))
+            .on("headers", (headers) => {
+                // Validate required columns are present before processing any rows
+                const colCheck = validateKaggleColumns(headers);
+                if (!colCheck.valid) {
+                    cleanupFile(req.file.path);
+                    return res.status(400).json({
+                        success: false,
+                        message: `CSV is missing required column: '${colCheck.missing}'`,
+                        requiredColumns: ["CustomerID", "ProductID", "Quantity", "Price", "TransactionDate"]
+                    });
+                }
+            })
+            .on("end",  async () => {
+                let inserted          = 0;
+                let duplicatesRemoved = 0;
+                let invalidRows       = 0;
+                const validationErrors = [];   // collect per-row error details
+
+                // File-level invoice tracking (in-memory dedup)
+                const invoices = new Set();
+
+                for (let rowIndex = 0; rowIndex < rows.length; rowIndex++) {
+                    const row = rows[rowIndex];
+
+                    // ── 1. Joi schema validation ──────────────────────────────
+                    const { rowSchema } = require("../validations/sales.validation");
+                    const { error: joiError } = rowSchema.validate(row, { convert: true });
+                    if (joiError) {
+                        invalidRows++;
+                        validationErrors.push({
+                            row:    rowIndex + 2, // +2 → 1-based + header
+                            reason: joiError.details.map((d) => d.message).join("; "),
+                            data:   { CustomerID: row.CustomerID, ProductID: row.ProductID }
+                        });
+                        continue;
+                    }
+
+                    // ── 2. Missing-value check via csvValidator ────────────────
+                    // Uses the Kaggle-column-aware validator (CustomerID / ProductID)
+                    const fieldErrors = validateKaggleRow(row);
+                    if (fieldErrors.length > 0) {
+                        invalidRows++;
+                        validationErrors.push({
+                            row:    rowIndex + 2,
+                            reason: fieldErrors.join("; "),
+                            data:   { CustomerID: row.CustomerID, ProductID: row.ProductID }
+                        });
+                        continue;
+                    }
+
+                    // ── 3. File-level duplicate check ─────────────────────────
+                    const invoiceNo = `UPLOAD-${row.CustomerID}-${row.ProductID}-${row.TransactionDate}`;
+                    if (invoices.has(invoiceNo)) {
+                        duplicatesRemoved++;
+                        continue;
+                    }
+                    invoices.add(invoiceNo);
+
+                    // ── 4. DB-level duplicate check ───────────────────────────
+                    const existing = await prisma.salesTransaction.findUnique({ where: { invoiceNo } });
+                    if (existing) {
+                        duplicatesRemoved++;
+                        continue;
+                    }
+
+                    // ── 5. Entity resolution ──────────────────────────────────
+                    const customer = await prisma.customer.findUnique({ where: { customerCode: row.CustomerID } });
+                    const product  = await prisma.product.findUnique({ where: { productCode:  row.ProductID  } });
+
+                    if (!customer || !product) {
+                        invalidRows++;
+                        validationErrors.push({
+                            row:    rowIndex + 2,
+                            reason: !customer ? `CustomerID '${row.CustomerID}' not found` : `ProductID '${row.ProductID}' not found`,
+                            data:   { CustomerID: row.CustomerID, ProductID: row.ProductID }
+                        });
+                        continue;
+                    }
+
+                    // ── 6. Atomic sale + inventory deduction ──────────────────
+                    const qty = Number(row.Quantity);
+                    try {
+                        await prisma.$transaction(async (tx) => {
+                            const inv = await tx.inventory.findUnique({ where: { productId: product.id } });
+                            if (!inv) throw Object.assign(new Error("NO_INVENTORY_RECORD"), { code: "NO_INV" });
+                            if (inv.quantity < qty) throw Object.assign(new Error("INSUFFICIENT_STOCK"), { code: "INSUFFICIENT" });
+
+                            await tx.salesTransaction.create({
+                                data: {
+                                    invoiceNo,
+                                    customerId:      customer.id,
+                                    productId:       product.id,
+                                    quantity:        qty,
+                                    totalAmount:     qty * Number(row.Price),
+                                    transactionDate: new Date(row.TransactionDate),
+                                    userId:          requestUserId ?? undefined
+                                }
+                            });
+
+                            await tx.inventory.update({
+                                where: { productId: product.id },
+                                data:  { quantity: { decrement: qty } }
+                            });
+                        });
+
+                        inserted++;
+                    } catch (txErr) {
+                        const reason = txErr.code === "INSUFFICIENT"
+                            ? "Insufficient stock"
+                            : txErr.code === "NO_INV"
+                                ? "No inventory record exists for product"
+                                : txErr.message;
+                        invalidRows++;
+                        validationErrors.push({ row: rowIndex + 2, reason, data: { CustomerID: row.CustomerID, ProductID: row.ProductID } });
+                    }
+                }
+
+                cleanupFile(req.file.path);
+
+                const summary = {
+                    filename,
+                    uploadedAt,
+                    totalRowsRead:    rows.length,
+                    recordsInserted:  inserted,
+                    duplicatesRemoved,
+                    invalidRows,
+                    validationErrors  // detailed per-row error report
+                };
+
+                if (inserted === 0) {
+                    return res.status(400).json({
+                        success: false,
+                        message: "No valid sales rows were processed",
+                        summary
+                    });
+                }
+
+                return res.status(200).json({
+                    success: true,
+                    message: "Sales uploaded successfully",
+                    summary
+                });
+            })
+            .on("error", (err) => {
+                cleanupFile(req.file.path);
+                console.error(err);
+                res.status(500).json({ success: false, message: err.message });
+            });
+    } catch (error) {
+        try { if (req.file?.path) fs.unlink(req.file.path, () => {}); } catch (_) {}
+        console.error(error);
+        res.status(500).json({ success: false, message: error.message });
+    }
 };

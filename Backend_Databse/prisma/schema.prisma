@@ -85,8 +85,8 @@ model SalesTransaction {
  productId String
  product Product @relation(fields:[productId], references:[id])
 
- userId String
- user User @relation(fields:[userId], references:[id])
+ userId String?
+ user User? @relation(fields:[userId], references:[id])
 
  quantity Int
 
