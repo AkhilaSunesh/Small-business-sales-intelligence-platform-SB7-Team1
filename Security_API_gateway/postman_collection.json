@@ -1,101 +1,214 @@
 {
   "info": {
-    "name": "Security API Gateway",
+    "name": "MarketMind AI — Security API Gateway",
     "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json",
-    "description": "Postman collection for Security API Gateway endpoints."
+    "description": "Full collection for all Security API Gateway endpoints. Set {{accessToken}} and {{refreshToken}} variables after login."
   },
+  "variable": [
+    { "key": "base_url",      "value": "http://localhost:7000" },
+    { "key": "accessToken",   "value": "" },
+    { "key": "refreshToken",  "value": "" }
+  ],
   "item": [
     {
-      "name": "Register User",
-      "request": {
-        "method": "POST",
-        "header": [{ "key": "Content-Type", "value": "application/json" }],
-        "body": {
-          "mode": "raw",
-          "raw": "{\n  \"name\": \"Alice\",\n  \"email\": \"alice@example.com\",\n  \"password\": \"Password1!\",\n  \"roleId\": 1\n}"
+      "name": "Auth",
+      "item": [
+        {
+          "name": "Register User",
+          "request": {
+            "method": "POST",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"name\": \"Alice Owner\",\n  \"email\": \"alice@marketmind.dev\",\n  \"password\": \"Password1!\",\n  \"roleId\": 1\n}"
+            },
+            "url": { "raw": "{{base_url}}/api/auth/register", "host": ["{{base_url}}"], "path": ["api","auth","register"] }
+          }
         },
-        "url": { "raw": "http://localhost:6000/api/auth/register", "protocol": "http", "host": ["localhost"], "port": "6000", "path": ["api", "auth", "register"] }
-      }
+        {
+          "name": "Login",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "var json = pm.response.json();",
+                  "pm.collectionVariables.set('accessToken', json.accessToken || '');",
+                  "pm.collectionVariables.set('refreshToken', json.refreshToken || '');"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"email\": \"alice@marketmind.dev\",\n  \"password\": \"Password1!\"\n}"
+            },
+            "url": { "raw": "{{base_url}}/api/auth/login", "host": ["{{base_url}}"], "path": ["api","auth","login"] }
+          }
+        },
+        {
+          "name": "Refresh Token",
+          "request": {
+            "method": "POST",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"refreshToken\": \"{{refreshToken}}\"\n}"
+            },
+            "url": { "raw": "{{base_url}}/api/auth/refresh", "host": ["{{base_url}}"], "path": ["api","auth","refresh"] }
+          }
+        }
+      ]
     },
     {
-      "name": "Login",
-      "request": {
-        "method": "POST",
-        "header": [{ "key": "Content-Type", "value": "application/json" }],
-        "body": {
-          "mode": "raw",
-          "raw": "{\n  \"email\": \"alice@example.com\",\n  \"password\": \"Password1!\"\n}"
+      "name": "Inventory",
+      "item": [
+        {
+          "name": "Get Inventory (with low-stock flags)",
+          "request": {
+            "method": "GET",
+            "header": [{ "key": "Authorization", "value": "Bearer {{accessToken}}" }],
+            "url": { "raw": "{{base_url}}/api/inventory", "host": ["{{base_url}}"], "path": ["api","inventory"] }
+          }
         },
-        "url": { "raw": "http://localhost:6000/api/auth/login", "protocol": "http", "host": ["localhost"], "port": "6000", "path": ["api", "auth", "login"] }
-      }
+        {
+          "name": "Add Inventory Stock",
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Content-Type",  "value": "application/json" },
+              { "key": "Authorization", "value": "Bearer {{accessToken}}" }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"productCode\": \"PROD-0001\",\n  \"quantity\": 10\n}"
+            },
+            "url": { "raw": "{{base_url}}/api/inventory/add", "host": ["{{base_url}}"], "path": ["api","inventory","add"] }
+          }
+        },
+        {
+          "name": "Update Inventory Stock",
+          "request": {
+            "method": "PUT",
+            "header": [
+              { "key": "Content-Type",  "value": "application/json" },
+              { "key": "Authorization", "value": "Bearer {{accessToken}}" }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"productCode\": \"PROD-0001\",\n  \"quantity\": 50\n}"
+            },
+            "url": { "raw": "{{base_url}}/api/inventory/update", "host": ["{{base_url}}"], "path": ["api","inventory","update"] }
+          }
+        },
+        {
+          "name": "Delete Inventory Record",
+          "request": {
+            "method": "DELETE",
+            "header": [
+              { "key": "Content-Type",  "value": "application/json" },
+              { "key": "Authorization", "value": "Bearer {{accessToken}}" }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"productCode\": \"PROD-0001\"\n}"
+            },
+            "url": { "raw": "{{base_url}}/api/inventory/delete", "host": ["{{base_url}}"], "path": ["api","inventory","delete"] }
+          }
+        }
+      ]
     },
     {
-      "name": "Refresh Token",
-      "request": {
-        "method": "POST",
-        "header": [{ "key": "Content-Type", "value": "application/json" }],
-        "body": {
-          "mode": "raw",
-          "raw": "{\n  \"refreshToken\": \"{{refreshToken}}\"\n}"
+      "name": "Sales",
+      "item": [
+        {
+          "name": "List Sales (paginated)",
+          "request": {
+            "method": "GET",
+            "header": [{ "key": "Authorization", "value": "Bearer {{accessToken}}" }],
+            "url": {
+              "raw": "{{base_url}}/api/sales?page=1&pageSize=20",
+              "host": ["{{base_url}}"],
+              "path": ["api","sales"],
+              "query": [
+                { "key": "page",     "value": "1" },
+                { "key": "pageSize", "value": "20" },
+                { "key": "startDate","value": "", "disabled": true },
+                { "key": "endDate",  "value": "", "disabled": true },
+                { "key": "customerId","value": "", "disabled": true },
+                { "key": "productId","value": "", "disabled": true }
+              ]
+            }
+          }
         },
-        "url": { "raw": "http://localhost:6000/api/auth/refresh", "protocol": "http", "host": ["localhost"], "port": "6000", "path": ["api", "auth", "refresh"] }
-      }
+        {
+          "name": "Upload Sales CSV",
+          "request": {
+            "method": "POST",
+            "header": [{ "key": "Authorization", "value": "Bearer {{accessToken}}" }],
+            "body": {
+              "mode": "formdata",
+              "formdata": [{ "key": "file", "type": "file", "src": "sales.csv" }]
+            },
+            "url": { "raw": "{{base_url}}/api/sales/upload", "host": ["{{base_url}}"], "path": ["api","sales","upload"] }
+          }
+        }
+      ]
     },
     {
-      "name": "Get Inventory",
-      "request": {
-        "method": "GET",
-        "header": [{ "key": "Authorization", "value": "Bearer {{accessToken}}" }],
-        "url": { "raw": "http://localhost:6000/api/inventory", "protocol": "http", "host": ["localhost"], "port": "6000", "path": ["api", "inventory"] }
-      }
+      "name": "Dashboard",
+      "item": [
+        {
+          "name": "Get Dashboard Summary",
+          "request": {
+            "method": "GET",
+            "header": [{ "key": "Authorization", "value": "Bearer {{accessToken}}" }],
+            "url": { "raw": "{{base_url}}/api/dashboard/summary", "host": ["{{base_url}}"], "path": ["api","dashboard","summary"] }
+          }
+        }
+      ]
     },
     {
-      "name": "Add Inventory Stock",
-      "request": {
-        "method": "POST",
-        "header": [
-          { "key": "Content-Type", "value": "application/json" },
-          { "key": "Authorization", "value": "Bearer {{accessToken}}" }
-        ],
-        "body": {
-          "mode": "raw",
-          "raw": "{\n  \"productCode\": \"P001\",\n  \"quantity\": 10\n}"
-        },
-        "url": { "raw": "http://localhost:6000/api/inventory/add", "protocol": "http", "host": ["localhost"], "port": "6000", "path": ["api", "inventory", "add"] }
-      }
+      "name": "Analytics",
+      "item": [
+        {
+          "name": "Get Analytics Summary",
+          "request": {
+            "method": "GET",
+            "header": [{ "key": "Authorization", "value": "Bearer {{accessToken}}" }],
+            "url": { "raw": "{{base_url}}/api/analytics/summary", "host": ["{{base_url}}"], "path": ["api","analytics","summary"] }
+          }
+        }
+      ]
     },
     {
-      "name": "Update Inventory Stock",
-      "request": {
-        "method": "PUT",
-        "header": [
-          { "key": "Content-Type", "value": "application/json" },
-          { "key": "Authorization", "value": "Bearer {{accessToken}}" }
-        ],
-        "body": {
-          "mode": "raw",
-          "raw": "{\n  \"productCode\": \"P001\",\n  \"quantity\": 15\n}"
-        },
-        "url": { "raw": "http://localhost:6000/api/inventory/update", "protocol": "http", "host": ["localhost"], "port": "6000", "path": ["api", "inventory", "update"] }
-      }
+      "name": "Products",
+      "item": [
+        {
+          "name": "Get Products",
+          "request": {
+            "method": "GET",
+            "header": [{ "key": "Authorization", "value": "Bearer {{accessToken}}" }],
+            "url": { "raw": "{{base_url}}/api/products", "host": ["{{base_url}}"], "path": ["api","products"] }
+          }
+        }
+      ]
     },
     {
-      "name": "Upload Sales CSV",
-      "request": {
-        "method": "POST",
-        "header": [{ "key": "Authorization", "value": "Bearer {{accessToken}}" }],
-        "body": {
-          "mode": "formdata",
-          "formdata": [
-            { "key": "file", "type": "file", "src": "sales.csv" }
-          ]
-        },
-        "url": { "raw": "http://localhost:6000/api/sales/upload", "protocol": "http", "host": ["localhost"], "port": "6000", "path": ["api", "sales", "upload"] }
-      }
+      "name": "Customers",
+      "item": [
+        {
+          "name": "Get Customers",
+          "request": {
+            "method": "GET",
+            "header": [{ "key": "Authorization", "value": "Bearer {{accessToken}}" }],
+            "url": { "raw": "{{base_url}}/api/customers", "host": ["{{base_url}}"], "path": ["api","customers"] }
+          }
+        }
+      ]
     }
-  ],
-  "variable": [
-    { "key": "accessToken", "value": "" },
-    { "key": "refreshToken", "value": "" }
   ]
 }

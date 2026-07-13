@@ -1,0 +1,29 @@
+const express = require("express");
+const axios   = require("axios");
+const router  = express.Router();
+
+const BACKEND_API_URL = process.env.BACKEND_API_URL || "http://localhost:5000/api";
+
+const forward = async (req, res, backendPath) => {
+    try {
+        const response = await axios({
+            method:  req.method,
+            url:     `${BACKEND_API_URL}${backendPath}`,
+            params:  req.query,
+            data:    req.body,
+            headers: {
+                Authorization:  req.headers.authorization || "",
+                "Content-Type": req.headers["content-type"] || "application/json"
+            }
+        });
+        res.status(response.status).json(response.data);
+    } catch (error) {
+        const status = error.response?.status || 500;
+        res.status(status).json(error.response?.data || { success: false, message: error.message });
+    }
+};
+
+// GET /api/customers
+router.get("/", (req, res) => forward(req, res, "/customers"));
+
+module.exports = router;

@@ -1,169 +1,186 @@
+/**
+ * Seed script — MarketMind AI
+ *
+ * Loads data from seed_data/ CSVs in the correct FK order:
+ *   Role → User → Customer → Product → Inventory → SalesTransaction
+ *
+ * Run with:  npm run seed
+ *
+ * Notes
+ * ─────
+ * • Customer.csv has no customerCode column — we derive it from the row index.
+ * • Product.csv has no productCode column — we derive it from the row index.
+ * • Inventory.csv references productId by UUID from Product.csv.
+ * • SalesTransaction.csv uses "saleDate"; the schema uses "transactionDate".
+ *   We map saleDate → transactionDate when inserting.
+ * • All upserts are idempotent — safe to run multiple times.
+ */
+
+require("dotenv").config();
+
+const fs      = require("fs");
+const path    = require("path");
+const csv     = require("csv-parser");
 const { PrismaClient } = require("@prisma/client");
-const bcrypt = require("bcrypt");
-const fs = require("fs");
-const path = require("path");
-const csv = require("csv-parser");
 
 const prisma = new PrismaClient();
-const datasetPath = path.join(__dirname, "../dataset/Retail_Transaction_Dataset.csv");
 
-function sanitize(value) {
-    return value === undefined || value === null ? "" : value.toString().trim();
-}
-
-function parseDate(value) {
-    const date = new Date(value);
-    return Number.isNaN(date.getTime()) ? null : date;
-}
-
-function loadCsv(filePath) {
+// ─── CSV helper ────────────────────────────────────────────────────────────────
+function readCsv(filename) {
     return new Promise((resolve, reject) => {
         const rows = [];
-        fs.createReadStream(filePath)
+        fs.createReadStream(path.join(__dirname, "../seed_data", filename))
             .pipe(csv())
             .on("data", (row) => rows.push(row))
-            .on("end", () => resolve(rows))
-            .on("error", reject);
+            .on("end",  ()    => resolve(rows))
+            .on("error", (e)  => reject(e));
     });
 }
 
+// ─── main ──────────────────────────────────────────────────────────────────────
 async function main() {
-    console.log("🌱 Starting Database Seeding...");
+    console.log("🌱 Seeding database from seed_data/ CSVs …\n");
 
-    await prisma.salesTransaction.deleteMany();
-    await prisma.inventory.deleteMany();
-    await prisma.product.deleteMany();
-    await prisma.customer.deleteMany();
-    await prisma.user.deleteMany();
-    await prisma.role.deleteMany();
-
-    console.log("Old data deleted.");
-
-    const owner = await prisma.role.create({ data: { name: "Business Owner" } });
-    const manager = await prisma.role.create({ data: { name: "Store Manager" } });
-    const executive = await prisma.role.create({ data: { name: "Sales Executive" } });
-    const admin = await prisma.role.create({ data: { name: "System Administrator" } });
-
-    console.log("Roles inserted.");
-
-    const password = await bcrypt.hash("password123", 10);
-    const adminUser = await prisma.user.create({
-        data: {
-            name: "Admin User",
-            email: "admin@example.com",
-            password,
-            roleId: admin.id
-        }
-    });
-
-    console.log("Seed user created.");
-
-    const rows = await loadCsv(datasetPath);
-    console.log(`Dataset loaded: ${rows.length} rows`);
-
-    const customers = new Map();
-    const products = new Map();
-    const validSalesRows = [];
-
-    rows.forEach((row, index) => {
-        const customerCode = sanitize(row.CustomerID);
-        const productCode = sanitize(row.ProductID);
-        const quantity = Number(sanitize(row.Quantity));
-        const price = Number(sanitize(row.Price));
-        const transactionDate = parseDate(row.TransactionDate);
-
-        if (!customerCode || !productCode || isNaN(quantity) || quantity <= 0 || isNaN(price) || price < 0 || !transactionDate) {
-            return;
-        }
-
-        if (!customers.has(customerCode)) {
-            customers.set(customerCode, {
-                customerCode,
-                name: `Customer ${customerCode}`,
-                email: `customer${customerCode}@example.com`,
-                phone: `+1${customerCode.padStart(10, "0")}`,
-                address: `Retail District ${customerCode}`
-            });
-        }
-
-        if (!products.has(productCode)) {
-            products.set(productCode, {
-                productCode,
-                name: `${sanitize(row.ProductCategory) || "Product"} ${productCode}`,
-                category: sanitize(row.ProductCategory) || "General",
-                price: Number.isFinite(price) ? price : 0.0
-            });
-        }
-
-        validSalesRows.push({
-            customerCode,
-            productCode,
-            quantity,
-            price,
-            transactionDate,
-            totalAmount: Number(sanitize(row.TotalAmount)) || quantity * price,
-            line: index + 2
+    // ── 1. Roles ───────────────────────────────────────────────────────────────
+    const roleRows = await readCsv("Role.csv");
+    for (const r of roleRows) {
+        await prisma.role.upsert({
+            where:  { id: Number(r.id) },
+            update: { name: r.name },
+            create: { id: Number(r.id), name: r.name }
         });
-    });
+    }
+    console.log(`  ✔ ${roleRows.length} roles seeded`);
 
-    console.log(`Valid rows: ${validSalesRows.length}`);
-    console.log(`Unique customers: ${customers.size}`);
-    console.log(`Unique products: ${products.size}`);
+    // ── 2. Users ───────────────────────────────────────────────────────────────
+    const userRows = await readCsv("User.csv");
+    for (const u of userRows) {
+        await prisma.user.upsert({
+            where:  { email: u.email },
+            update: {},
+            create: {
+                id:     u.id,
+                name:   u.name,
+                email:  u.email,
+                password: u.password,   // already bcrypt-hashed in CSV
+                roleId: Number(u.roleId)
+            }
+        });
+    }
+    console.log(`  ✔ ${userRows.length} users seeded`);
 
-    await prisma.customer.createMany({
-        data: Array.from(customers.values()),
-        skipDuplicates: true
-    });
+    // ── 3. Customers ───────────────────────────────────────────────────────────
+    // CSV columns: id, name, email, phone, address, createdAt
+    // customerCode is NOT in the CSV — derive as SEED-CUST-{i+1}
+    const customerRows = await readCsv("Customer.csv");
+    for (let i = 0; i < customerRows.length; i++) {
+        const c = customerRows[i];
+        const customerCode = `SEED-CUST-${String(i + 1).padStart(4, "0")}`;
+        await prisma.customer.upsert({
+            where:  { customerCode },
+            update: {},
+            create: {
+                id:           c.id,
+                customerCode,
+                name:         c.name,
+                email:        c.email     || null,
+                phone:        c.phone     || null,
+                address:      c.address   || null
+            }
+        });
+    }
+    console.log(`  ✔ ${customerRows.length} customers seeded`);
 
-    await prisma.product.createMany({
-        data: Array.from(products.values()),
-        skipDuplicates: true
-    });
+    // ── 4. Products ────────────────────────────────────────────────────────────
+    // CSV columns: id, name, category, price, createdAt
+    // productCode is NOT in the CSV — derive as SEED-PROD-{i+1}
+    const productRows = await readCsv("Product.csv");
+    for (let i = 0; i < productRows.length; i++) {
+        const p = productRows[i];
+        const productCode = `SEED-PROD-${String(i + 1).padStart(4, "0")}`;
+        await prisma.product.upsert({
+            where:  { productCode },
+            update: {},
+            create: {
+                id:          p.id,
+                productCode,
+                name:        p.name,
+                category:    p.category,
+                price:       parseFloat(p.price)
+            }
+        });
+    }
+    console.log(`  ✔ ${productRows.length} products seeded`);
 
-    console.log("Customers and products inserted.");
+    // ── 5. Inventory ───────────────────────────────────────────────────────────
+    // CSV columns: id, quantity, productId
+    const inventoryRows = await readCsv("Inventory.csv");
+    for (const inv of inventoryRows) {
+        // Only insert if the referenced product was seeded
+        const product = await prisma.product.findUnique({ where: { id: inv.productId } });
+        if (!product) continue;
 
-    const allProducts = await prisma.product.findMany();
-    const inventoryData = allProducts.map((product) => ({
-        productId: product.id,
-        quantity: 150
-    }));
+        await prisma.inventory.upsert({
+            where:  { productId: inv.productId },
+            update: { quantity: Number(inv.quantity) },
+            create: {
+                id:                inv.id,
+                productId:         inv.productId,
+                quantity:          Number(inv.quantity),
+                lowStockThreshold: 10
+            }
+        });
+    }
+    console.log(`  ✔ ${inventoryRows.length} inventory records seeded`);
 
-    await prisma.inventory.createMany({
-        data: inventoryData,
-        skipDuplicates: true
-    });
+    // ── 6. Sales Transactions ──────────────────────────────────────────────────
+    // CSV columns: id, customerId, productId, userId, quantity, totalAmount, saleDate
+    // Schema uses:  transactionDate (not saleDate)
+    // invoiceNo is required (unique) — derive as SEED-INV-{i+1}
+    const salesRows = await readCsv("SalesTransaction.csv");
+    let salesSeeded = 0;
+    for (let i = 0; i < salesRows.length; i++) {
+        const s = salesRows[i];
 
-    console.log("Inventory inserted.");
+        // Skip row if FK targets don't exist in DB
+        const customer = await prisma.customer.findUnique({ where: { id: s.customerId } });
+        const product  = await prisma.product.findUnique({ where:  { id: s.productId  } });
+        const user     = s.userId
+            ? await prisma.user.findUnique({ where: { id: s.userId } })
+            : null;
 
-    const allCustomers = await prisma.customer.findMany();
-    const customerMap = new Map(allCustomers.map((customer) => [customer.customerCode, customer.id]));
-    const productMap = new Map(allProducts.map((product) => [product.productCode, product.id]));
+        if (!customer || !product) continue;
 
-    const salesData = validSalesRows.map((item, index) => ({
-        invoiceNo: `INV-${item.customerCode}-${item.productCode}-${index + 1}`,
-        customerId: customerMap.get(item.customerCode),
-        productId: productMap.get(item.productCode),
-        userId: adminUser.id,
-        quantity: item.quantity,
-        totalAmount: item.totalAmount,
-        transactionDate: item.transactionDate
-    })).filter((sale) => sale.customerId && sale.productId);
+        const invoiceNo = `SEED-INV-${String(i + 1).padStart(6, "0")}`;
+        const transactionDate = s.saleDate
+            ? new Date(s.saleDate)
+            : new Date();
 
-    await prisma.salesTransaction.createMany({
-        data: salesData,
-        skipDuplicates: true
-    });
+        const existing = await prisma.salesTransaction.findUnique({ where: { invoiceNo } });
+        if (existing) continue;
 
-    console.log(`Sales transactions inserted: ${salesData.length}`);
+        await prisma.salesTransaction.create({
+            data: {
+                id:              s.id,
+                invoiceNo,
+                customerId:      s.customerId,
+                productId:       s.productId,
+                userId:          user ? s.userId : null,
+                quantity:        Number(s.quantity),
+                totalAmount:     parseFloat(s.totalAmount),
+                transactionDate
+            }
+        });
+        salesSeeded++;
+    }
+    console.log(`  ✔ ${salesSeeded} sales transactions seeded`);
+
+    console.log("\n✅ Seed complete");
 }
 
 main()
-    .then(async () => {
-        console.log("✅ Database Seed Completed");
-        await prisma.$disconnect();
-    })
-    .catch(async (e) => {
-        console.error(e);
-        await prisma.$disconnect();
+    .catch((e) => {
+        console.error("❌ Seed failed:", e.message);
         process.exit(1);
-    });
+    })
+    .finally(() => prisma.$disconnect());
