@@ -176,6 +176,18 @@
         }
       }
     }
+  ,
+    "/health": {
+      "get": {
+        "summary": "Health Check",
+        "tags": ["Health"],
+        "responses": {
+          "200": {
+            "description": "Security API is healthy"
+          }
+        }
+      }
+    }
   },
   "components": {
     "securitySchemes": {
@@ -187,3 +199,4 @@
     }
   }
 }
+

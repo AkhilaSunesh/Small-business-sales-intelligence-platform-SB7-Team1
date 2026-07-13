@@ -30,6 +30,17 @@ app.get("/", (req, res) => {
     });
 });
 
+// Health Check Route
+app.get("/health", (req, res) => {
+    res.status(200).json({
+        success: true,
+        service: "Security API Gateway",
+        status: "Healthy",
+        uptime: process.uptime(),
+        timestamp: new Date().toISOString()
+    });
+});
+
 // Swagger / OpenAPI documentation
 app.use("/api-docs", swaggerUi.serve, swaggerUi.setup(swaggerDocument));
 
@@ -40,6 +51,14 @@ app.use("/api/auth", authRoutes);
 app.use("/api/inventory", authenticate, authorize, inventoryRoutes);
 app.use("/api/sales", authenticate, authorize, salesRoutes);
 
+// 404 Handler
+app.use((req, res) => {
+    res.status(404).json({
+        success: false,
+        message: "Route Not Found"
+    });
+});
+
 // Centralized error handling
 app.use((err, req, res, next) => {
     console.error(err);
@@ -48,10 +67,13 @@ app.use((err, req, res, next) => {
         return next(err);
     }
 
-    res.status(err.status || 500).json({
-        success: false,
+   res.status(err.status || 500).json({
+    success: false,
+    error: {
+        status: err.status || 500,
         message: err.message || "Internal Server Error"
-    });
+    }
+   });
 });
 
 module.exports = app;
