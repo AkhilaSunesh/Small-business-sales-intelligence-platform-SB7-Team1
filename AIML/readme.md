@@ -37,7 +37,7 @@ AIML/
 
 - Source: Kaggle Retail Transaction Dataset
 - Records: 100,000
-- Features:
+- Features :
   - CustomerID
   - ProductID
   - Quantity
