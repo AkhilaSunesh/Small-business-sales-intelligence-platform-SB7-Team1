@@ -3,6 +3,7 @@ const csv    = require("csv-parser");
 const fs     = require("fs");
 const jwt    = require("jsonwebtoken");
 const { validateKaggleColumns, validateKaggleRow } = require("../utils/csvValidator");
+const invoiceService = require("../services/invoice.service");
 
 // ─── GET /api/sales ───────────────────────────────────────────────────────────
 // Query params: page, pageSize, customerId, productId, startDate, endDate
@@ -182,29 +183,79 @@ exports.uploadSales = async (req, res) => {
                         continue;
                     }
 
-                    // ── 6. Atomic sale + inventory deduction ──────────────────
+                    // ── 6. Atomic sale + inventory deduction + invoice creation ──
                     const qty = Number(row.Quantity);
+                    const unitPrice = Number(row.Price);
+                    const totalAmount = qty * unitPrice;
+                    const discountApplied = row.DiscountApplied ? Number(row.DiscountApplied) : 0;
                     try {
                         await prisma.$transaction(async (tx) => {
                             const inv = await tx.inventory.findUnique({ where: { productId: product.id } });
                             if (!inv) throw Object.assign(new Error("NO_INVENTORY_RECORD"), { code: "NO_INV" });
                             if (inv.quantity < qty) throw Object.assign(new Error("INSUFFICIENT_STOCK"), { code: "INSUFFICIENT" });
 
-                            await tx.salesTransaction.create({
+                            // Create the sales transaction
+                            const sale = await tx.salesTransaction.create({
                                 data: {
                                     invoiceNo,
                                     customerId:      customer.id,
                                     productId:       product.id,
                                     quantity:        qty,
-                                    totalAmount:     qty * Number(row.Price),
+                                    totalAmount,
                                     transactionDate: new Date(row.TransactionDate),
                                     userId:          requestUserId ?? undefined
                                 }
                             });
 
+                            // Deduct inventory
                             await tx.inventory.update({
                                 where: { productId: product.id },
                                 data:  { quantity: { decrement: qty } }
+                            });
+
+                            // ── Auto-generate invoice for this sale ──────────
+                            const gstRate = 18;
+                            const subtotal = totalAmount;
+                            const discountAmt = subtotal * (discountApplied / 100);
+                            const taxableAmount = subtotal - discountAmt;
+                            const taxAmount = taxableAmount * (gstRate / 100);
+                            const finalTotal = taxableAmount + taxAmount;
+                            const dueDate = new Date(row.TransactionDate);
+                            dueDate.setDate(dueDate.getDate() + 30);
+
+                            // Generate invoice number
+                            const now = new Date();
+                            const year = now.getFullYear();
+                            const month = String(now.getMonth() + 1).padStart(2, "0");
+                            const startOfMonth = new Date(year, now.getMonth(), 1);
+                            const invCount = await tx.invoice.count({
+                                where: { createdAt: { gte: startOfMonth } }
+                            });
+                            const seq = String(invCount + 1).padStart(5, "0");
+                            const invoiceNumber = `INV-${year}${month}-${seq}`;
+
+                            await tx.invoice.create({
+                                data: {
+                                    invoiceNumber,
+                                    customerId: customer.id,
+                                    salesTransactionId: sale.id,
+                                    subtotal,
+                                    taxRate: gstRate,
+                                    taxAmount,
+                                    discountRate: discountApplied,
+                                    discountAmount: discountAmt,
+                                    totalAmount: finalTotal,
+                                    status: "UNPAID",
+                                    dueDate,
+                                    createdById: requestUserId ?? null,
+                                    lineItems: [{
+                                        productId: product.id,
+                                        productName: product.name,
+                                        quantity: qty,
+                                        unitPrice,
+                                        lineTotal: subtotal
+                                    }]
+                                }
                             });
                         });
 
