@@ -12,6 +12,8 @@ const dashboardRoutes = require("./routes/dashboard.routes");
 const productsRoutes  = require("./routes/products.routes");
 const customersRoutes = require("./routes/customers.routes");
 const analyticsRoutes = require("./routes/analytics.routes");
+const invoicesRoutes  = require("./routes/invoices.routes");
+const aiRoutes        = require("./routes/ai.routes");
 
 const authenticate              = require("./middleware/authenticate");
 const authorize                 = require("./middleware/authorize");
@@ -50,6 +52,13 @@ app.use("/api/dashboard", authenticate, authorize, apiLimiter, dashboardRoutes);
 app.use("/api/products",  authenticate, authorize, apiLimiter, productsRoutes);
 app.use("/api/customers", authenticate, authorize, apiLimiter, customersRoutes);
 app.use("/api/analytics", authenticate, authorize, apiLimiter, analyticsRoutes);
+app.use("/api/invoices",            authenticate, authorize, apiLimiter, invoicesRoutes);
+
+// ── AI Insight routes (protected) ─────────────────────────────────────────────
+app.use("/api/customer-groups",    authenticate, authorize, apiLimiter, aiRoutes);
+app.use("/api/churn",              authenticate, authorize, apiLimiter, aiRoutes);
+app.use("/api/recommendations",    authenticate, authorize, apiLimiter, aiRoutes);
+app.use("/api/anomaly-detection",  authenticate, authorize, apiLimiter, aiRoutes);
 
 // ── Centralised error handler ─────────────────────────────────────────────────
 app.use((err, req, res, next) => {

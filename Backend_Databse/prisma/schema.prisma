@@ -24,8 +24,10 @@ model User {
   roleId    Int
   role      Role @relation(fields: [roleId], references: [id])
 
-  sales     SalesTransaction[]
-} 
+  sales            SalesTransaction[]
+  invoicesCreated  Invoice[]
+  paymentsRecorded Payment[]
+}
 
 model Customer {
   id           String   @id @default(uuid())
@@ -39,6 +41,7 @@ model Customer {
   createdAt    DateTime @default(now())
 
   sales        SalesTransaction[]
+  invoices     Invoice[]
 }
 
 model Product {
@@ -93,4 +96,94 @@ model SalesTransaction {
  totalAmount Float
 
  transactionDate DateTime
+
+ // A sale can be linked to a formal Invoice
+ invoices Invoice[]
+}
+
+// ─── Invoice ──────────────────────────────────────────────────────────────────
+model Invoice {
+  id            String   @id @default(uuid())
+
+  // Human-readable invoice number e.g. INV-2024-000001
+  invoiceNumber String   @unique
+
+  // FK to the customer being billed
+  customerId    String
+  customer      Customer @relation(fields: [customerId], references: [id])
+
+  // FK to the originating sales transaction (optional — invoices can be created manually)
+  salesTransactionId String?
+  salesTransaction   SalesTransaction? @relation(fields: [salesTransactionId], references: [id])
+
+  // Line-item breakdown
+  subtotal      Float               // sum of (qty × unit price) before adjustments
+  taxRate       Float    @default(0)  // percentage e.g. 8.5 for 8.5%
+  taxAmount     Float    @default(0)  // computed: subtotal × taxRate / 100
+  discountRate  Float    @default(0)  // percentage e.g. 10 for 10%
+  discountAmount Float   @default(0)  // computed: subtotal × discountRate / 100
+  totalAmount   Float               // subtotal + taxAmount − discountAmount
+
+  // Status
+  status        InvoiceStatus @default(UNPAID)
+
+  // Dates
+  dueDate       DateTime
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+
+  // Audit
+  createdById   String?
+  createdBy     User?    @relation(fields: [createdById], references: [id])
+
+  // Line items stored as JSON array: [{ productId, productName, quantity, unitPrice, lineTotal }]
+  lineItems     Json
+
+  // Child payments
+  payments      Payment[]
+
+  @@index([customerId])
+  @@index([status])
+  @@index([dueDate])
+  @@index([createdAt])
+  @@index([invoiceNumber])
+}
+
+enum InvoiceStatus {
+  UNPAID
+  PAID
+  PARTIALLY_PAID
+  OVERDUE
+  CANCELLED
+}
+
+// ─── Payment ──────────────────────────────────────────────────────────────────
+model Payment {
+  id            String        @id @default(uuid())
+
+  invoiceId     String
+  invoice       Invoice       @relation(fields: [invoiceId], references: [id])
+
+  amount        Float
+  method        PaymentMethod @default(CASH)
+  reference     String?       // bank ref, transaction ID, cheque number, etc.
+  note          String?
+
+  paidAt        DateTime      @default(now())
+  createdAt     DateTime      @default(now())
+
+  recordedById  String?
+  recordedBy    User?         @relation(fields: [recordedById], references: [id])
+
+  @@index([invoiceId])
+  @@index([paidAt])
+}
+
+enum PaymentMethod {
+  CASH
+  CARD
+  BANK_TRANSFER
+  CHEQUE
+  ONLINE
+  OTHER
 }
