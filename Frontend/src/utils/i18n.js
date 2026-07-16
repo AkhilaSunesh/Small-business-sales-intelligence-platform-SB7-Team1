@@ -65,7 +65,13 @@ const resources = {
       usersDesc: 'Manage users and roles.',
       navbarSignedAs: 'Signed in as',
       roleNavDesc: 'Role-based access to dashboard features.',
-      navigation: 'Dashboard navigation'
+      navigation: 'Dashboard navigation',
+      'create invoice': 'Create Invoice',
+      'invoice list': 'Invoice List',
+      'customer insights': 'Customer Insights',
+      'recommendations': 'Recommendations',
+      'anomaly alerts': 'Anomaly Alerts',
+      'forecast reports': 'Forecast Reports'
     }
   },
   hi: {
@@ -131,7 +137,13 @@ const resources = {
       usersDesc: 'उपयोगकर्ताओं और भूमिकाओं को प्रबंधित करें।',
       navbarSignedAs: 'इस रूप में हस्ताक्षरित',
       roleNavDesc: 'डैशबोर्ड सुविधाओं तक भूमिका-आधारित पहुँच।',
-      navigation: 'डैशबोर्ड नेविगेशन'
+      navigation: 'डैशबोर्ड नेविगेशन',
+      'create invoice': 'इनवॉइस बनाएं',
+      'invoice list': 'इनवॉइस सूची',
+      'customer insights': 'ग्राहक अंतर्दृष्टि',
+      'recommendations': 'अनुशंसाएँ',
+      'anomaly alerts': 'विसंगति अलर्ट',
+      'forecast reports': 'पूर्वानुमान रिपोर्ट'
     }
   },
   ta: {
@@ -197,7 +209,13 @@ const resources = {
       usersDesc: 'பயனர்கள் மற்றும் பங்குகளை நிர்வகிக்கவும்.',
       navbarSignedAs: 'உள்நுழைந்துள்ளவர்',
       roleNavDesc: 'டாஷ்போர்டு அம்சங்களுக்கான பங்கு சார்ந்த அணுகல்.',
-      navigation: 'டாஷ்போர்டு வழிசெலுத்தல்'
+      navigation: 'டாஷ்போர்டு வழிசெலுத்தல்',
+      'create invoice': 'இன்வாய்ஸ் உருவாக்கு',
+      'invoice list': 'இன்வாய்ஸ் பட்டியல்',
+      'customer insights': 'வாடிக்கையாளர் நுண்ணறிவு',
+      'recommendations': 'பரிந்துரைகள்',
+      'anomaly alerts': 'அசாதாரண எச்சரிக்கைகள்',
+      'forecast reports': 'முன்கணிப்பு அறிக்கைகள்'
     }
   }
 };

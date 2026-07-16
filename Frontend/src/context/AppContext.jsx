@@ -14,6 +14,12 @@ export const USER_ROLES = [
 export const ROLE_NAV = {
   Owner: [
     { label: 'Dashboard', path: '/dashboard', icon: 'dashboard' },
+    { label: 'Create Invoice', path: '/create-invoice', icon: 'createInvoice' },
+    { label: 'Invoice List', path: '/invoices', icon: 'invoiceList' },
+    { label: 'Customer Insights', path: '/customer-insights', icon: 'customerInsights' },
+    { label: 'Recommendations', path: '/recommendations', icon: 'recommendations' },
+    { label: 'Anomaly Alerts', path: '/anomalies', icon: 'anomalyAlerts' },
+    { label: 'Forecast Reports', path: '/forecasts', icon: 'forecastReports' },
     { label: 'Upload', path: '/upload', icon: 'upload' },
     { label: 'Inventory', path: '/inventory', icon: 'inventory' },
     { label: 'Reports', path: '/reports', icon: 'reports' },
@@ -21,11 +27,19 @@ export const ROLE_NAV = {
   ],
   'Store Manager': [
     { label: 'Dashboard', path: '/dashboard', icon: 'dashboard' },
+    { label: 'Create Invoice', path: '/create-invoice', icon: 'createInvoice' },
+    { label: 'Invoice List', path: '/invoices', icon: 'invoiceList' },
+    { label: 'Customer Insights', path: '/customer-insights', icon: 'customerInsights' },
+    { label: 'Recommendations', path: '/recommendations', icon: 'recommendations' },
+    { label: 'Anomaly Alerts', path: '/anomalies', icon: 'anomalyAlerts' },
+    { label: 'Forecast Reports', path: '/forecasts', icon: 'forecastReports' },
     { label: 'Upload', path: '/upload', icon: 'upload' },
     { label: 'Inventory', path: '/inventory', icon: 'inventory' },
   ],
   'Sales Executive': [
     { label: 'Dashboard', path: '/dashboard', icon: 'dashboard' },
+    { label: 'Create Invoice', path: '/create-invoice', icon: 'createInvoice' },
+    { label: 'Invoice List', path: '/invoices', icon: 'invoiceList' },
     { label: 'Upload', path: '/upload', icon: 'upload' },
   ],
   Admin: [

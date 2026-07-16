@@ -8,6 +8,12 @@ import {
   FiFileText,
   FiSettings,
   FiUsers,
+  FiFilePlus,
+  FiList,
+  FiSmile,
+  FiZap,
+  FiAlertTriangle,
+  FiTrendingUp,
 } from 'react-icons/fi';
 import { useAppContext } from '../../context/AppContext';
 import { useTranslation } from 'react-i18next';
@@ -21,6 +27,12 @@ const iconMap = {
   reports: FiFileText,
   settings: FiSettings,
   users: FiUsers,
+  createInvoice: FiFilePlus,
+  invoiceList: FiList,
+  customerInsights: FiSmile,
+  recommendations: FiZap,
+  anomalyAlerts: FiAlertTriangle,
+  forecastReports: FiTrendingUp,
 };
 
 function Sidebar({ collapsed = false }) {
