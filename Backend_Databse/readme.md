@@ -78,6 +78,13 @@ All routes require `Authorization: Bearer <JWT>`.
 | GET    | /api/analytics/summary       | Revenue, sales count, top-5 products  |
 | GET    | /api/products                | Product catalogue                      |
 | GET    | /api/customers               | Customer list (max 100)                |
+| GET    | /api/invoices                | List invoices (paginated, searchable, filterable) |
+| GET    | /api/invoices/revenue/summary| Revenue summary: total, outstanding, daily collections |
+| GET    | /api/invoices/status/:status | Invoices filtered by PAID/UNPAID/PARTIALLY_PAID/OVERDUE/CANCELLED |
+| GET    | /api/invoices/:id            | Single invoice with payments and line items |
+| POST   | /api/invoices                | Create a manual invoice (validates, deducts inventory) |
+| POST   | /api/invoices/overdue/check  | Mark past-due invoices OVERDUE         |
+| POST   | /api/invoices/:id/payments   | Record a payment, auto-updates status  |
 
 ---
 
@@ -113,6 +120,49 @@ The response includes a full upload summary:
   }
 }
 ```
+
+---
+
+## Invoice API
+
+### Create Invoice — `POST /api/invoices`
+
+```json
+{
+  "customerId": "uuid",
+  "lineItems": [
+    { "productId": "uuid", "quantity": 2, "unitPrice": 50.00 }
+  ],
+  "discountRate": 10,
+  "taxRate": 18,
+  "dueDate": "2026-08-13T00:00:00.000Z",
+  "notes": "Optional notes"
+}
+```
+
+### Record Payment — `POST /api/invoices/:id/payments`
+
+```json
+{
+  "amount": 100.00,
+  "method": "CASH",
+  "reference": "TXN-001",
+  "note": "First instalment"
+}
+```
+
+Valid `method` values: `CASH` | `CARD` | `BANK_TRANSFER` | `CHEQUE` | `ONLINE` | `OTHER`
+
+### Invoice Status Flow
+
+```
+UNPAID → (payment recorded) → PARTIALLY_PAID → (full payment) → PAID
+UNPAID → (past dueDate, POST /overdue/check) → OVERDUE
+```
+
+### Auto-Invoice on CSV Upload
+
+Every sale row in `POST /api/sales/upload` automatically generates an invoice with 18% GST applied to (subtotal − discount). Due date is set 30 days from the transaction date.
 
 ---
 

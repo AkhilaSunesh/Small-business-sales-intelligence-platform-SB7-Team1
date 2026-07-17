@@ -1,3 +1,18 @@
+/**
+ * importSales.js — DEPRECATED
+ *
+ * This script is superseded by importKaggle.js which handles the full
+ * Kaggle dataset import (Customers, Products, Inventory, SalesTransactions)
+ * in a single pass.
+ *
+ * This file maps fields (paymentMethod, storeLocation, discountApplied, saleDate)
+ * that DO NOT EXIST in the current Prisma SalesTransaction schema and will
+ * throw a Prisma validation error if executed.
+ *
+ * Use instead:
+ *   npm run import:kaggle
+ */
+
 const { PrismaClient } = require("@prisma/client");
 const fs = require("fs");
 const csv = require("csv-parser");

@@ -1,181 +1,92 @@
 /**
- * Seed script — MarketMind AI
+ * seed.js — System Data Only
  *
- * Loads data from seed_data/ CSVs in the correct FK order:
- *   Role → User → Customer → Product → Inventory → SalesTransaction
+ * Seeds ONLY the mandatory system tables that cannot come from the
+ * Kaggle dataset:
  *
- * Run with:  npm run seed
+ *   1. Roles  — business role definitions (Business Owner, Store Manager, etc.)
+ *   2. Users  — one system account per role for development / testing
  *
- * Notes
- * ─────
- * • Customer.csv has no customerCode column — we derive it from the row index.
- * • Product.csv has no productCode column — we derive it from the row index.
- * • Inventory.csv references productId by UUID from Product.csv.
- * • SalesTransaction.csv uses "saleDate"; the schema uses "transactionDate".
- *   We map saleDate → transactionDate when inserting.
- * • All upserts are idempotent — safe to run multiple times.
+ * Business data (Customers, Products, Inventory, SalesTransactions,
+ * Invoices, Payments) is imported exclusively by importKaggle.js which
+ * reads dataset/Retail_Transaction_Dataset.csv.
+ *
+ * Run order:
+ *   npm run import:kaggle   ← business data from Kaggle CSV
+ *   npm run seed            ← system roles and user accounts
+ *
+ * Or use the combined command:
+ *   npm run setup           ← runs both in sequence
+ *
+ * This script is idempotent — safe to run multiple times.
  */
 
 require("dotenv").config();
 
-const fs      = require("fs");
-const path    = require("path");
-const csv     = require("csv-parser");
 const { PrismaClient } = require("@prisma/client");
 
 const prisma = new PrismaClient();
 
-// ─── CSV helper ────────────────────────────────────────────────────────────────
-function readCsv(filename) {
-    return new Promise((resolve, reject) => {
-        const rows = [];
-        fs.createReadStream(path.join(__dirname, "../seed_data", filename))
-            .pipe(csv())
-            .on("data", (row) => rows.push(row))
-            .on("end",  ()    => resolve(rows))
-            .on("error", (e)  => reject(e));
-    });
-}
+// ─── System roles ──────────────────────────────────────────────────────────────
+const SYSTEM_ROLES = [
+    { id: 1, name: "Business Owner" },
+    { id: 2, name: "Store Manager" },
+    { id: 3, name: "Sales Executive" },
+    { id: 4, name: "System Administrator" }
+];
 
-// ─── main ──────────────────────────────────────────────────────────────────────
+// ─── System user accounts ──────────────────────────────────────────────────────
+// Password is hashed at runtime with bcrypt (cost 10) so it never drifts.
+// Plain-text password for all system accounts: Password1!
+const PLAIN_PASSWORD = "Password1!";
+
+const SYSTEM_USERS = [
+    { id: "4005dfa6-3c04-4e2d-8ee8-7f38536d23b0", name: "Business Owner",  email: "owner@marketmind.dev",   roleId: 1 },
+    { id: "4c49c904-69ff-43ea-a26d-18d47fd354ff", name: "Store Manager",   email: "manager@marketmind.dev", roleId: 2 },
+    { id: "5bf90d45-a1e6-487a-9615-3c80c3502161", name: "Sales Executive", email: "sales@marketmind.dev",   roleId: 3 },
+    { id: "f7eb3703-0645-49d4-be71-962b3d283cba", name: "System Admin",    email: "admin@marketmind.dev",   roleId: 4 }
+];
+
+const bcrypt = require("bcrypt");
+
 async function main() {
-    console.log("🌱 Seeding database from seed_data/ CSVs …\n");
+    console.log("🔧 Seeding system data …\n");
 
     // ── 1. Roles ───────────────────────────────────────────────────────────────
-    const roleRows = await readCsv("Role.csv");
-    for (const r of roleRows) {
+    for (const role of SYSTEM_ROLES) {
         await prisma.role.upsert({
-            where:  { id: Number(r.id) },
-            update: { name: r.name },
-            create: { id: Number(r.id), name: r.name }
+            where:  { id: role.id },
+            update: { name: role.name },
+            create: { id: role.id, name: role.name }
         });
     }
-    console.log(`  ✔ ${roleRows.length} roles seeded`);
+    console.log(`  ✔ ${SYSTEM_ROLES.length} system roles seeded`);
 
     // ── 2. Users ───────────────────────────────────────────────────────────────
-    const userRows = await readCsv("User.csv");
-    for (const u of userRows) {
+    // Hash is computed fresh every run so it can never be a stale/wrong value.
+    const hashedPassword = await bcrypt.hash(PLAIN_PASSWORD, 10);
+
+    for (const u of SYSTEM_USERS) {
         await prisma.user.upsert({
             where:  { email: u.email },
-            update: {},
+            // Always update the password to ensure it matches PLAIN_PASSWORD.
+            // This fixes any existing account that may have a stale hash.
+            update: { password: hashedPassword },
             create: {
-                id:     u.id,
-                name:   u.name,
-                email:  u.email,
-                password: u.password,   // already bcrypt-hashed in CSV
-                roleId: Number(u.roleId)
+                id:       u.id,
+                name:     u.name,
+                email:    u.email,
+                password: hashedPassword,
+                roleId:   u.roleId
             }
         });
     }
-    console.log(`  ✔ ${userRows.length} users seeded`);
+    console.log(`  ✔ ${SYSTEM_USERS.length} system user accounts seeded`);
+    console.log("\n  System accounts (all use password: Password1!)");
+    SYSTEM_USERS.forEach(u => console.log(`    ${u.email}  (role ${u.roleId})`));
 
-    // ── 3. Customers ───────────────────────────────────────────────────────────
-    // CSV columns: id, name, email, phone, address, createdAt
-    // customerCode is NOT in the CSV — derive as SEED-CUST-{i+1}
-    const customerRows = await readCsv("Customer.csv");
-    for (let i = 0; i < customerRows.length; i++) {
-        const c = customerRows[i];
-        const customerCode = `SEED-CUST-${String(i + 1).padStart(4, "0")}`;
-        await prisma.customer.upsert({
-            where:  { customerCode },
-            update: {},
-            create: {
-                id:           c.id,
-                customerCode,
-                name:         c.name,
-                email:        c.email     || null,
-                phone:        c.phone     || null,
-                address:      c.address   || null
-            }
-        });
-    }
-    console.log(`  ✔ ${customerRows.length} customers seeded`);
-
-    // ── 4. Products ────────────────────────────────────────────────────────────
-    // CSV columns: id, name, category, price, createdAt
-    // productCode is NOT in the CSV — derive as SEED-PROD-{i+1}
-    const productRows = await readCsv("Product.csv");
-    for (let i = 0; i < productRows.length; i++) {
-        const p = productRows[i];
-        const productCode = `SEED-PROD-${String(i + 1).padStart(4, "0")}`;
-        await prisma.product.upsert({
-            where:  { productCode },
-            update: {},
-            create: {
-                id:          p.id,
-                productCode,
-                name:        p.name,
-                category:    p.category,
-                price:       parseFloat(p.price)
-            }
-        });
-    }
-    console.log(`  ✔ ${productRows.length} products seeded`);
-
-    // ── 5. Inventory ───────────────────────────────────────────────────────────
-    // CSV columns: id, quantity, productId
-    const inventoryRows = await readCsv("Inventory.csv");
-    for (const inv of inventoryRows) {
-        // Only insert if the referenced product was seeded
-        const product = await prisma.product.findUnique({ where: { id: inv.productId } });
-        if (!product) continue;
-
-        await prisma.inventory.upsert({
-            where:  { productId: inv.productId },
-            update: { quantity: Number(inv.quantity) },
-            create: {
-                id:                inv.id,
-                productId:         inv.productId,
-                quantity:          Number(inv.quantity),
-                lowStockThreshold: 10
-            }
-        });
-    }
-    console.log(`  ✔ ${inventoryRows.length} inventory records seeded`);
-
-    // ── 6. Sales Transactions ──────────────────────────────────────────────────
-    // CSV columns: id, customerId, productId, userId, quantity, totalAmount, saleDate
-    // Schema uses:  transactionDate (not saleDate)
-    // invoiceNo is required (unique) — derive as SEED-INV-{i+1}
-    const salesRows = await readCsv("SalesTransaction.csv");
-    let salesSeeded = 0;
-    for (let i = 0; i < salesRows.length; i++) {
-        const s = salesRows[i];
-
-        // Skip row if FK targets don't exist in DB
-        const customer = await prisma.customer.findUnique({ where: { id: s.customerId } });
-        const product  = await prisma.product.findUnique({ where:  { id: s.productId  } });
-        const user     = s.userId
-            ? await prisma.user.findUnique({ where: { id: s.userId } })
-            : null;
-
-        if (!customer || !product) continue;
-
-        const invoiceNo = `SEED-INV-${String(i + 1).padStart(6, "0")}`;
-        const transactionDate = s.saleDate
-            ? new Date(s.saleDate)
-            : new Date();
-
-        const existing = await prisma.salesTransaction.findUnique({ where: { invoiceNo } });
-        if (existing) continue;
-
-        await prisma.salesTransaction.create({
-            data: {
-                id:              s.id,
-                invoiceNo,
-                customerId:      s.customerId,
-                productId:       s.productId,
-                userId:          user ? s.userId : null,
-                quantity:        Number(s.quantity),
-                totalAmount:     parseFloat(s.totalAmount),
-                transactionDate
-            }
-        });
-        salesSeeded++;
-    }
-    console.log(`  ✔ ${salesSeeded} sales transactions seeded`);
-
-    console.log("\n✅ Seed complete");
+    console.log("\n✅ System seed complete");
+    console.log("   Run 'npm run import:kaggle' to load business data from the Kaggle dataset.");
 }
 
 main()
