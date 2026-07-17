@@ -36,7 +36,7 @@ function PreviewTable({ headers, rows }) {
 }
 
 export default function UploadPage() {
-  usePageTitle('Upload');
+  usePageTitle('Upload Center');
   const [csvData, setCsvData] = useState({ headers: [], rows: [] });
   const [errors, setErrors] = useState([]);
   const { loading, error: uploadError, success: uploadSuccess, upload, reset } = useUpload();

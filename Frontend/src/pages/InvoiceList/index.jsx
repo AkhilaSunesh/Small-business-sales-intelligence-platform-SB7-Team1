@@ -1,206 +1,522 @@
-import { useState } from 'react';
+import { useState, useMemo, useEffect } from 'react';
 import { usePageTitle } from '../../hooks/usePageTitle';
-import { FiSearch, FiFilter, FiEye, FiDownload, FiAlertTriangle, FiPlus } from 'react-icons/fi';
 import { useNavigate } from 'react-router-dom';
+import { useToast } from '../../components/common/Toast';
+import { 
+  FiPlus, FiAlertTriangle, FiRefreshCw, FiEye, 
+  FiDownload, FiPrinter, FiX, FiCheckSquare, FiInfo
+} from 'react-icons/fi';
 import Button from '../../components/ui/Button';
 
-// Mock Existing Invoices Data
-const MOCK_INVOICES = [
-  { id: 'INV-2026-0001', customer: 'John Doe', date: '2026-07-15', amount: 320.50, method: 'UPI', status: 'Paid' },
-  { id: 'INV-2026-0002', customer: 'Jane Smith', date: '2026-07-14', amount: 1500.00, method: 'Bank Transfer', status: 'Paid' },
-  { id: 'INV-2026-0003', customer: 'ACME Corporation', date: '2026-07-12', amount: 2450.00, method: 'Bank Transfer', status: 'Partially Paid' },
-  { id: 'INV-2026-0004', customer: 'Bob Johnson', date: '2026-07-10', amount: 85.00, method: 'Cash', status: 'Unpaid' },
-  { id: 'INV-2026-0005', customer: 'Alice Cooper', date: '2026-07-09', amount: 980.00, method: 'Card', status: 'Paid' },
-  { id: 'INV-2026-0006', customer: 'Charlie Brown', date: '2026-07-08', amount: 430.00, method: 'UPI', status: 'Unpaid' },
-  { id: 'INV-2026-0007', customer: 'Diana Prince', date: '2026-07-07', amount: 1200.00, method: 'Card', status: 'Partially Paid' },
-];
+// Data and Components
+import { MOCK_INVOICES_DATA } from './mockInvoices';
+import InvoiceSummaryCards from './components/InvoiceSummaryCards';
+import InvoiceFilters from './components/InvoiceFilters';
+import InvoiceTable from './components/InvoiceTable';
+import Pagination from './components/Pagination';
+import EmptyState from './components/EmptyState';
+import LoadingState from './components/LoadingState';
+import DeleteConfirmationModal from './components/DeleteConfirmationModal';
+import EditInvoiceModal from './components/EditInvoiceModal';
 
 function InvoiceListPage() {
   usePageTitle('Invoice List');
   const navigate = useNavigate();
+  const { show: showToast } = useToast();
 
-  // Filters State
+  // State Management
+  const [invoices, setInvoices] = useState(MOCK_INVOICES_DATA);
   const [searchTerm, setSearchTerm] = useState('');
   const [statusFilter, setStatusFilter] = useState('All');
-  const [selectedInvoice, setSelectedInvoice] = useState(null);
+  const [methodFilter, setMethodFilter] = useState('All');
+  const [dateFilter, setDateFilter] = useState('');
+  const [currentPage, setCurrentPage] = useState(1);
+  const [rowsPerPage, setRowsPerPage] = useState(10);
+  
+  // Sorting Configuration
+  // Default sorted by invoice date desc
+  const [sortConfig, setSortConfig] = useState({ key: 'date', direction: 'desc' });
 
-  // Filter logic
-  const filteredInvoices = MOCK_INVOICES.filter((inv) => {
-    const matchesSearch = inv.customer.toLowerCase().includes(searchTerm.toLowerCase()) || 
-                          inv.id.toLowerCase().includes(searchTerm.toLowerCase());
-    const matchesStatus = statusFilter === 'All' || inv.status === statusFilter;
-    return matchesSearch && matchesStatus;
-  });
+  // Modal Dialog States
+  const [viewInvoice, setViewInvoice] = useState(null);
+  const [editInvoice, setEditInvoice] = useState(null);
+  const [deleteInvoice, setDeleteInvoice] = useState(null);
 
+  // Demo state toggle for testing Loading, Error, Empty list structures
+  const [demoMode, setDemoMode] = useState('loaded'); // 'loaded' | 'loading' | 'error' | 'empty'
+
+  // Reset page number on search/filter update to avoid out-of-range pages
+  useEffect(() => {
+    setCurrentPage(1);
+  }, [searchTerm, statusFilter, methodFilter, dateFilter]);
+
+  // Simulating Axios Data Loading (Preparation Comment)
+  useEffect(() => {
+    /*
+      BACKEND INTEGRATION - GET ALL INVOICES:
+      -------------------------------------
+      const fetchInvoices = async () => {
+        try {
+          const response = await axios.get('/api/invoices');
+          setInvoices(response.data);
+        } catch (error) {
+          console.error("Failed to retrieve invoice records:", error);
+          showToast("Failed to sync invoice records with server.", "error");
+        }
+      };
+      
+      fetchInvoices();
+    */
+  }, []);
+
+  // Filter Logic: Searching and filtering work together
+  const filteredInvoices = useMemo(() => {
+    if (demoMode === 'empty') return [];
+
+    /*
+      BACKEND INTEGRATION - FILTER & SEARCH INVOICES (SERVER-SIDE):
+      -----------------------------------------------------------
+      const fetchFilteredInvoices = async () => {
+        try {
+          const response = await axios.get('/api/invoices', {
+            params: {
+              search: searchTerm,
+              status: statusFilter,
+              method: methodFilter,
+              date: dateFilter,
+              sortBy: sortConfig.key,
+              order: sortConfig.direction
+            }
+          });
+          setInvoices(response.data);
+        } catch (error) {
+          showToast("Failed to fetch filtered list from backend server.", "error");
+        }
+      };
+    */
+
+    return invoices.filter((inv) => {
+      const matchText = searchTerm.toLowerCase();
+      const matchesSearch = 
+        inv.customer.toLowerCase().includes(matchText) ||
+        inv.id.toLowerCase().includes(matchText);
+
+      const matchesStatus = statusFilter === 'All' || inv.status === statusFilter;
+      const matchesMethod = methodFilter === 'All' || inv.method === methodFilter;
+      const matchesDate = dateFilter === '' || inv.date === dateFilter;
+
+      return matchesSearch && matchesStatus && matchesMethod && matchesDate;
+    });
+  }, [invoices, searchTerm, statusFilter, methodFilter, dateFilter, demoMode]);
+
+  // Sorting Logic
+  const sortedInvoices = useMemo(() => {
+    const sortable = [...filteredInvoices];
+    if (sortConfig.key) {
+      sortable.sort((a, b) => {
+        let aVal = a[sortConfig.key];
+        let bVal = b[sortConfig.key];
+
+        // Custom amount handling
+        if (sortConfig.key === 'amount') {
+          aVal = Number(aVal);
+          bVal = Number(bVal);
+        }
+
+        if (aVal < bVal) {
+          return sortConfig.direction === 'asc' ? -1 : 1;
+        }
+        if (aVal > bVal) {
+          return sortConfig.direction === 'asc' ? 1 : -1;
+        }
+        return 0;
+      });
+    }
+    return sortable;
+  }, [filteredInvoices, sortConfig]);
+
+  // Pagination Splitting
+  const paginatedInvoices = useMemo(() => {
+    const startIndex = (currentPage - 1) * rowsPerPage;
+    return sortedInvoices.slice(startIndex, startIndex + rowsPerPage);
+  }, [sortedInvoices, currentPage, rowsPerPage]);
+
+  const totalPages = Math.ceil(sortedInvoices.length / rowsPerPage);
+
+  // Sorting Toggler
+  const handleSort = (key) => {
+    let direction = 'asc';
+    if (sortConfig.key === key && sortConfig.direction === 'asc') {
+      direction = 'desc';
+    }
+    setSortConfig({ key, direction });
+  };
+
+  // Actions Callbacks
+  const handleView = (invoice) => {
+    setViewInvoice(invoice);
+  };
+
+  const handleEdit = (invoice) => {
+    setEditInvoice(invoice);
+  };
+
+  const handleSaveEdit = (updatedInvoice) => {
+    /*
+      BACKEND INTEGRATION - UPDATE INVOICE:
+      ------------------------------------
+      const updateInvoiceAPI = async () => {
+        try {
+          const response = await axios.put(`/api/invoices/${updatedInvoice.id}`, updatedInvoice);
+          setInvoices(prev => prev.map(inv => inv.id === updatedInvoice.id ? response.data : inv));
+          showToast(`Invoice ${updatedInvoice.id} successfully updated on server.`, "success");
+        } catch (error) {
+          showToast("Failed to upload modifications to the server.", "error");
+        }
+      };
+      updateInvoiceAPI();
+    */
+
+    setInvoices((prev) =>
+      prev.map((inv) => (inv.id === updatedInvoice.id ? updatedInvoice : inv))
+    );
+    showToast(`Invoice ${updatedInvoice.id} successfully updated.`, 'success');
+    setEditInvoice(null);
+  };
+
+  const handleDelete = (invoice) => {
+    setDeleteInvoice(invoice);
+  };
+
+  const handleConfirmDelete = (id) => {
+    /*
+      BACKEND INTEGRATION - DELETE INVOICE:
+      ------------------------------------
+      const deleteInvoiceAPI = async () => {
+        try {
+          await axios.delete(`/api/invoices/${id}`);
+          setInvoices(prev => prev.filter(inv => inv.id !== id));
+          showToast(`Invoice ${id} permanently removed.`, "success");
+        } catch (error) {
+          showToast("Failed to delete invoice record from backend.", "error");
+        }
+      };
+      deleteInvoiceAPI();
+    */
+
+    setInvoices((prev) => prev.filter((inv) => inv.id !== id));
+    showToast(`Invoice ${id} permanently deleted.`, 'success');
+    setDeleteInvoice(null);
+  };
+
+  const handleDownload = (invoice) => {
+    /*
+      BACKEND INTEGRATION - DOWNLOAD INVOICE PDF:
+      ------------------------------------------
+      const downloadPDF = async () => {
+        try {
+          const response = await axios.get(`/api/invoices/${invoice.id}/pdf`, { responseType: 'blob' });
+          const blob = new Blob([response.data], { type: 'application/pdf' });
+          const link = document.createElement('a');
+          link.href = window.URL.createObjectURL(blob);
+          link.download = `invoice-${invoice.id}.pdf`;
+          link.click();
+          showToast("PDF document downloaded successfully.", "success");
+        } catch (error) {
+          showToast("PDF generation failed.", "error");
+        }
+      };
+      downloadPDF();
+    */
+
+    showToast(`Downloading PDF document for ${invoice.id}...`, 'info');
+    
+    // Simulating file download link triggers
+    setTimeout(() => {
+      showToast(`PDF invoice for ${invoice.customer} successfully downloaded.`, 'success');
+    }, 1500);
+  };
+
+  const handlePrint = (invoice) => {
+    /*
+      PRINT INVOICE SIMULATION:
+      ------------------------
+      Connects invoice data context to printer page style configuration.
+    */
+    showToast(`Preparing printable layout for ${invoice.id}...`, 'info');
+    
+    // Simulate printing
+    setTimeout(() => {
+      window.print();
+    }, 1000);
+  };
+
+  const handleClearFilters = () => {
+    setSearchTerm('');
+    setStatusFilter('All');
+    setMethodFilter('All');
+    setDateFilter('');
+    showToast('Filters cleared successfully.', 'info');
+  };
+
+  const handleRetryConnection = () => {
+    setDemoMode('loading');
+    showToast('Attempting to reconnect with API gateway...', 'info');
+    setTimeout(() => {
+      setDemoMode('loaded');
+      showToast('Backend gateway synchronization completed.', 'success');
+    }, 2000);
+  };
+
+  // Render Logic
   return (
     <div className="space-y-6">
-      {/* Top Banner section */}
+      {/* DEVELOPER DEMO TOGGLE BAR */}
+      <section className="rounded-2xl border border-dashed border-cyan-400/20 bg-slate-900/40 p-4 backdrop-blur flex flex-col sm:flex-row items-center justify-between gap-3 text-xs">
+        <div className="flex items-center gap-2 text-cyan-300 font-semibold">
+          <FiCheckSquare className="text-sm shrink-0" />
+          <span>Milestone 2 Tester Controls:</span>
+        </div>
+        <div className="flex flex-wrap gap-2">
+          {[
+            { mode: 'loaded', label: 'Loaded Dashboard', col: 'bg-cyan-500/10 text-cyan-300 border-cyan-500/20' },
+            { mode: 'loading', label: 'Loading Skeleton', col: 'bg-slate-500/10 text-slate-300 border-slate-500/20' },
+            { mode: 'error', label: 'Error Screen', col: 'bg-rose-500/10 text-rose-300 border-rose-500/20' },
+            { mode: 'empty', label: 'Empty Layout', col: 'bg-amber-500/10 text-amber-300 border-amber-500/20' }
+          ].map((item) => (
+            <button
+              key={item.mode}
+              onClick={() => {
+                setDemoMode(item.mode);
+                showToast(`Switched view to simulated "${item.label}" state.`, 'info');
+              }}
+              className={`px-3 py-1.5 rounded-lg border font-semibold transition ${
+                demoMode === item.mode 
+                  ? 'bg-cyan-400 text-slate-950 border-cyan-400 shadow-md font-bold' 
+                  : 'bg-white/5 text-slate-400 hover:bg-white/10 hover:text-white border-white/5'
+              }`}
+            >
+              {item.label}
+            </button>
+          ))}
+        </div>
+      </section>
+
+      {/* HEADER SECTION */}
       <section className="rounded-3xl border border-white/10 bg-slate-950/80 p-6 md:p-8 backdrop-blur flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
         <div>
           <h1 className="text-3xl font-bold tracking-tight text-white">Invoice List</h1>
           <p className="mt-1.5 text-sm text-slate-400">View, search, and manage issued customer sales invoices.</p>
         </div>
-        <Button onClick={() => navigate('/create-invoice')} className="gap-2 text-slate-950 bg-cyan-400 font-bold hover:bg-cyan-300">
-          <FiPlus /> Create Invoice
+        <Button 
+          onClick={() => navigate('/create-invoice')} 
+          className="gap-2 text-slate-950 bg-cyan-400 font-bold hover:bg-cyan-300 shadow-lg shadow-cyan-400/10"
+        >
+          <FiPlus className="text-base" /> Create Invoice
         </Button>
       </section>
 
-      {/* Warning Notice Block */}
-      <div className="rounded-2xl border border-amber-500/20 bg-amber-500/10 p-4 text-sm text-amber-300 flex items-center gap-3">
-        <FiAlertTriangle className="text-xl shrink-0" />
-        <div>
-          <span className="font-semibold">Waiting for backend integration:</span> Current records are loaded from mock memory storage. Changes made locally will not persist.
-        </div>
-      </div>
+      {/* CORE DISPLAY ROUTING BASED ON CHOSEN STATE */}
+      {demoMode === 'loading' && <LoadingState />}
 
-      {/* Interactive Filters Grid */}
-      <div className="grid gap-4 md:grid-cols-3">
-        {/* Search */}
-        <div className="relative">
-          <FiSearch className="absolute left-4 top-3.5 text-slate-400 text-base" />
-          <input
-            type="text"
-            placeholder="Search by client name or invoice ID..."
-            className="w-full rounded-2xl border border-white/10 bg-white/5 pl-11 pr-4 py-3 text-sm text-white placeholder-slate-500 outline-none transition focus:border-cyan-400/50"
-            value={searchTerm}
-            onChange={(e) => setSearchTerm(e.target.value)}
-          />
-        </div>
-
-        {/* Status Filter */}
-        <div className="flex gap-1.5 overflow-x-auto pb-1 md:pb-0 md:col-span-2">
-          {['All', 'Paid', 'Partially Paid', 'Unpaid'].map((status) => (
-            <button
-              key={status}
-              onClick={() => setStatusFilter(status)}
-              className={`rounded-2xl px-5 py-3 text-sm font-semibold border text-center transition-all ${
-                statusFilter === status
-                  ? 'border-cyan-400 bg-cyan-400/10 text-cyan-300'
-                  : 'border-white/10 bg-white/5 text-slate-400 hover:bg-white/10 hover:text-white'
-              }`}
+      {demoMode === 'error' && (
+        <div className="rounded-3xl border border-rose-500/10 bg-slate-950/80 p-8 backdrop-blur text-center space-y-4 max-w-md mx-auto my-8">
+          <div className="flex items-center justify-center w-14 h-14 rounded-full bg-rose-500/10 text-rose-400 mx-auto">
+            <FiAlertTriangle className="text-2xl shrink-0" />
+          </div>
+          <div className="space-y-2">
+            <h3 className="text-base font-bold text-white">Connection Error</h3>
+            <p className="text-xs text-slate-400 leading-relaxed">
+              Preparing backend integration... Failed to sync dashboard schemas with the gateway interface.
+            </p>
+          </div>
+          <div className="pt-2">
+            <Button
+              onClick={handleRetryConnection}
+              className="bg-rose-500 text-white hover:bg-rose-400 text-xs font-bold gap-2 py-2.5 px-6 rounded-xl w-full"
             >
-              {status}
-            </button>
-          ))}
+              <FiRefreshCw className="text-sm" /> Retry Connection
+            </Button>
+          </div>
         </div>
-      </div>
+      )}
 
-      {/* Main Table Card */}
-      <div className="rounded-3xl border border-white/10 bg-slate-950/80 p-6 backdrop-blur">
-        <div className="overflow-x-auto">
-          <table className="w-full text-left border-collapse">
-            <thead>
-              <tr className="border-b border-white/5 text-xs uppercase tracking-wider text-slate-400">
-                <th className="pb-3 pl-2 font-semibold">Invoice ID</th>
-                <th className="pb-3 font-semibold">Customer</th>
-                <th className="pb-3 font-semibold">Issued Date</th>
-                <th className="pb-3 font-semibold text-right">Amount ($)</th>
-                <th className="pb-3 font-semibold text-center">Payment Method</th>
-                <th className="pb-3 font-semibold text-center">Status</th>
-                <th className="pb-3 text-center">Actions</th>
-              </tr>
-            </thead>
-            <tbody className="divide-y divide-white/5 text-sm text-slate-300">
-              {filteredInvoices.length === 0 ? (
-                <tr>
-                  <td colSpan="7" className="py-10 text-center text-slate-500">
-                    No matching invoices found.
-                  </td>
-                </tr>
-              ) : (
-                filteredInvoices.map((inv) => (
-                  <tr key={inv.id} className="hover:bg-white/2 transition-colors">
-                    <td className="py-4 pl-2 font-mono text-cyan-300 font-medium">{inv.id}</td>
-                    <td className="py-4 font-semibold text-white">{inv.customer}</td>
-                    <td className="py-4 text-slate-400">{inv.date}</td>
-                    <td className="py-4 text-right font-mono font-semibold text-white">${inv.amount.toFixed(2)}</td>
-                    <td className="py-4 text-center text-slate-300">{inv.method}</td>
-                    <td className="py-4 text-center">
-                      <span className={`inline-flex px-3 py-1 rounded-full text-xs font-semibold ${
-                        inv.status === 'Paid'
-                          ? 'bg-emerald-500/10 text-emerald-300 border border-emerald-500/20'
-                          : inv.status === 'Partially Paid'
-                          ? 'bg-amber-500/10 text-amber-300 border border-amber-500/20'
-                          : 'bg-rose-500/10 text-rose-300 border border-rose-500/20'
-                      }`}>
-                        {inv.status}
-                      </span>
-                    </td>
-                    <td className="py-4 text-center">
-                      <div className="flex items-center justify-center gap-2">
-                        <button
-                          onClick={() => setSelectedInvoice(inv)}
-                          className="p-2 text-cyan-400 hover:text-cyan-300 hover:bg-cyan-500/10 rounded-xl transition-all"
-                          title="Quick View"
-                        >
-                          <FiEye className="text-base" />
-                        </button>
-                        <button
-                          onClick={() => alert('Download PDF invoice layout simulated successfully.')}
-                          className="p-2 text-slate-400 hover:text-white hover:bg-white/5 rounded-xl transition-all"
-                          title="Download Invoice"
-                        >
-                          <FiDownload className="text-base" />
-                        </button>
-                      </div>
-                    </td>
-                  </tr>
-                ))
+      {demoMode === 'loaded' && (
+        <>
+          {/* STATS SUMMARY CARDS */}
+          <InvoiceSummaryCards invoices={filteredInvoices} />
+
+          {/* WARNING INTEGRATION BANNER */}
+          <div className="rounded-2xl border border-cyan-500/10 bg-cyan-500/5 p-4 text-xs text-cyan-300 flex items-center gap-3 backdrop-blur-sm">
+            <FiInfo className="text-lg shrink-0 text-cyan-400" />
+            <div>
+              <span className="font-semibold text-white">Local Simulation Mode:</span> Invoices are loaded from frontend memory state. Fully prepared with comment triggers for Axios endpoint synchronization.
+            </div>
+          </div>
+
+          {/* SEARCH & FILTERS GRID */}
+          <InvoiceFilters
+            searchTerm={searchTerm}
+            setSearchTerm={setSearchTerm}
+            statusFilter={statusFilter}
+            setStatusFilter={setStatusFilter}
+            methodFilter={methodFilter}
+            setMethodFilter={setMethodFilter}
+            dateFilter={dateFilter}
+            setDateFilter={setDateFilter}
+            onClear={handleClearFilters}
+          />
+
+          {/* MAIN LIST CONTENT */}
+          {filteredInvoices.length === 0 ? (
+            <EmptyState />
+          ) : (
+            <div className="rounded-3xl border border-white/10 bg-slate-950/80 p-6 backdrop-blur space-y-4">
+              <div className="flex justify-between items-center px-1">
+                <span className="text-xs font-semibold text-slate-400">
+                  Showing {Math.min(sortedInvoices.length, (currentPage - 1) * rowsPerPage + 1)} to{' '}
+                  {Math.min(sortedInvoices.length, currentPage * rowsPerPage)} of{' '}
+                  {sortedInvoices.length} entries
+                </span>
+              </div>
+
+              {/* TABLE COMPONENT */}
+              <InvoiceTable
+                invoices={paginatedInvoices}
+                sortConfig={sortConfig}
+                onSort={handleSort}
+                onView={handleView}
+                onEdit={handleEdit}
+                onDownload={handleDownload}
+                onPrint={handlePrint}
+                onDelete={handleDelete}
+              />
+
+              {/* PAGINATION PANEL */}
+              {totalPages > 1 && (
+                <Pagination
+                  currentPage={currentPage}
+                  totalPages={totalPages}
+                  rowsPerPage={rowsPerPage}
+                  onPageChange={setCurrentPage}
+                  onRowsPerPageChange={(size) => {
+                    setRowsPerPage(size);
+                    setCurrentPage(1);
+                  }}
+                />
               )}
-            </tbody>
-          </table>
-        </div>
-      </div>
+            </div>
+          )}
+        </>
+      )}
 
-      {/* QUICK PREVIEW DRAWER MODAL */}
-      {selectedInvoice && (
+      {/* QUICK VIEW DRAWER MODAL */}
+      {viewInvoice && (
         <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-950/80 backdrop-blur-md">
-          <div className="relative w-full max-w-md rounded-3xl border border-white/15 bg-slate-900 p-6 shadow-2xl text-slate-100">
-            <h3 className="text-lg font-bold text-white mb-4">Invoice Quick Peek</h3>
+          <div className="relative w-full max-w-md rounded-3xl border border-white/10 bg-slate-900 p-6 shadow-2xl text-slate-100 animate-in fade-in zoom-in-95 duration-150">
+            <div className="flex justify-between items-center border-b border-white/5 pb-3 mb-4">
+              <h3 className="text-base font-bold text-white">Invoice Details</h3>
+              <button 
+                onClick={() => setViewInvoice(null)} 
+                className="text-slate-400 hover:text-white transition"
+              >
+                <FiX className="text-lg" />
+              </button>
+            </div>
             
-            <div className="space-y-3.5 text-sm border-t border-b border-white/5 py-4">
-              <div className="flex justify-between">
+            <div className="space-y-3.5 text-xs">
+              <div className="flex justify-between items-center">
                 <span className="text-slate-400">Invoice ID:</span>
-                <span className="font-mono text-cyan-300">{selectedInvoice.id}</span>
+                <span className="font-mono text-cyan-300 font-bold">{viewInvoice.id}</span>
               </div>
-              <div className="flex justify-between">
+              <div className="flex justify-between items-center">
                 <span className="text-slate-400">Customer:</span>
-                <span className="font-semibold text-white">{selectedInvoice.customer}</span>
+                <span className="font-semibold text-white">{viewInvoice.customer}</span>
               </div>
-              <div className="flex justify-between">
-                <span className="text-slate-400">Date:</span>
-                <span>{selectedInvoice.date}</span>
+              <div className="flex justify-between items-center">
+                <span className="text-slate-400">Issued Date:</span>
+                <span>{viewInvoice.date}</span>
               </div>
-              <div className="flex justify-between">
-                <span className="text-slate-400">Amount Billed:</span>
-                <span className="font-mono text-white">${selectedInvoice.amount.toFixed(2)}</span>
+              <div className="flex justify-between items-center">
+                <span className="text-slate-400">Due Date:</span>
+                <span>{viewInvoice.dueDate}</span>
               </div>
-              <div className="flex justify-between">
-                <span className="text-slate-400">Payment:</span>
-                <span>{selectedInvoice.method}</span>
+              <div className="flex justify-between items-center border-t border-white/5 pt-3">
+                <span className="text-slate-400">Payment Method:</span>
+                <span className="bg-white/5 px-2 py-0.5 rounded border border-white/5 text-[10px]">{viewInvoice.method}</span>
               </div>
-              <div className="flex justify-between">
-                <span className="text-slate-400">Status:</span>
-                <span className={`px-2 py-0.5 rounded-full text-xs font-semibold ${
-                  selectedInvoice.status === 'Paid'
+              <div className="flex justify-between items-center">
+                <span className="text-slate-400">Tax Billed:</span>
+                <span className="font-mono">${viewInvoice.tax.toFixed(2)}</span>
+              </div>
+              <div className="flex justify-between items-center">
+                <span className="text-slate-400">Discount Applied:</span>
+                <span className="font-mono text-rose-400">-${viewInvoice.discount.toFixed(2)}</span>
+              </div>
+              <div className="flex justify-between items-center border-t border-b border-white/5 py-3 font-semibold text-sm">
+                <span className="text-slate-400">Total Billed:</span>
+                <span className="font-mono text-white">${viewInvoice.amount.toFixed(2)}</span>
+              </div>
+              <div className="flex justify-between items-center pt-1">
+                <span className="text-slate-400">Payment Status:</span>
+                <span className={`px-2.5 py-0.5 rounded-full text-[10px] font-semibold ${
+                  viewInvoice.status === 'Paid'
                     ? 'bg-emerald-500/20 text-emerald-300'
-                    : selectedInvoice.status === 'Partially Paid'
+                    : viewInvoice.status === 'Partially Paid'
                     ? 'bg-amber-500/20 text-amber-300'
                     : 'bg-rose-500/20 text-rose-300'
                 }`}>
-                  {selectedInvoice.status}
+                  {viewInvoice.status}
                 </span>
+              </div>
+              <div className="flex justify-between items-center">
+                <span className="text-slate-400">Last Database Sync:</span>
+                <span className="text-[10px] text-slate-500 font-mono">{viewInvoice.lastUpdated}</span>
               </div>
             </div>
 
-            <div className="mt-5 flex justify-end gap-2">
-              <Button onClick={() => setSelectedInvoice(null)} className="py-2.5">
-                Close
+            <div className="mt-6 flex justify-end gap-2 border-t border-white/5 pt-4">
+              <button
+                onClick={() => {
+                  handleDownload(viewInvoice);
+                  setViewInvoice(null);
+                }}
+                className="flex items-center gap-1.5 px-3 py-2 rounded-xl text-xs bg-white/5 hover:bg-white/10 text-slate-300 border border-white/5 font-semibold transition"
+              >
+                <FiDownload /> PDF
+              </button>
+              <button
+                onClick={() => {
+                  handlePrint(viewInvoice);
+                  setViewInvoice(null);
+                }}
+                className="flex items-center gap-1.5 px-3 py-2 rounded-xl text-xs bg-white/5 hover:bg-white/10 text-slate-300 border border-white/5 font-semibold transition"
+              >
+                <FiPrinter /> Print
+              </button>
+              <Button onClick={() => setViewInvoice(null)} className="py-2 text-xs rounded-xl">
+                Close View
               </Button>
             </div>
           </div>
         </div>
       )}
+
+      {/* EDIT MODAL DIALOG */}
+      <EditInvoiceModal
+        isOpen={!!editInvoice}
+        invoice={editInvoice}
+        onSave={handleSaveEdit}
+        onCancel={() => setEditInvoice(null)}
+      />
+
+      {/* DELETE CONFIRMATION DIALOG */}
+      <DeleteConfirmationModal
+        isOpen={!!deleteInvoice}
+        invoice={deleteInvoice}
+        onConfirm={handleConfirmDelete}
+        onCancel={() => setDeleteInvoice(null)}
+      />
     </div>
   );
 }
