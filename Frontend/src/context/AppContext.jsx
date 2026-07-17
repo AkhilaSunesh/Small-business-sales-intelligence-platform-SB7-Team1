@@ -119,7 +119,6 @@ export function AppProvider({ children }) {
 
   const value = useMemo(
     () => ({
-      appName: 'MarketMind AI',
       environment: 'development',
       user,
       isAuthenticated: Boolean(user?.role),

@@ -19,15 +19,27 @@ function DashboardLayout() {
         <Navbar onToggle={toggle} />
         <main className="flex-1 px-4 py-6 sm:px-6 lg:px-8 lg:py-8">
           <div className="mx-auto w-full max-w-7xl">
-            {/* Debug panel to surface auth state and role while troubleshooting */}
-            <div className="mb-6 rounded-lg border border-white/5 bg-white/2 p-4 text-sm text-slate-300">
-              <p>
-                <strong className="text-white">Auth:</strong>{' '}
-                {isAuthenticated ? 'authenticated' : 'not-authenticated'}
+            {/* Professional Authentication Status Card */}
+            <div className="mb-6 rounded-2xl border border-white/10 bg-slate-900/40 p-4 text-xs text-slate-300 backdrop-blur-sm">
+              <p className="font-semibold text-white uppercase tracking-wider text-[10px] mb-1">
+                Authentication Status
               </p>
-              <p>
-                <strong className="text-white">User:</strong>{' '}
-                {user ? `${user.displayName} (${user.role})` : '—'}
+              <p className="mt-1 leading-5">
+                Logged in as:{' '}
+                <span className="text-cyan-300 font-semibold">
+                  {user?.role === 'Owner'
+                    ? 'Business Owner'
+                    : user?.role === 'Store Manager'
+                    ? 'Store Manager'
+                    : user?.role === 'Sales Executive'
+                    ? 'Sales Executive'
+                    : user?.role === 'Admin'
+                    ? 'Admin'
+                    : user?.role || 'Guest'}
+                </span>
+                {user?.displayName && (
+                  <span className="text-slate-400"> ({user.displayName})</span>
+                )}
               </p>
             </div>
             <Outlet />
