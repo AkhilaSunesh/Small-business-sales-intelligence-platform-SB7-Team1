@@ -14,7 +14,8 @@
     { "name": "Dashboard", "description": "KPI summary" },
     { "name": "Analytics", "description": "Revenue and top-product analytics" },
     { "name": "Products",  "description": "Product catalogue (read-only)" },
-    { "name": "Customers", "description": "Customer list (read-only)" }
+    { "name": "Customers", "description": "Customer list (read-only)" },
+    { "name": "Invoices",  "description": "Invoice management — create, view, pay, revenue summary" }
   ],
   "paths": {
     "/api/sales": {
@@ -250,6 +251,134 @@
           "500": { "$ref": "#/components/responses/ServerError" }
         }
       }
+    },
+
+    "/api/invoices": {
+      "get": {
+        "tags": ["Invoices"],
+        "summary": "List invoices with pagination, search and filters",
+        "security": [{ "bearerAuth": [] }],
+        "parameters": [
+          { "name": "page",           "in": "query", "schema": { "type": "integer", "default": 1 } },
+          { "name": "pageSize",       "in": "query", "schema": { "type": "integer", "default": 20, "maximum": 100 } },
+          { "name": "sortBy",         "in": "query", "schema": { "type": "string", "enum": ["createdAt","dueDate","totalAmount","status","invoiceNumber"], "default": "createdAt" } },
+          { "name": "sortOrder",      "in": "query", "schema": { "type": "string", "enum": ["asc","desc"], "default": "desc" } },
+          { "name": "status",         "in": "query", "schema": { "type": "string", "enum": ["PAID","UNPAID","PARTIALLY_PAID","OVERDUE","CANCELLED"] } },
+          { "name": "search",         "in": "query", "schema": { "type": "string" }, "description": "Search invoice number or customer name" },
+          { "name": "customerSearch", "in": "query", "schema": { "type": "string" }, "description": "Filter by customer name or code" },
+          { "name": "invoiceSearch",  "in": "query", "schema": { "type": "string" }, "description": "Filter by invoice number" },
+          { "name": "dateFrom",       "in": "query", "schema": { "type": "string", "format": "date" } },
+          { "name": "dateTo",         "in": "query", "schema": { "type": "string", "format": "date" } }
+        ],
+        "responses": {
+          "200": { "description": "Paginated invoice list with pagination meta", "content": { "application/json": { "schema": { "$ref": "#/components/schemas/InvoiceListResponse" } } } },
+          "401": { "$ref": "#/components/responses/Unauthorized" },
+          "500": { "$ref": "#/components/responses/ServerError" }
+        }
+      },
+      "post": {
+        "tags": ["Invoices"],
+        "summary": "Create a manual invoice",
+        "description": "Creates an invoice with line items. Automatically deducts inventory and calculates subtotal, 18% GST, discount and total. Due date defaults to 30 days from now.",
+        "security": [{ "bearerAuth": [] }],
+        "requestBody": {
+          "required": true,
+          "content": { "application/json": { "schema": { "$ref": "#/components/schemas/CreateInvoiceRequest" } } }
+        },
+        "responses": {
+          "201": { "description": "Invoice created successfully", "content": { "application/json": { "schema": { "$ref": "#/components/schemas/InvoiceResponse" } } } },
+          "400": { "description": "Validation failed or insufficient stock" },
+          "401": { "$ref": "#/components/responses/Unauthorized" },
+          "500": { "$ref": "#/components/responses/ServerError" }
+        }
+      }
+    },
+
+    "/api/invoices/revenue/summary": {
+      "get": {
+        "tags": ["Invoices"],
+        "summary": "Revenue summary — total collected, outstanding, today's collections",
+        "security": [{ "bearerAuth": [] }],
+        "responses": {
+          "200": { "description": "Revenue summary object", "content": { "application/json": { "schema": { "$ref": "#/components/schemas/RevenueSummaryResponse" } } } },
+          "401": { "$ref": "#/components/responses/Unauthorized" },
+          "500": { "$ref": "#/components/responses/ServerError" }
+        }
+      }
+    },
+
+    "/api/invoices/status/{status}": {
+      "get": {
+        "tags": ["Invoices"],
+        "summary": "List invoices filtered by payment status",
+        "security": [{ "bearerAuth": [] }],
+        "parameters": [
+          { "name": "status", "in": "path", "required": true, "schema": { "type": "string", "enum": ["paid","unpaid","partially_paid","overdue","cancelled"] }, "description": "Case-insensitive status value" },
+          { "name": "page",     "in": "query", "schema": { "type": "integer", "default": 1 } },
+          { "name": "pageSize", "in": "query", "schema": { "type": "integer", "default": 20 } }
+        ],
+        "responses": {
+          "200": { "description": "Paginated list of invoices matching the given status" },
+          "400": { "description": "Invalid status value" },
+          "401": { "$ref": "#/components/responses/Unauthorized" },
+          "500": { "$ref": "#/components/responses/ServerError" }
+        }
+      }
+    },
+
+    "/api/invoices/overdue/check": {
+      "post": {
+        "tags": ["Invoices"],
+        "summary": "Mark past-due unpaid/partially-paid invoices as OVERDUE",
+        "description": "Scans all UNPAID and PARTIALLY_PAID invoices whose dueDate is in the past and updates their status to OVERDUE.",
+        "security": [{ "bearerAuth": [] }],
+        "responses": {
+          "200": { "description": "Count of invoices updated", "content": { "application/json": { "schema": { "type": "object", "properties": { "success": { "type": "boolean" }, "message": { "type": "string" }, "data": { "type": "object", "properties": { "updatedCount": { "type": "integer" } } } } } } } },
+          "401": { "$ref": "#/components/responses/Unauthorized" },
+          "500": { "$ref": "#/components/responses/ServerError" }
+        }
+      }
+    },
+
+    "/api/invoices/{id}": {
+      "get": {
+        "tags": ["Invoices"],
+        "summary": "Get a single invoice by UUID",
+        "description": "Returns full invoice detail including customer, linked sales transaction, line items, payments and audit fields.",
+        "security": [{ "bearerAuth": [] }],
+        "parameters": [
+          { "name": "id", "in": "path", "required": true, "schema": { "type": "string", "format": "uuid" } }
+        ],
+        "responses": {
+          "200": { "description": "Full invoice object", "content": { "application/json": { "schema": { "$ref": "#/components/schemas/InvoiceResponse" } } } },
+          "401": { "$ref": "#/components/responses/Unauthorized" },
+          "404": { "$ref": "#/components/responses/NotFound" },
+          "500": { "$ref": "#/components/responses/ServerError" }
+        }
+      }
+    },
+
+    "/api/invoices/{id}/payments": {
+      "post": {
+        "tags": ["Invoices"],
+        "summary": "Record a payment against an invoice",
+        "description": "Adds a payment record and automatically updates invoice status to PAID, PARTIALLY_PAID, or leaves as UNPAID based on cumulative amount paid.",
+        "security": [{ "bearerAuth": [] }],
+        "parameters": [
+          { "name": "id", "in": "path", "required": true, "schema": { "type": "string", "format": "uuid" }, "description": "Invoice UUID" }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": { "application/json": { "schema": { "$ref": "#/components/schemas/RecordPaymentRequest" } } }
+        },
+        "responses": {
+          "201": { "description": "Payment recorded; invoice status updated" },
+          "400": { "description": "Invalid amount or invoice is cancelled" },
+          "401": { "$ref": "#/components/responses/Unauthorized" },
+          "404": { "$ref": "#/components/responses/NotFound" },
+          "500": { "$ref": "#/components/responses/ServerError" }
+        }
+      }
     }
   },
   "components": {
@@ -375,6 +504,100 @@
         "properties": {
           "success": { "type": "boolean" },
           "data":    { "type": "array", "items": { "type": "object" } }
+        }
+      },
+
+      "LineItemRequest": {
+        "type": "object",
+        "required": ["productId", "quantity", "unitPrice"],
+        "properties": {
+          "productId":   { "type": "string", "format": "uuid" },
+          "productName": { "type": "string" },
+          "quantity":    { "type": "integer", "minimum": 1 },
+          "unitPrice":   { "type": "number",  "minimum": 0.01 }
+        }
+      },
+
+      "CreateInvoiceRequest": {
+        "type": "object",
+        "required": ["customerId", "lineItems"],
+        "properties": {
+          "customerId":         { "type": "string", "format": "uuid" },
+          "salesTransactionId": { "type": "string", "format": "uuid" },
+          "lineItems":          { "type": "array", "items": { "$ref": "#/components/schemas/LineItemRequest" }, "minItems": 1 },
+          "discountRate":       { "type": "number", "minimum": 0, "maximum": 100, "default": 0, "description": "Discount percentage e.g. 10 for 10%" },
+          "taxRate":            { "type": "number", "minimum": 0, "maximum": 100, "default": 18, "description": "Tax rate percentage — defaults to 18% GST" },
+          "dueDate":            { "type": "string", "format": "date-time", "description": "ISO date; defaults to 30 days from now" },
+          "notes":              { "type": "string" }
+        }
+      },
+
+      "RecordPaymentRequest": {
+        "type": "object",
+        "required": ["amount"],
+        "properties": {
+          "amount":    { "type": "number", "minimum": 0.01 },
+          "method":    { "type": "string", "enum": ["CASH","CARD","BANK_TRANSFER","CHEQUE","ONLINE","OTHER"], "default": "CASH" },
+          "reference": { "type": "string", "description": "Bank ref, transaction ID, cheque number, etc." },
+          "note":      { "type": "string" }
+        }
+      },
+
+      "InvoiceResponse": {
+        "type": "object",
+        "properties": {
+          "success": { "type": "boolean" },
+          "data": {
+            "type": "object",
+            "properties": {
+              "id":             { "type": "string", "format": "uuid" },
+              "invoiceNumber":  { "type": "string", "example": "INV-202407-00001" },
+              "status":         { "type": "string", "enum": ["UNPAID","PAID","PARTIALLY_PAID","OVERDUE","CANCELLED"] },
+              "subtotal":       { "type": "number" },
+              "taxRate":        { "type": "number" },
+              "taxAmount":      { "type": "number" },
+              "discountRate":   { "type": "number" },
+              "discountAmount": { "type": "number" },
+              "totalAmount":    { "type": "number" },
+              "dueDate":        { "type": "string", "format": "date-time" },
+              "createdAt":      { "type": "string", "format": "date-time" },
+              "lineItems":      { "type": "array", "items": { "type": "object" } },
+              "customer":       { "type": "object" },
+              "payments":       { "type": "array", "items": { "type": "object" } }
+            }
+          }
+        }
+      },
+
+      "InvoiceListResponse": {
+        "type": "object",
+        "properties": {
+          "success": { "type": "boolean" },
+          "data":    { "type": "array", "items": { "type": "object" } },
+          "pagination": {
+            "type": "object",
+            "properties": {
+              "total":      { "type": "integer" },
+              "page":       { "type": "integer" },
+              "pageSize":   { "type": "integer" },
+              "totalPages": { "type": "integer" }
+            }
+          }
+        }
+      },
+
+      "RevenueSummaryResponse": {
+        "type": "object",
+        "properties": {
+          "success": { "type": "boolean" },
+          "data": {
+            "type": "object",
+            "properties": {
+              "totalRevenue":      { "type": "number", "description": "Sum of totalAmount from PAID and PARTIALLY_PAID invoices" },
+              "outstandingAmount": { "type": "number", "description": "Sum of totalAmount from UNPAID and PARTIALLY_PAID invoices" },
+              "dailyCollections":  { "type": "number", "description": "Sum of payments recorded today" }
+            }
+          }
         }
       }
     }
