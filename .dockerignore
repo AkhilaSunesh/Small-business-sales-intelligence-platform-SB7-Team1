@@ -1,0 +1,14 @@
+node_modules
+**/node_modules
+npm-debug.log
+.git
+.github
+.env*
+!.env.example
+Frontend/dist
+AIML/models
+.vscode
+.idea
+*.log
+*.sqlite
+.DS_Store

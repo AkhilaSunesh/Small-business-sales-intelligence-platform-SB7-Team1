@@ -1,0 +1,115 @@
+services:
+  - type: web
+    name: marketmind-backend
+    env: node
+    region: oregon
+    plan: free
+    buildCommand: "cd Backend_Databse && npm install && npx prisma generate"
+    startCommand: "cd Backend_Databse && npm run start"
+    envVars:
+      - key: PORT
+        value: 10000
+      - key: DATABASE_URL
+        sync: false
+      - key: JWT_SECRET
+        value: supersecretjwtkey123!
+      - key: AI_SERVICE_URL
+        value: https://marketmind-ai-service.onrender.com
+      - key: SECURITY_GATEWAY_URL
+        value: https://marketmind-security.onrender.com
+
+  - type: web
+    name: marketmind-security
+    env: node
+    region: oregon
+    plan: free
+    buildCommand: "cd Security_API_gateway && npm install && npx prisma generate"
+    startCommand: "cd Security_API_gateway && npm run start"
+    envVars:
+      - key: PORT
+        value: 10000
+      - key: DATABASE_URL
+        sync: false
+      - key: JWT_SECRET
+        value: supersecretjwtkey123!
+      - key: BACKEND_URL
+        value: https://marketmind-backend.onrender.com
+
+  - type: web
+    name: marketmind-ai-service
+    env: python
+    region: oregon
+    plan: free
+    buildCommand: "pip install -r Devops_Integration/ai_requirements.txt"
+    startCommand: "uvicorn AIML.api.app:app --host 0.0.0.0 --port 10000"
+    envVars:
+      - key: PORT
+        value: 10000
+
+  - type: web
+    name: marketmind-invoice
+    env: node
+    region: oregon
+    plan: free
+    buildCommand: "cd Devops_Integration/Invoice_Service && npm install"
+    startCommand: "cd Devops_Integration/Invoice_Service && npm start"
+    envVars:
+      - key: PORT
+        value: 10000
+      - key: DATABASE_URL
+        sync: false
+
+  - type: web
+    name: marketmind-ai-rf
+    env: python
+    region: oregon
+    plan: free
+    buildCommand: "cd Devops_Integration/AI_RandomForest && pip install -r requirements.txt"
+    startCommand: "cd Devops_Integration/AI_RandomForest && python app.py"
+    envVars:
+      - key: PORT
+        value: 10000
+
+  - type: web
+    name: marketmind-ai-xgb
+    env: python
+    region: oregon
+    plan: free
+    buildCommand: "cd Devops_Integration/AI_XGBoost && pip install -r requirements.txt"
+    startCommand: "cd Devops_Integration/AI_XGBoost && python app.py"
+    envVars:
+      - key: PORT
+        value: 10000
+
+  - type: web
+    name: marketmind-ai-hp
+    env: python
+    region: oregon
+    plan: free
+    buildCommand: "cd Devops_Integration/AI_Hyperparameter && pip install -r requirements.txt"
+    startCommand: "cd Devops_Integration/AI_Hyperparameter && python app.py"
+    envVars:
+      - key: PORT
+        value: 10000
+
+  - type: web
+    name: marketmind-ai-mc
+    env: python
+    region: oregon
+    plan: free
+    buildCommand: "cd Devops_Integration/AI_ModelComparison && pip install -r requirements.txt"
+    startCommand: "cd Devops_Integration/AI_ModelComparison && python app.py"
+    envVars:
+      - key: PORT
+        value: 10000
+
+  - type: web
+    name: marketmind-frontend
+    env: static
+    region: oregon
+    plan: free
+    buildCommand: "cd Frontend && npm install && npm run build"
+    staticPublishPath: Frontend/dist
+    envVars:
+      - key: VITE_API_BASE_URL
+        value: https://marketmind-backend.onrender.com

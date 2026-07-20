@@ -33,7 +33,9 @@ services:
     environment:
       DATABASE_URL: ${DATABASE_URL:-postgresql://postgres:postgres@postgres:5432/marketmind_db?schema=public}
       JWT_SECRET: ${JWT_SECRET:-supersecretjwtkey123!}
-      PORT: 5000
+      PORT: ${BACKEND_PORT:-5000}
+      AI_SERVICE_URL: ${AI_SERVICE_URL:-http://ai-service:5001}
+      SECURITY_GATEWAY_URL: ${SECURITY_GATEWAY_URL:-http://security-gateway:6000}
     ports:
       - "${BACKEND_PORT:-5000}:5000"
     volumes:
@@ -44,7 +46,7 @@ services:
       postgres:
         condition: service_healthy
     healthcheck:
-      test: ["CMD-SHELL", "wget --no-verbose --tries=1 --spider http://localhost:5000/ || exit 1"]
+      test: ["CMD-SHELL", "node -e \"fetch('http://127.0.0.1:5000/').then(()=>process.exit(0)).catch(()=>process.exit(1))\""]
       interval: 10s
       timeout: 5s
       retries: 3
@@ -58,13 +60,13 @@ services:
     container_name: mmind-ai
     restart: always
     environment:
-      PORT: 5001
+      PORT: ${AI_SERVICE_PORT:-5001}
     ports:
       - "${AI_SERVICE_PORT:-5001}:5001"
     networks:
       - mmind-network
     healthcheck:
-      test: ["CMD-SHELL", "wget --no-verbose --tries=1 --spider http://localhost:5001/ || exit 1"]
+      test: ["CMD-SHELL", "python -c \"import urllib.request; urllib.request.urlopen('http://127.0.0.1:$${AI_SERVICE_PORT:-5001}/', timeout=2)\" || exit 1"]
       interval: 10s
       timeout: 5s
       retries: 3
@@ -78,9 +80,10 @@ services:
     container_name: mmind-security-gateway
     restart: always
     environment:
-      PORT: 6000
+      PORT: ${SECURITY_GATEWAY_PORT:-6000}
       DATABASE_URL: ${DATABASE_URL:-postgresql://postgres:postgres@postgres:5432/marketmind_db?schema=public}
       JWT_SECRET: ${JWT_SECRET:-supersecretjwtkey123!}
+      BACKEND_URL: ${BACKEND_URL:-http://backend:5000}
     ports:
       - "${SECURITY_GATEWAY_PORT:-6000}:6000"
     volumes:
@@ -90,12 +93,84 @@ services:
     depends_on:
       postgres:
         condition: service_healthy
+      backend:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD-SHELL", "node -e \"fetch('http://127.0.0.1:6000/').then(()=>process.exit(0)).catch(()=>process.exit(1))\""]
+      interval: 10s
+      timeout: 5s
+      retries: 3
+      start_period: 10s
+
+  # Invoice Service
+  invoice-service:
+    build:
+      context: ./Invoice_Service
+      dockerfile: ../Dockerfile.invoice
+    container_name: mmind-invoice
+    restart: always
+    environment:
+      PORT: ${INVOICE_SERVICE_PORT:-5002}
+      DATABASE_URL: ${DATABASE_URL:-postgresql://postgres:postgres@postgres:5432/marketmind_db?schema=public}
+    ports:
+      - "${INVOICE_SERVICE_PORT:-5002}:5002"
+    networks:
+      - mmind-network
+    depends_on:
+      postgres:
+        condition: service_healthy
+
+  # AI Random Forest
+  ai-random-forest:
+    build:
+      context: ./AI_RandomForest
+    container_name: mmind-ai-rf
+    restart: always
+    ports:
+      - "5003:5000"
+    networks:
+      - mmind-network
+
+  # AI XGBoost
+  ai-xgboost:
+    build:
+      context: ./AI_XGBoost
+    container_name: mmind-ai-xgb
+    restart: always
+    ports:
+      - "5004:5000"
+    networks:
+      - mmind-network
+
+  # AI Hyperparameter
+  ai-hyperparameter:
+    build:
+      context: ./AI_Hyperparameter
+    container_name: mmind-ai-hp
+    restart: always
+    ports:
+      - "5005:5000"
+    networks:
+      - mmind-network
+
+  # AI Model Comparison
+  ai-model-comparison:
+    build:
+      context: ./AI_ModelComparison
+    container_name: mmind-ai-mc
+    restart: always
+    ports:
+      - "5006:5000"
+    networks:
+      - mmind-network
 
   # Frontend Web UI
   frontend:
     build:
       context: ../
       dockerfile: Devops_Integration/Dockerfile.frontend
+      args:
+        VITE_API_BASE_URL: ${VITE_API_BASE_URL:-http://localhost:5000}
     container_name: mmind-frontend
     restart: always
     ports:
