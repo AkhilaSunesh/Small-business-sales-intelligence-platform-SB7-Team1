@@ -1,0 +1,1 @@
+console.log("Invoice service running..."); setInterval(() => {}, 1000);

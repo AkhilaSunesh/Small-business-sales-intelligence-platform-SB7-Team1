@@ -51,8 +51,8 @@ services:
     env: node
     region: oregon
     plan: free
-    buildCommand: "cd Invoice_Service && npm install"
-    startCommand: "cd Invoice_Service && npm start"
+    buildCommand: "cd Devops_Integration/Invoice_Service && npm install"
+    startCommand: "cd Devops_Integration/Invoice_Service && npm start"
     envVars:
       - key: PORT
         value: 10000
@@ -64,8 +64,8 @@ services:
     env: python
     region: oregon
     plan: free
-    buildCommand: "cd AI_RandomForest && pip install -r requirements.txt"
-    startCommand: "cd AI_RandomForest && python app.py"
+    buildCommand: "cd Devops_Integration/AI_RandomForest && pip install -r requirements.txt"
+    startCommand: "cd Devops_Integration/AI_RandomForest && python app.py"
     envVars:
       - key: PORT
         value: 10000
@@ -75,8 +75,8 @@ services:
     env: python
     region: oregon
     plan: free
-    buildCommand: "cd AI_XGBoost && pip install -r requirements.txt"
-    startCommand: "cd AI_XGBoost && python app.py"
+    buildCommand: "cd Devops_Integration/AI_XGBoost && pip install -r requirements.txt"
+    startCommand: "cd Devops_Integration/AI_XGBoost && python app.py"
     envVars:
       - key: PORT
         value: 10000
@@ -86,8 +86,8 @@ services:
     env: python
     region: oregon
     plan: free
-    buildCommand: "cd AI_Hyperparameter && pip install -r requirements.txt"
-    startCommand: "cd AI_Hyperparameter && python app.py"
+    buildCommand: "cd Devops_Integration/AI_Hyperparameter && pip install -r requirements.txt"
+    startCommand: "cd Devops_Integration/AI_Hyperparameter && python app.py"
     envVars:
       - key: PORT
         value: 10000
@@ -97,8 +97,8 @@ services:
     env: python
     region: oregon
     plan: free
-    buildCommand: "cd AI_ModelComparison && pip install -r requirements.txt"
-    startCommand: "cd AI_ModelComparison && python app.py"
+    buildCommand: "cd Devops_Integration/AI_ModelComparison && pip install -r requirements.txt"
+    startCommand: "cd Devops_Integration/AI_ModelComparison && python app.py"
     envVars:
       - key: PORT
         value: 10000
