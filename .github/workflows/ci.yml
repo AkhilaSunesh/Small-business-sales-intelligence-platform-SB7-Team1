@@ -68,19 +68,19 @@ jobs:
           python-version: '3.9'
       - name: Install dependencies and test AI_RandomForest
         run: |
-          cd AI_RandomForest
+          cd Devops_Integration/AI_RandomForest
           pip install -r requirements.txt
       - name: Install dependencies and test AI_XGBoost
         run: |
-          cd AI_XGBoost
+          cd Devops_Integration/AI_XGBoost
           pip install -r requirements.txt
       - name: Install dependencies and test AI_Hyperparameter
         run: |
-          cd AI_Hyperparameter
+          cd Devops_Integration/AI_Hyperparameter
           pip install -r requirements.txt
       - name: Install dependencies and test AI_ModelComparison
         run: |
-          cd AI_ModelComparison
+          cd Devops_Integration/AI_ModelComparison
           pip install -r requirements.txt
 
   docker-build:

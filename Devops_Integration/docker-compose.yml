@@ -105,8 +105,8 @@ services:
   # Invoice Service
   invoice-service:
     build:
-      context: ../Invoice_Service
-      dockerfile: ../Devops_Integration/Dockerfile.invoice
+      context: ./Invoice_Service
+      dockerfile: ./Dockerfile.invoice
     container_name: mmind-invoice
     restart: always
     environment:
@@ -123,7 +123,7 @@ services:
   # AI Random Forest
   ai-random-forest:
     build:
-      context: ../AI_RandomForest
+      context: ./AI_RandomForest
     container_name: mmind-ai-rf
     restart: always
     ports:
@@ -134,7 +134,7 @@ services:
   # AI XGBoost
   ai-xgboost:
     build:
-      context: ../AI_XGBoost
+      context: ./AI_XGBoost
     container_name: mmind-ai-xgb
     restart: always
     ports:
@@ -145,7 +145,7 @@ services:
   # AI Hyperparameter
   ai-hyperparameter:
     build:
-      context: ../AI_Hyperparameter
+      context: ./AI_Hyperparameter
     container_name: mmind-ai-hp
     restart: always
     ports:
@@ -156,7 +156,7 @@ services:
   # AI Model Comparison
   ai-model-comparison:
     build:
-      context: ../AI_ModelComparison
+      context: ./AI_ModelComparison
     container_name: mmind-ai-mc
     restart: always
     ports:
