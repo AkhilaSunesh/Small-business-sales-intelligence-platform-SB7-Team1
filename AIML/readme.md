@@ -148,3 +148,45 @@ Project: **MarketMind AI**
 Module: **Artificial Intelligence & Machine Learning**
 
 Week 1 Status: **Completed**
+
+
+## Customer Segmentation API
+
+### Base URL
+
+http://127.0.0.1:5000
+
+---
+
+### Endpoint
+
+GET /customer/<customer_id>
+
+---
+
+### Description
+
+Returns the customer segment for the given Customer ID.
+
+---
+
+### Example Request
+
+GET /customer/87
+
+---
+
+### Example Response
+
+{
+    "CustomerID": 87,
+    "CustomerGroup": "Occasional"
+}
+
+---
+
+### Error Response
+
+{
+    "message": "Customer Not Found"
+}
