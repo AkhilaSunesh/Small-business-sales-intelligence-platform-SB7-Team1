@@ -106,7 +106,7 @@ services:
   invoice-service:
     build:
       context: ./Invoice_Service
-      dockerfile: ./Dockerfile.invoice
+      dockerfile: ../Dockerfile.invoice
     container_name: mmind-invoice
     restart: always
     environment:
