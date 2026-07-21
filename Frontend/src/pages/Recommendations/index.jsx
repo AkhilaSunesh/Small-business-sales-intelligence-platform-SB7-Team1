@@ -1,119 +1,148 @@
+import { useState, useEffect, useMemo } from 'react';
 import { usePageTitle } from '../../hooks/usePageTitle';
-import { FiZap, FiPackage, FiPercent, FiTrendingUp, FiAlertTriangle } from 'react-icons/fi';
-import Button from '../../components/ui/Button';
-
-// Mock AI recommendations list
-const MOCK_RECOMMENDATIONS = [
-  {
-    id: 'REC001',
-    title: 'Cross-Sell Bundle Proposal',
-    description: 'Customers purchasing "Premium Widget" are 74% likely to also buy "Basic Kit". We recommend setting up an automated discount bundle on checkout.',
-    category: 'Cross-Selling',
-    impact: 'High Impact',
-    impactColor: 'emerald',
-    potentialGain: '+$1,450 / mo',
-    icon: FiZap,
-  },
-  {
-    id: 'REC002',
-    title: 'Restock Alert: Deluxe Pro Tool',
-    description: 'Demand forecasting indicates inventory levels for "Deluxe Pro Tool" will hit critical low within 6 days. Order 15 items to avoid out-of-stock losses.',
-    category: 'Inventory Refill',
-    impact: 'High Impact',
-    impactColor: 'emerald',
-    potentialGain: 'Prevent $2,100 deficit',
-    icon: FiPackage,
-  },
-  {
-    id: 'REC003',
-    title: 'Promotional Campaign: Standard Gadget',
-    description: '"Standard Gadget" has experienced a 12% sales drop in the last 14 days. Create a weekend flash promo (10% discount) to clear seasonal stock.',
-    category: 'Discount Optimization',
-    impact: 'Medium Impact',
-    impactColor: 'amber',
-    potentialGain: '+$680 revenue',
-    icon: FiPercent,
-  },
-  {
-    id: 'REC004',
-    title: 'Upsell Option: Smart Device',
-    description: 'Recommend "Industrial Grade" upgrade to customers viewing "Smart Device" items. High conversions seen when combined with bank transfer discount.',
-    category: 'Upselling',
-    impact: 'Low Impact',
-    impactColor: 'cyan',
-    potentialGain: '+8.4% average check',
-    icon: FiTrendingUp,
-  },
-];
+import { FiSearch, FiZap, FiShoppingBag, FiArrowRight, FiAlertTriangle } from 'react-icons/fi';
+import Input from '../../components/ui/Input';
+import { mockRecommendations } from '../../constants/recommendationsData';
 
 function RecommendationsPage() {
   usePageTitle('Recommendations');
 
+  const [isLoading, setIsLoading] = useState(true);
+  const [recommendations, setRecommendations] = useState([]);
+  const [searchTerm, setSearchTerm] = useState('');
+
+  // Simulate API load on component mount
+  useEffect(() => {
+    // TODO: API INTEGRATION POINT
+    // Replace mock loading with real backend call using Axios:
+    // axios.get('/api/v1/recommendations')
+    //   .then(response => setRecommendations(response.data))
+    //   .catch(err => console.error(err))
+    //   .finally(() => setIsLoading(false));
+
+    const timer = setTimeout(() => {
+      setRecommendations(mockRecommendations);
+      setIsLoading(false);
+    }, 400);
+
+    return () => clearTimeout(timer);
+  }, []);
+
+  // Filter recommendations by product name (purchased or recommended) or reason
+  const filteredRecommendations = useMemo(() => {
+    if (!searchTerm.trim()) return recommendations;
+    const term = searchTerm.toLowerCase();
+    return recommendations.filter(
+      (item) =>
+        item.productPurchased.toLowerCase().includes(term) ||
+        item.recommendedProduct.toLowerCase().includes(term) ||
+        item.reason.toLowerCase().includes(term)
+    );
+  }, [recommendations, searchTerm]);
+
   return (
     <div className="space-y-6">
-      {/* Page Header */}
-      <section className="rounded-3xl border border-white/10 bg-slate-950/80 p-6 md:p-8 backdrop-blur">
-        <h1 className="text-3xl font-bold tracking-tight text-white">AI / ML Recommendations</h1>
-        <p className="mt-1.5 text-sm text-slate-400">Intelligent data suggestions for product bundles, markdown campaigns, and inventory stocks.</p>
+      {/* Header & Subtitle */}
+      <section className="rounded-3xl border border-white/10 bg-slate-950/80 p-6 md:p-8 backdrop-blur flex flex-col md:flex-row md:items-center justify-between gap-6">
+        <div>
+          <h1 className="text-3xl font-bold tracking-tight text-white">Recommendations</h1>
+          <p className="mt-1.5 text-sm text-slate-400">AI-powered product recommendations.</p>
+        </div>
+
+        {/* Search bar */}
+        <div className="w-full md:w-72">
+          <div className="relative">
+            <FiSearch className="absolute left-3.5 top-1/2 -translate-y-1/2 text-slate-400" />
+            <input
+              type="text"
+              placeholder="Search by product name..."
+              value={searchTerm}
+              onChange={(e) => setSearchTerm(e.target.value)}
+              className="w-full rounded-2xl border border-white/10 bg-white/5 py-2.5 pl-10 pr-4 text-sm text-white placeholder-slate-400 focus:border-cyan-400 focus:outline-none focus:ring-1 focus:ring-cyan-400 transition-all"
+            />
+          </div>
+        </div>
       </section>
 
-      {/* Integration Callout */}
+      {/* Backend Integration Banner */}
       <div className="rounded-2xl border border-amber-500/20 bg-amber-500/10 p-4 text-sm text-amber-300 flex items-center gap-3">
         <FiAlertTriangle className="text-xl shrink-0" />
         <div>
-          <span className="font-semibold">Waiting for backend integration:</span> Direct automated actions and model training updates will activate upon final AI/ML pipeline deployments.
+          <span className="font-semibold">Future Backend API:</span> Recommendation engine models (Association Rule Mining / Collaborative Filtering) will push real-time pairs to this endpoint.
         </div>
       </div>
 
-      {/* Recommendations Cards Grid */}
-      <div className="grid gap-6 md:grid-cols-2">
-        {MOCK_RECOMMENDATIONS.map((rec) => {
-          const Icon = rec.icon;
-          return (
-            <div key={rec.id} className="rounded-3xl border border-white/10 bg-slate-950/80 p-6 backdrop-blur flex flex-col justify-between hover:border-cyan-400/20 transition-all duration-300">
-              <div className="space-y-4">
-                {/* Header Row */}
-                <div className="flex items-center justify-between">
-                  <span className="text-xs uppercase tracking-wider text-cyan-400 bg-cyan-400/10 px-3 py-1 rounded-full font-semibold">
-                    {rec.category}
-                  </span>
-                  <span className={`inline-flex px-2.5 py-0.5 rounded-full text-xs font-semibold ${
-                    rec.impactColor === 'emerald'
-                      ? 'bg-emerald-500/10 text-emerald-300 border border-emerald-500/20'
-                      : rec.impactColor === 'amber'
-                      ? 'bg-amber-500/10 text-amber-300 border border-amber-500/20'
-                      : 'bg-cyan-500/10 text-cyan-300 border border-cyan-500/20'
-                  }`}>
-                    {rec.impact}
-                  </span>
-                </div>
-
-                {/* Title */}
-                <div className="flex items-start gap-3">
-                  <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-white/5 text-cyan-400">
-                    <Icon className="text-lg" />
-                  </div>
-                  <div>
-                    <h3 className="text-base font-semibold text-white">{rec.title}</h3>
-                    <p className="mt-2.5 text-sm leading-relaxed text-slate-400">{rec.description}</p>
-                  </div>
-                </div>
+      {/* Loading Skeleton */}
+      {isLoading ? (
+        <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-3">
+          {[...Array(6)].map((_, i) => (
+            <div key={i} className="rounded-3xl border border-white/10 bg-slate-950/80 p-6 space-y-4 animate-pulse">
+              <div className="flex items-center justify-between">
+                <div className="h-4 w-24 bg-white/10 rounded"></div>
+                <div className="h-4 w-12 bg-white/10 rounded"></div>
               </div>
-
-              {/* Footer Calculations & Action */}
-              <div className="mt-6 border-t border-white/5 pt-4 flex flex-col sm:flex-row justify-between items-start sm:items-center gap-3">
-                <div className="text-xs">
-                  <span className="text-slate-500 block">Est. Financial Value:</span>
-                  <span className="font-semibold text-white font-mono text-sm">{rec.potentialGain}</span>
+              <div className="h-14 bg-white/5 rounded-2xl"></div>
+              <div className="h-10 bg-white/10 rounded-xl"></div>
+            </div>
+          ))}
+        </div>
+      ) : filteredRecommendations.length === 0 ? (
+        /* Empty State */
+        <div className="rounded-3xl border border-white/10 bg-slate-950/80 p-12 text-center text-slate-400 backdrop-blur">
+          <FiZap className="text-5xl text-slate-600 mx-auto mb-4" />
+          <h3 className="text-lg font-semibold text-white">No recommendations available.</h3>
+          <p className="text-sm mt-1 text-slate-500">
+            {searchTerm ? `No product matching "${searchTerm}" was found.` : 'Check back later for new AI insights.'}
+          </p>
+        </div>
+      ) : (
+        /* Recommendation Cards Grid (Responsive Cards) */
+        <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-3">
+          {filteredRecommendations.map((rec) => (
+            <div
+              key={rec.id}
+              className="rounded-3xl border border-white/10 bg-slate-950/80 p-6 backdrop-blur flex flex-col justify-between hover:border-cyan-400/30 transition-all duration-300 group"
+            >
+              <div className="space-y-4">
+                {/* Header Tag / Confidence */}
+                <div className="flex items-center justify-between">
+                  <span className="text-[11px] font-semibold uppercase tracking-wider text-cyan-400 bg-cyan-400/10 border border-cyan-400/20 px-3 py-1 rounded-full">
+                    {rec.category || 'AI Suggestion'}
+                  </span>
+                  {rec.confidence && (
+                    <span className="text-xs font-mono text-emerald-400 bg-emerald-500/10 border border-emerald-500/20 px-2.5 py-0.5 rounded-full font-semibold">
+                      {rec.confidence} match
+                    </span>
+                  )}
                 </div>
-                <Button variant="secondary" onClick={() => alert('Execution of advice will activate with backend integration.')} className="text-xs py-2 px-3">
-                  Apply Action Plan
-                </Button>
+
+                {/* Product Purchased -> Recommended Product */}
+                <div className="rounded-2xl border border-white/5 bg-white/5 p-4 flex items-center justify-between gap-3">
+                  <div className="flex-1">
+                    <span className="text-[10px] uppercase font-bold tracking-wider text-slate-400 block">Product Purchased</span>
+                    <span className="text-sm font-semibold text-white mt-0.5 block truncate">{rec.productPurchased}</span>
+                  </div>
+                  <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-cyan-400/10 text-cyan-400">
+                    <FiArrowRight />
+                  </div>
+                  <div className="flex-1 text-right">
+                    <span className="text-[10px] uppercase font-bold tracking-wider text-slate-400 block">Recommended Product</span>
+                    <span className="text-sm font-semibold text-cyan-300 mt-0.5 block truncate">{rec.recommendedProduct}</span>
+                  </div>
+                </div>
+
+                {/* Short Reason */}
+                <div>
+                  <span className="text-xs font-semibold text-slate-300 block mb-1">Reason:</span>
+                  <p className="text-xs leading-relaxed text-slate-400 bg-slate-900/60 p-3 rounded-xl border border-white/5 italic">
+                    "{rec.reason}"
+                  </p>
+                </div>
               </div>
             </div>
-          );
-        })}
-      </div>
+          ))}
+        </div>
+      )}
     </div>
   );
 }
