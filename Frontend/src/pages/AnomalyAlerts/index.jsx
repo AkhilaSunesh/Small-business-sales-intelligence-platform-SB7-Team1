@@ -1,145 +1,164 @@
-import { useState } from 'react';
+import { useState, useEffect, useMemo } from 'react';
 import { usePageTitle } from '../../hooks/usePageTitle';
-import { FiAlertTriangle, FiAlertCircle, FiTrendingDown, FiShield, FiX, FiCheck, FiMail } from 'react-icons/fi';
-import { useToast } from '../../components/common/Toast';
-import Button from '../../components/ui/Button';
-
-// Mock Anomalies Data
-const INITIAL_ANOMALIES = [
-  {
-    id: 'ALR001',
-    type: 'Security / Access',
-    title: 'Suspicious Sales Login Activity',
-    description: 'Multiple concurrent login sessions detected for Sales Executive role from distinct IP addresses within a 5-minute window.',
-    severity: 'Critical',
-    time: '3 hours ago',
-    icon: FiShield,
-  },
-  {
-    id: 'ALR002',
-    type: 'Sales Operations',
-    title: 'Suspicious Return Ratio Spike',
-    description: 'Product "Premium Widget" refund requests reached 28% of total purchases over the past 48 hours, vs historical baseline of 3.4%.',
-    severity: 'Warning',
-    time: '5 hours ago',
-    icon: FiAlertCircle,
-  },
-  {
-    id: 'ALR003',
-    type: 'Financial Margin',
-    title: 'Sudden Margin Drop',
-    description: 'Overall catalog margin fell by 14.2% today due to cumulative discount codes applied on bulk checkouts. Re-optimization needed.',
-    severity: 'Warning',
-    time: '1 day ago',
-    icon: FiTrendingDown,
-  },
-  {
-    id: 'ALR004',
-    type: 'Inventory',
-    title: 'Abnormal Stock Dip: Basic Kit',
-    description: 'Inventory levels for "Basic Kit" dropped by 80 items in 1 hour without matching sales transactions. Possible stock take mismatch.',
-    severity: 'Info',
-    time: '2 days ago',
-    icon: FiAlertTriangle,
-  },
-];
+import { FiSearch, FiAlertTriangle, FiAlertCircle, FiInfo, FiCheckCircle } from 'react-icons/fi';
+import { mockAnomalyAlerts } from '../../constants/anomalyAlertsData';
 
 function AnomalyAlertsPage() {
   usePageTitle('Anomaly Alerts');
-  const toast = useToast();
-  const [anomalies, setAnomalies] = useState(INITIAL_ANOMALIES);
 
-  const handleAcknowledge = (id, title) => {
-    setAnomalies(anomalies.filter((a) => a.id !== id));
-    toast.show(`Alert "${title}" acknowledged and cleared.`, 'success');
-  };
+  const [isLoading, setIsLoading] = useState(true);
+  const [alerts, setAlerts] = useState([]);
+  const [searchTerm, setSearchTerm] = useState('');
 
-  const handleEscalate = (title) => {
-    toast.show(`Notification email sent to Owner regarding: ${title}`, 'info');
-  };
+  // Simulate API fetch on component mount
+  useEffect(() => {
+    // TODO: API INTEGRATION POINT
+    // Replace mock loading with real backend call using Axios:
+    // axios.get('/api/v1/anomalies/alerts')
+    //   .then(response => setAlerts(response.data))
+    //   .catch(err => console.error(err))
+    //   .finally(() => setIsLoading(false));
+
+    const timer = setTimeout(() => {
+      setAlerts(mockAnomalyAlerts);
+      setIsLoading(false);
+    }, 400);
+
+    return () => clearTimeout(timer);
+  }, []);
+
+  // Filter alerts by search term (title or description)
+  const filteredAlerts = useMemo(() => {
+    if (!searchTerm.trim()) return alerts;
+    const term = searchTerm.toLowerCase();
+    return alerts.filter(
+      (alert) =>
+        alert.title.toLowerCase().includes(term) ||
+        alert.description.toLowerCase().includes(term)
+    );
+  }, [alerts, searchTerm]);
 
   return (
     <div className="space-y-6">
-      {/* Page Header */}
-      <section className="rounded-3xl border border-white/10 bg-slate-950/80 p-6 md:p-8 backdrop-blur">
-        <h1 className="text-3xl font-bold tracking-tight text-white">Anomaly Alerts</h1>
-        <p className="mt-1.5 text-sm text-slate-400">Monitor suspicious sales volume, margin leaks, inventory drops, or security concerns.</p>
+      {/* Header & Subtitle */}
+      <section className="rounded-3xl border border-white/10 bg-slate-950/80 p-6 md:p-8 backdrop-blur flex flex-col md:flex-row md:items-center justify-between gap-6">
+        <div>
+          <h1 className="text-3xl font-bold tracking-tight text-white">Anomaly Alerts</h1>
+          <p className="mt-1.5 text-sm text-slate-400">Monitor unusual business activities.</p>
+        </div>
+
+        {/* Search alerts by title */}
+        <div className="w-full md:w-72">
+          <div className="relative">
+            <FiSearch className="absolute left-3.5 top-1/2 -translate-y-1/2 text-slate-400" />
+            <input
+              type="text"
+              placeholder="Search alerts by title..."
+              value={searchTerm}
+              onChange={(e) => setSearchTerm(e.target.value)}
+              className="w-full rounded-2xl border border-white/10 bg-white/5 py-2.5 pl-10 pr-4 text-sm text-white placeholder-slate-400 focus:border-cyan-400 focus:outline-none focus:ring-1 focus:ring-cyan-400 transition-all"
+            />
+          </div>
+        </div>
       </section>
 
-      {/* Integration Banner */}
+      {/* Backend Integration Banner */}
       <div className="rounded-2xl border border-amber-500/20 bg-amber-500/10 p-4 text-sm text-amber-300 flex items-center gap-3">
         <FiAlertTriangle className="text-xl shrink-0" />
         <div>
-          <span className="font-semibold">Waiting for backend integration:</span> Real-time telemetry monitoring and web socket alerts are in demo mode.
+          <span className="font-semibold">Future Backend API:</span> Real-time telemetry monitoring and web sockets will stream live alerts here.
         </div>
       </div>
 
-      {/* Anomalies List */}
-      <div className="space-y-4">
-        {anomalies.length === 0 ? (
-          <div className="rounded-3xl border border-white/10 bg-slate-950/80 p-12 text-center text-slate-500 backdrop-blur">
-            <FiCheck className="text-5xl text-emerald-400 mx-auto mb-4" />
-            <h3 className="text-lg font-semibold text-white">All Clear</h3>
-            <p className="text-sm mt-1">No anomalies or warnings are active right now.</p>
-          </div>
-        ) : (
-          anomalies.map((alr) => {
-            const Icon = alr.icon;
-            return (
-              <div
-                key={alr.id}
-                className="rounded-3xl border border-white/10 bg-slate-950/80 p-6 backdrop-blur flex flex-col lg:flex-row justify-between items-start lg:items-center gap-6 hover:border-white/15 transition-colors"
-              >
-                {/* Info block */}
-                <div className="flex items-start gap-4">
-                  <div className={`flex h-12 w-12 shrink-0 items-center justify-center rounded-2xl ${
-                    alr.severity === 'Critical'
-                      ? 'bg-rose-500/10 text-rose-400 border border-rose-500/20'
-                      : alr.severity === 'Warning'
-                      ? 'bg-amber-500/10 text-amber-400 border border-amber-500/20'
-                      : 'bg-cyan-500/10 text-cyan-400 border border-cyan-500/20'
-                  }`}>
-                    <Icon className="text-xl" />
-                  </div>
-                  <div className="space-y-1">
-                    <div className="flex flex-wrap items-center gap-2">
-                      <span className="text-xs uppercase tracking-wider font-semibold text-slate-500">{alr.type}</span>
-                      <span className={`px-2 py-0.5 rounded-full text-[10px] font-bold uppercase tracking-wider ${
-                        alr.severity === 'Critical'
-                          ? 'bg-rose-500/20 text-rose-300'
-                          : alr.severity === 'Warning'
-                          ? 'bg-amber-500/20 text-amber-300'
-                          : 'bg-cyan-500/20 text-cyan-300'
-                      }`}>
-                        {alr.severity}
-                      </span>
-                      <span className="text-xs text-slate-500">• {alr.time}</span>
-                    </div>
-                    <h3 className="text-base font-semibold text-white">{alr.title}</h3>
-                    <p className="text-sm text-slate-400 max-w-3xl leading-relaxed mt-1">{alr.description}</p>
-                  </div>
+      {/* Loading Skeleton */}
+      {isLoading ? (
+        <div className="space-y-4">
+          {[...Array(4)].map((_, i) => (
+            <div key={i} className="rounded-3xl border border-white/10 bg-slate-950/80 p-6 space-y-3 animate-pulse">
+              <div className="flex items-center justify-between">
+                <div className="h-5 w-48 bg-white/10 rounded"></div>
+                <div className="h-5 w-20 bg-white/10 rounded-full"></div>
+              </div>
+              <div className="h-4 w-3/4 bg-white/5 rounded"></div>
+              <div className="h-3 w-32 bg-white/5 rounded"></div>
+            </div>
+          ))}
+        </div>
+      ) : filteredAlerts.length === 0 ? (
+        /* Empty State */
+        <div className="rounded-3xl border border-white/10 bg-slate-950/80 p-12 text-center text-slate-400 backdrop-blur">
+          <FiCheckCircle className="text-5xl text-emerald-400 mx-auto mb-4" />
+          <h3 className="text-lg font-semibold text-white">No alerts available.</h3>
+          <p className="text-sm mt-1 text-slate-500">
+            {searchTerm ? `No alert found matching "${searchTerm}".` : 'All business metrics are operating normally.'}
+          </p>
+        </div>
+      ) : (
+        /* Warning Banner List / Alert Cards */
+        <div className="space-y-4">
+          {filteredAlerts.map((alert) => (
+            <div
+              key={alert.id}
+              className={`rounded-3xl border p-6 backdrop-blur transition-all duration-300 flex flex-col md:flex-row md:items-center justify-between gap-4 ${
+                alert.severity === 'Critical'
+                  ? 'border-rose-500/30 bg-rose-950/20 hover:border-rose-500/50'
+                  : alert.severity === 'Warning'
+                  ? 'border-amber-500/30 bg-amber-950/20 hover:border-amber-500/50'
+                  : 'border-cyan-500/30 bg-cyan-950/20 hover:border-cyan-500/50'
+              }`}
+            >
+              <div className="flex items-start gap-4">
+                {/* Severity Icon */}
+                <div
+                  className={`flex h-11 w-11 shrink-0 items-center justify-center rounded-2xl ${
+                    alert.severity === 'Critical'
+                      ? 'bg-rose-500/20 text-rose-300'
+                      : alert.severity === 'Warning'
+                      ? 'bg-amber-500/20 text-amber-300'
+                      : 'bg-cyan-500/20 text-cyan-300'
+                  }`}
+                >
+                  {alert.severity === 'Critical' ? (
+                    <FiAlertCircle className="text-xl" />
+                  ) : alert.severity === 'Warning' ? (
+                    <FiAlertTriangle className="text-xl" />
+                  ) : (
+                    <FiInfo className="text-xl" />
+                  )}
                 </div>
 
-                {/* Action buttons */}
-                <div className="flex items-center gap-2 w-full lg:w-auto shrink-0 border-t border-white/5 pt-4 lg:border-t-0 lg:pt-0">
-                  <button
-                    onClick={() => handleAcknowledge(alr.id, alr.title)}
-                    className="flex-1 lg:flex-none inline-flex items-center justify-center gap-2 rounded-xl bg-white/5 border border-white/10 px-4 py-2.5 text-xs font-semibold text-white hover:bg-emerald-500/15 hover:text-emerald-300 hover:border-emerald-500/20 transition-all"
-                  >
-                    <FiCheck /> Resolve
-                  </button>
-                  <button
-                    onClick={() => handleEscalate(alr.title)}
-                    className="flex-1 lg:flex-none inline-flex items-center justify-center gap-2 rounded-xl bg-white/5 border border-white/10 px-4 py-2.5 text-xs font-semibold text-slate-300 hover:bg-cyan-500/15 hover:text-cyan-300 hover:border-cyan-500/20 transition-all"
-                  >
-                    <FiMail /> Escalate
-                  </button>
+                {/* Content */}
+                <div className="space-y-1">
+                  <div className="flex flex-wrap items-center gap-3">
+                    {/* Alert Title */}
+                    <h3 className="text-base font-semibold text-white">{alert.title}</h3>
+                    {/* Severity Badge */}
+                    <span
+                      className={`inline-flex px-2.5 py-0.5 rounded-full text-xs font-bold uppercase tracking-wider ${
+                        alert.severity === 'Critical'
+                          ? 'bg-rose-500/20 text-rose-300 border border-rose-500/30'
+                          : alert.severity === 'Warning'
+                          ? 'bg-amber-500/20 text-amber-300 border border-amber-500/30'
+                          : 'bg-cyan-500/20 text-cyan-300 border border-cyan-500/30'
+                      }`}
+                    >
+                      {alert.severity}
+                    </span>
+                  </div>
+                  {/* Short Description */}
+                  <p className="text-sm text-slate-300 leading-relaxed max-w-3xl">{alert.description}</p>
                 </div>
               </div>
-            );
-          })
-        )}
-      </div>
+
+              {/* Date & Category */}
+              <div className="flex md:flex-col items-center md:items-end justify-between border-t border-white/5 pt-3 md:border-t-0 md:pt-0 shrink-0 text-xs text-slate-400 font-mono">
+                <span>{alert.date}</span>
+                {alert.category && <span className="text-slate-500 font-sans">{alert.category}</span>}
+              </div>
+            </div>
+          ))}
+        </div>
+      )}
     </div>
   );
 }
