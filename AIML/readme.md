@@ -376,3 +376,37 @@ data/product_recommendations.csv
 
 - ProductID
 - Recommendations
+# Anomaly Detection
+
+## Overview
+
+This module detects unusual sales transactions using a statistical threshold based on the TotalAmount field.
+
+---
+
+## Method
+
+Mean ± 3 × Standard Deviation (3σ Rule)
+
+Transactions outside this range are flagged as anomalies.
+
+---
+
+## Input
+
+Retail_Transaction_Dataset.csv
+
+---
+
+## Output
+
+anomaly_detection.csv
+
+---
+
+## Output Fields
+
+- CustomerID
+- ProductID
+- TotalAmount
+- Anomaly
