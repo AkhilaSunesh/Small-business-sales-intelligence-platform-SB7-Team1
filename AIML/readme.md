@@ -190,3 +190,47 @@ GET /customer/87
 {
     "message": "Customer Not Found"
 }
+
+# Churn Prediction Module
+
+## Objective
+
+Identify customers who are likely to stop purchasing based on transaction inactivity.
+
+---
+
+## Method
+
+A simple rule-based churn detection approach is used.
+
+Rule:
+
+- InactiveDays > 60 → At Risk
+- Otherwise → Not At Risk
+
+---
+
+## Features Used
+
+- CustomerID
+- LastPurchaseDate
+- TotalSpent
+- TotalQuantity
+- InactiveDays
+
+---
+
+## Output
+
+Generated File:
+
+data/customer_churn.csv
+
+Output Columns:
+
+- CustomerID
+- LastPurchaseDate
+- TotalSpent
+- TotalQuantity
+- InactiveDays
+- ChurnRisk
