@@ -13,9 +13,9 @@ function DashboardLayout() {
   const toggle = () => setCollapsed((c) => !c);
 
   return (
-    <div className="min-h-screen lg:flex">
+    <div className="min-h-screen flex">
       <Sidebar collapsed={collapsed} />
-      <div className="flex min-h-screen flex-1 flex-col lg:pl-0">
+      <div className="flex min-h-screen flex-1 flex-col pl-0">
         <Navbar onToggle={toggle} />
         <main className="flex-1 px-4 py-6 sm:px-6 lg:px-8 lg:py-8">
           <div className="mx-auto w-full max-w-7xl">
