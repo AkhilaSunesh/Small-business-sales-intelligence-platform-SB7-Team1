@@ -234,3 +234,95 @@ Output Columns:
 - TotalQuantity
 - InactiveDays
 - ChurnRisk
+
+# Churn Prediction API
+
+## Overview
+
+This API returns the churn status of a customer using the churn prediction dataset generated during Day 4.
+
+---
+
+## Endpoint
+
+GET /customer/<customer_id>
+
+---
+
+## Description
+
+Returns the churn status for the given Customer ID.
+
+---
+
+## Example Request
+
+GET /customer/14
+
+---
+
+## Example Response
+
+{
+    "CustomerID": 14,
+    "ChurnRisk": "At Risk"
+}
+
+---
+
+## Error Response
+
+{
+    "message": "Customer Not Found"
+}
+
+---
+
+## Data Source
+
+data/customer_churn.csv
+
+---
+
+## Output Fields
+
+- CustomerID
+- ChurnRisk
+
+# Product Recommendation
+
+## Overview
+
+This module recommends products using purchase frequency from the sales dataset.
+
+---
+
+## Logic Used
+
+Products are ranked according to how frequently they appear in the historical sales data.
+
+When a product is requested, the same product is excluded and the next top purchased products are recommended.
+
+---
+
+## Input
+
+Product ID
+
+---
+
+## Output
+
+Top 3 Recommended Products
+
+---
+
+## Dataset Used
+
+data/preprocessed_data.csv
+
+---
+
+## Generated File
+
+data/product_recommendations.csv
