@@ -326,3 +326,53 @@ data/preprocessed_data.csv
 ## Generated File
 
 data/product_recommendations.csv
+
+# Product Recommendation API
+
+## Overview
+
+This API provides the top recommended products for a given Product ID based on historical purchase frequency.
+
+---
+
+## Endpoint
+
+GET /recommend/<product_id>
+
+---
+
+## Description
+
+Returns the top three recommended products excluding the requested product.
+
+---
+
+## Example Request
+
+GET /recommend/A
+
+---
+
+## Example Response
+
+{
+    "ProductID": "A",
+    "Recommendations": [
+        "C",
+        "D",
+        "B"
+    ]
+}
+
+---
+
+## Dataset Used
+
+data/product_recommendations.csv
+
+---
+
+## Output
+
+- ProductID
+- Recommendations
