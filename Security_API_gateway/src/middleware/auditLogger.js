@@ -49,7 +49,26 @@ const auditRejectMiddleware = (req, res, next) => {
     next();
 };
 
+const auditSuccessfulAction = (event, action) => (req, res, next) => {
+    res.on("finish", () => {
+        if (res.statusCode < 200 || res.statusCode >= 300) return;
+
+        logEvent("info", event, {
+            userId: req.user ? req.user.id : "anonymous",
+            ip: req.ip || req.headers["x-forwarded-for"],
+            endpoint: req.originalUrl,
+            method: req.method,
+            status: res.statusCode,
+            action
+        });
+    });
+
+    next();
+};
+
 module.exports = {
     logEvent,
-    auditRejectMiddleware
+    auditRejectMiddleware,
+    auditSuccessfulAction
 };
+
