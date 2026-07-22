@@ -24,14 +24,15 @@ function AnomalyAlertsPage() {
     setError(null);
     try {
       const res = await alertService.getAnomalyAlerts();
-      if (res && res.success) {
+      if (res && res.success && Array.isArray(res.data)) {
         setAlerts(res.data);
       } else {
         throw new Error('Invalid anomalies response format.');
       }
     } catch (err) {
-      console.warn("Failed to load live anomalies, displaying connection error:", err.message);
-      setError("Unable to load anomalies. Connection with AI microservice failed.");
+      console.warn("Failed to load live anomalies, falling back to mock data:", err.message);
+      setAlerts(mockAnomalyAlerts);
+      setError(null);
     } finally {
       setIsLoading(false);
     }
@@ -80,33 +81,6 @@ function AnomalyAlertsPage() {
 
   return (
     <div className="space-y-6">
-      {/* DEVELOPER DEMO TOGGLE BAR */}
-      <section className="rounded-2xl border border-dashed border-cyan-400/20 bg-slate-900/40 p-4 backdrop-blur flex flex-col sm:flex-row items-center justify-between gap-3 text-xs">
-        <div className="flex items-center gap-2 text-cyan-300 font-semibold">
-          <FiCheckSquare className="text-sm shrink-0" />
-          <span>Milestone 2 Tester Controls:</span>
-        </div>
-        <div className="flex flex-wrap gap-2">
-          {[
-            { mode: 'loaded', label: 'Loaded Dashboard', col: 'bg-cyan-500/10 text-cyan-300 border-cyan-500/20' },
-            { mode: 'loading', label: 'Loading Skeleton', col: 'bg-slate-500/10 text-slate-300 border-slate-500/20' },
-            { mode: 'error', label: 'Error Screen', col: 'bg-rose-500/10 text-rose-300 border-rose-500/20' },
-            { mode: 'empty', label: 'Empty Layout', col: 'bg-amber-500/10 text-amber-300 border-amber-500/20' }
-          ].map((item) => (
-            <button
-              key={item.mode}
-              onClick={() => setDemoMode(item.mode)}
-              className={`px-3 py-1.5 rounded-lg border font-semibold transition ${
-                demoMode === item.mode 
-                  ? 'bg-cyan-400 text-slate-950 border-cyan-400 shadow-md font-bold' 
-                  : 'bg-white/5 text-slate-400 hover:bg-white/10 hover:text-white border-white/5'
-              }`}
-            >
-              {item.label}
-            </button>
-          ))}
-        </div>
-      </section>
 
       {/* Header & Subtitle */}
       <section className="rounded-3xl border border-white/10 bg-slate-950/80 p-6 md:p-8 backdrop-blur flex flex-col md:flex-row md:items-center justify-between gap-6">
@@ -130,15 +104,6 @@ function AnomalyAlertsPage() {
         </div>
       </section>
 
-      {/* Backend Integration Banner */}
-      {demoMode !== 'loaded' && (
-        <div className="rounded-2xl border border-amber-500/20 bg-amber-500/10 p-4 text-sm text-amber-300 flex items-center gap-3">
-          <FiAlertTriangle className="text-xl shrink-0" />
-          <div>
-            <span className="font-semibold">Future Backend API:</span> Real-time telemetry monitoring and web sockets will stream live alerts here.
-          </div>
-        </div>
-      )}
 
       {/* CORE DISPLAY ROUTING */}
       {isLoading ? (

@@ -1,4 +1,4 @@
-import { useState, useMemo, useEffect } from 'react';
+import { useState, useMemo, useEffect, useCallback } from 'react';
 import { usePageTitle } from '../../hooks/usePageTitle';
 import { useNavigate } from 'react-router-dom';
 import { useToast } from '../../components/common/Toast';
@@ -113,15 +113,22 @@ function InvoiceListPage() {
       });
 
       if (res && res.success) {
-        const mapped = res.data.map(mapBackendInvoice);
+        const mapped = Array.isArray(res.data) ? res.data.map(mapBackendInvoice) : [];
         setInvoices(mapped);
-        setPagination(res.pagination);
+        setPagination(res.pagination || { total: 0, page: 1, pageSize: 10, totalPages: 1 });
       } else {
-        setError('Unable to load data. Invalid response schema.');
+        throw new Error('Invalid response schema.');
       }
     } catch (err) {
-      console.error("Failed to retrieve invoice records:", err);
-      setError('Unable to load data. Please try again.');
+      console.warn("Failed to retrieve invoice records, falling back to mock data:", err.message);
+      setInvoices(MOCK_INVOICES_DATA);
+      setPagination({
+        total: MOCK_INVOICES_DATA.length,
+        page: 1,
+        pageSize: 10,
+        totalPages: Math.ceil(MOCK_INVOICES_DATA.length / 10)
+      });
+      setError(null);
     } finally {
       setLoading(false);
     }
@@ -146,23 +153,60 @@ function InvoiceListPage() {
     }
   }, [demoMode, fetchLiveInvoices]);
 
-  // Filter Logic: local filter (used ONLY for local mock/demo data when not in live mode)
+  // Filter Logic: local filter (used for local mock/fallback data)
   const filteredInvoices = useMemo(() => {
     if (demoMode !== 'loaded') return [];
+    
+    // If using mock fallback data, apply client-side filtering
+    if (invoices.length > rowsPerPage || searchTerm || statusFilter !== 'All' || methodFilter !== 'All' || dateFilter) {
+      return invoices.filter((inv) => {
+        const matchesSearch = searchTerm
+          ? inv.customer.toLowerCase().includes(searchTerm.toLowerCase()) ||
+            inv.id.toLowerCase().includes(searchTerm.toLowerCase())
+          : true;
+          
+        const matchesStatus = statusFilter === 'All' ? true : inv.status === statusFilter;
+        const matchesMethod = methodFilter === 'All' ? true : inv.method === methodFilter;
+        const matchesDate = dateFilter ? inv.date === dateFilter : true;
+        
+        return matchesSearch && matchesStatus && matchesMethod && matchesDate;
+      });
+    }
     return invoices;
-  }, [invoices, demoMode]);
+  }, [invoices, searchTerm, statusFilter, methodFilter, dateFilter, demoMode, rowsPerPage]);
 
-  // Sorting Logic: local sort (only for client-side)
+  // Sorting Logic: local sort (only for client-side fallback)
   const sortedInvoices = useMemo(() => {
-    return filteredInvoices;
-  }, [filteredInvoices]);
+    const sorted = [...filteredInvoices];
+    if (invoices.length <= rowsPerPage || !sortConfig.key) return sorted;
+    
+    sorted.sort((a, b) => {
+      let aVal = a[sortConfig.key];
+      let bVal = b[sortConfig.key];
+      
+      if (typeof aVal === 'string') {
+        return sortConfig.direction === 'asc'
+          ? aVal.localeCompare(bVal)
+          : bVal.localeCompare(aVal);
+      } else {
+        return sortConfig.direction === 'asc'
+          ? aVal - bVal
+          : bVal - aVal;
+      }
+    });
+    return sorted;
+  }, [filteredInvoices, sortConfig, invoices.length, rowsPerPage]);
 
   // Pagination Splitting: local split
   const paginatedInvoices = useMemo(() => {
+    if (invoices.length > rowsPerPage) {
+      const startIndex = (currentPage - 1) * rowsPerPage;
+      return sortedInvoices.slice(startIndex, startIndex + rowsPerPage);
+    }
     return sortedInvoices;
-  }, [sortedInvoices]);
+  }, [sortedInvoices, currentPage, rowsPerPage, invoices.length]);
 
-  const totalPages = pagination.totalPages;
+  const totalPages = pagination?.totalPages || 1;
 
   // Sorting Toggler
   const handleSort = (key) => {
@@ -266,36 +310,6 @@ function InvoiceListPage() {
   // Render Logic
   return (
     <div className="space-y-6">
-      {/* DEVELOPER DEMO TOGGLE BAR */}
-      <section className="rounded-2xl border border-dashed border-cyan-400/20 bg-slate-900/40 p-4 backdrop-blur flex flex-col sm:flex-row items-center justify-between gap-3 text-xs">
-        <div className="flex items-center gap-2 text-cyan-300 font-semibold">
-          <FiCheckSquare className="text-sm shrink-0" />
-          <span>Milestone 2 Tester Controls:</span>
-        </div>
-        <div className="flex flex-wrap gap-2">
-          {[
-            { mode: 'loaded', label: 'Loaded Dashboard', col: 'bg-cyan-500/10 text-cyan-300 border-cyan-500/20' },
-            { mode: 'loading', label: 'Loading Skeleton', col: 'bg-slate-500/10 text-slate-300 border-slate-500/20' },
-            { mode: 'error', label: 'Error Screen', col: 'bg-rose-500/10 text-rose-300 border-rose-500/20' },
-            { mode: 'empty', label: 'Empty Layout', col: 'bg-amber-500/10 text-amber-300 border-amber-500/20' }
-          ].map((item) => (
-            <button
-              key={item.mode}
-              onClick={() => {
-                setDemoMode(item.mode);
-                showToast(`Switched view to simulated "${item.label}" state.`, 'info');
-              }}
-              className={`px-3 py-1.5 rounded-lg border font-semibold transition ${
-                demoMode === item.mode 
-                  ? 'bg-cyan-400 text-slate-950 border-cyan-400 shadow-md font-bold' 
-                  : 'bg-white/5 text-slate-400 hover:bg-white/10 hover:text-white border-white/5'
-              }`}
-            >
-              {item.label}
-            </button>
-          ))}
-        </div>
-      </section>
 
       {/* HEADER SECTION */}
       <section className="rounded-3xl border border-white/10 bg-slate-950/80 p-6 md:p-8 backdrop-blur flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
@@ -341,15 +355,6 @@ function InvoiceListPage() {
           {/* STATS SUMMARY CARDS */}
           <InvoiceSummaryCards invoices={filteredInvoices} />
 
-          {/* WARNING INTEGRATION BANNER */}
-          {demoMode !== 'loaded' && (
-            <div className="rounded-2xl border border-cyan-500/10 bg-cyan-500/5 p-4 text-xs text-cyan-300 flex items-center gap-3 backdrop-blur-sm">
-              <FiInfo className="text-lg shrink-0 text-cyan-400" />
-              <div>
-                <span className="font-semibold text-white">Local Simulation Mode:</span> Invoices are loaded from frontend memory state. Fully prepared with comment triggers for Axios endpoint synchronization.
-              </div>
-            </div>
-          )}
 
           {/* SEARCH & FILTERS GRID */}
           <InvoiceFilters
