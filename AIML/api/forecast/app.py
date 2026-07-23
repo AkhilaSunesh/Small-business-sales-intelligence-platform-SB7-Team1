@@ -10,8 +10,7 @@ app = FastAPI(
 )
 
 # LOAD TRAINED MODEL
-
-model = joblib.load("../models/prophet_sales_forecast.pkl")
+model = joblib.load("../../models/prophet_sales_forecast.pkl")
 
 
 class ForecastRequest(BaseModel):
@@ -23,6 +22,10 @@ def home():
     return {
         "message": "MarketMind AI Sales Forecast API is Running"
     }
+
+
+class ForecastRequest(BaseModel):
+    periods: int = 30
 
 
 @app.post("/forecast")
