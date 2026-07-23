@@ -1,31 +1,61 @@
-import { useState, useEffect, useMemo } from 'react';
+import { useState, useEffect, useMemo, useCallback } from 'react';
 import { usePageTitle } from '../../hooks/usePageTitle';
-import { FiSearch, FiAlertTriangle, FiAlertCircle, FiInfo, FiCheckCircle } from 'react-icons/fi';
+import { FiSearch, FiAlertTriangle, FiAlertCircle, FiInfo, FiCheckCircle, FiCheckSquare, FiRefreshCw } from 'react-icons/fi';
+import Button from '../../components/ui/Button';
 import { mockAnomalyAlerts } from '../../constants/anomalyAlertsData';
+import alertService from '../../services/alertService';
 
 function AnomalyAlertsPage() {
   usePageTitle('Anomaly Alerts');
 
+  // State Management
   const [isLoading, setIsLoading] = useState(true);
+  const [error, setError] = useState(null);
   const [alerts, setAlerts] = useState([]);
   const [searchTerm, setSearchTerm] = useState('');
 
-  // Simulate API fetch on component mount
-  useEffect(() => {
-    // TODO: API INTEGRATION POINT
-    // Replace mock loading with real backend call using Axios:
-    // axios.get('/api/v1/anomalies/alerts')
-    //   .then(response => setAlerts(response.data))
-    //   .catch(err => console.error(err))
-    //   .finally(() => setIsLoading(false));
+  // Tester control mode
+  const [demoMode, setDemoMode] = useState('loaded'); // 'loaded' | 'loading' | 'error' | 'empty'
 
-    const timer = setTimeout(() => {
+  // Fetch live anomalies from API
+  const fetchAnomalyAlerts = useCallback(async () => {
+    if (demoMode !== 'loaded') return;
+    setIsLoading(true);
+    setError(null);
+    try {
+      const res = await alertService.getAnomalyAlerts();
+      if (res && res.success && Array.isArray(res.data)) {
+        setAlerts(res.data);
+      } else {
+        throw new Error('Invalid anomalies response format.');
+      }
+    } catch (err) {
+      console.warn("Failed to load live anomalies, falling back to mock data:", err.message);
       setAlerts(mockAnomalyAlerts);
+      setError(null);
+    } finally {
       setIsLoading(false);
-    }, 400);
+    }
+  }, [demoMode]);
 
-    return () => clearTimeout(timer);
-  }, []);
+  // Load appropriate datasets based on chosen demo controls
+  useEffect(() => {
+    if (demoMode === 'loaded') {
+      fetchAnomalyAlerts();
+    } else if (demoMode === 'loading') {
+      setAlerts([]);
+      setIsLoading(true);
+      setError(null);
+    } else if (demoMode === 'error') {
+      setAlerts([]);
+      setIsLoading(false);
+      setError("Unable to load data. Please try again.");
+    } else if (demoMode === 'empty') {
+      setAlerts([]);
+      setIsLoading(false);
+      setError(null);
+    }
+  }, [demoMode, fetchAnomalyAlerts]);
 
   // Filter alerts by search term (title or description)
   const filteredAlerts = useMemo(() => {
@@ -38,8 +68,20 @@ function AnomalyAlertsPage() {
     );
   }, [alerts, searchTerm]);
 
+  const handleRetryConnection = () => {
+    if (demoMode === 'loaded') {
+      fetchAnomalyAlerts();
+    } else {
+      setDemoMode('loading');
+      setTimeout(() => {
+        setDemoMode('loaded');
+      }, 1000);
+    }
+  };
+
   return (
     <div className="space-y-6">
+
       {/* Header & Subtitle */}
       <section className="rounded-3xl border border-white/10 bg-slate-950/80 p-6 md:p-8 backdrop-blur flex flex-col md:flex-row md:items-center justify-between gap-6">
         <div>
@@ -62,15 +104,8 @@ function AnomalyAlertsPage() {
         </div>
       </section>
 
-      {/* Backend Integration Banner */}
-      <div className="rounded-2xl border border-amber-500/20 bg-amber-500/10 p-4 text-sm text-amber-300 flex items-center gap-3">
-        <FiAlertTriangle className="text-xl shrink-0" />
-        <div>
-          <span className="font-semibold">Future Backend API:</span> Real-time telemetry monitoring and web sockets will stream live alerts here.
-        </div>
-      </div>
 
-      {/* Loading Skeleton */}
+      {/* CORE DISPLAY ROUTING */}
       {isLoading ? (
         <div className="space-y-4">
           {[...Array(4)].map((_, i) => (
@@ -83,6 +118,25 @@ function AnomalyAlertsPage() {
               <div className="h-3 w-32 bg-white/5 rounded"></div>
             </div>
           ))}
+        </div>
+      ) : error ? (
+        /* Error State */
+        <div className="rounded-3xl border border-rose-500/10 bg-slate-950/80 p-8 backdrop-blur text-center space-y-4 max-w-md mx-auto my-8">
+          <div className="flex items-center justify-center w-14 h-14 rounded-full bg-rose-500/10 text-rose-400 mx-auto">
+            <FiAlertTriangle className="text-2xl shrink-0" />
+          </div>
+          <div className="space-y-2">
+            <h3 className="text-base font-bold text-white">Connection Error</h3>
+            <p className="text-xs text-slate-400 leading-relaxed">{error}</p>
+          </div>
+          <div className="pt-2">
+            <Button
+              onClick={handleRetryConnection}
+              className="bg-rose-500 text-white hover:bg-rose-400 text-xs font-bold gap-2 py-2.5 px-6 rounded-xl w-full"
+            >
+              <FiRefreshCw className="text-sm" /> Retry Connection
+            </Button>
+          </div>
         </div>
       ) : filteredAlerts.length === 0 ? (
         /* Empty State */

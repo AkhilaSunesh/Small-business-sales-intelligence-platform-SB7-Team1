@@ -49,9 +49,18 @@ const apiLimiter = makeLimiter(
     "Too many requests. Please slow down and try again later."
 );
 
+// ─── AI report routes: 30 requests per 15 min ────────────────────────────────
+// AI calls may take longer, so they use a separate limit.
+const aiLimiter = makeLimiter(
+    15 * 60 * 1000,
+    30,
+    "Too many AI report requests. Please wait a few minutes and try again."
+);
+
 module.exports = {
     authLimiter,
     uploadLimiter,
     inventoryLimiter,
-    apiLimiter
+    apiLimiter,
+    aiLimiter
 };

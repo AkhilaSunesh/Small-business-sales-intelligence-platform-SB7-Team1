@@ -5,23 +5,26 @@ import { useToast } from '../../components/common/Toast';
 import { useNavigate } from 'react-router-dom';
 import Button from '../../components/ui/Button';
 
-// Mock Customers Data
+// Reusable API Services
+import customerService from '../../services/customerService';
+import productService from '../../services/productService';
+import invoiceService from '../../services/invoiceService';
+// Mock Fallback Datasets (used when API database is offline)
 const MOCK_CUSTOMERS = [
-  { id: 'CUST001', name: 'John Doe', email: 'john.doe@gmail.com', phone: '+1-555-0199' },
-  { id: 'CUST002', name: 'Jane Smith', email: 'jane.smith@yahoo.com', phone: '+1-555-0143' },
-  { id: 'CUST003', name: 'ACME Corporation', email: 'billing@acme.com', phone: '+1-555-9821' },
-  { id: 'CUST004', name: 'Bob Johnson', email: 'bob.j@outlook.com', phone: '+1-555-0112' },
-  { id: 'CUST005', name: 'Alice Cooper', email: 'alice.c@gmail.com', phone: '+1-555-0187' },
+  { id: 'CUST-101', name: 'John Doe', email: 'john.doe@gmail.com', phone: '+1-555-0199' },
+  { id: 'CUST-102', name: 'Jane Smith', email: 'jane.smith@yahoo.com', phone: '+1-555-0143' },
+  { id: 'CUST-103', name: 'ACME Corporation', email: 'billing@acme.com', phone: '+1-555-9821' },
+  { id: 'CUST-104', name: 'Bob Johnson', email: 'bob.j@outlook.com', phone: '+1-555-0112' },
+  { id: 'CUST-105', name: 'Alice Cooper', email: 'alice.c@gmail.com', phone: '+1-555-0187' },
 ];
 
-// Mock Products Catalog
 const MOCK_PRODUCTS = [
-  { id: 'PROD001', name: 'Premium Widget', price: 250, discount: 10, tax: 18 },
-  { id: 'PROD002', name: 'Standard Gadget', price: 80, discount: 0, tax: 12 },
-  { id: 'PROD003', name: 'Deluxe Pro Tool', price: 700, discount: 15, tax: 18 },
-  { id: 'PROD004', name: 'Basic Kit', price: 60, discount: 2, tax: 5 },
-  { id: 'PROD005', name: 'Smart Device', price: 800, discount: 20, tax: 18 },
-  { id: 'PROD006', name: 'Industrial Grade', price: 2250, discount: 5, tax: 18 },
+  { id: 'PROD-001', name: 'Premium Widget', price: 250, discount: 10, tax: 18 },
+  { id: 'PROD-002', name: 'Standard Gadget', price: 80, discount: 0, tax: 12 },
+  { id: 'PROD-003', name: 'Deluxe Pro Tool', price: 700, discount: 15, tax: 18 },
+  { id: 'PROD-004', name: 'Basic Kit', price: 60, discount: 2, tax: 5 },
+  { id: 'PROD-005', name: 'Smart Device', price: 800, discount: 20, tax: 18 },
+  { id: 'PROD-006', name: 'Industrial Grade', price: 2250, discount: 5, tax: 18 },
 ];
 
 function CreateInvoicePage() {
@@ -37,6 +40,12 @@ function CreateInvoicePage() {
     setInvoiceNumber(`INV-${dateStr}-${rand}`);
   }, []);
 
+  // Live Database States
+  const [customers, setCustomers] = useState([]);
+  const [products, setProducts] = useState([]);
+  const [selectedCustomerId, setSelectedCustomerId] = useState('');
+  const [loadingCatalogs, setLoadingCatalogs] = useState(false);
+
   // Form States
   const [customerName, setCustomerName] = useState('');
   const [customerEmail, setCustomerEmail] = useState('');
@@ -48,7 +57,7 @@ function CreateInvoicePage() {
 
   // Dropdown UI States
   const [custSearchFocused, setCustSearchFocused] = useState(false);
-  const [filteredCusts, setFilteredCusts] = useState(MOCK_CUSTOMERS);
+  const [filteredCusts, setFilteredCusts] = useState([]);
   const custDropdownRef = useRef(null);
 
   // Selected item pick state for product adder section
@@ -64,18 +73,51 @@ function CreateInvoicePage() {
   // Preview Modal State
   const [showPreview, setShowPreview] = useState(false);
 
+  // Fetch client and product catalog from Backend database
+  useEffect(() => {
+    const loadCatalogs = async () => {
+      setLoadingCatalogs(true);
+      try {
+        const [custRes, prodRes] = await Promise.all([
+          customerService.getCustomers(),
+          productService.getProducts()
+        ]);
+        if (custRes && custRes.success && Array.isArray(custRes.data)) {
+          setCustomers(custRes.data);
+          setFilteredCusts(custRes.data);
+        }
+        if (prodRes && prodRes.success && Array.isArray(prodRes.data)) {
+          setProducts(prodRes.data);
+        }
+      } catch (err) {
+        console.warn("Failed to load catalog details, running in offline fallback mode:", err.message);
+        setCustomers(MOCK_CUSTOMERS);
+        setFilteredCusts(MOCK_CUSTOMERS);
+        setProducts(MOCK_PRODUCTS);
+        toast.show("Offline fallback mode: Loaded mock client and product catalogs.", "warning");
+      } finally {
+        setLoadingCatalogs(false);
+      }
+    };
+    loadCatalogs();
+  }, []);
+
   // Filter customers based on input text
   useEffect(() => {
+    if (!Array.isArray(customers)) {
+      setFilteredCusts([]);
+      return;
+    }
     if (customerName.trim() === '') {
-      setFilteredCusts(MOCK_CUSTOMERS);
+      setFilteredCusts(customers);
     } else {
       setFilteredCusts(
-        MOCK_CUSTOMERS.filter((c) =>
-          c.name.toLowerCase().includes(customerName.toLowerCase())
+        customers.filter((c) =>
+          c && c.name && c.name.toLowerCase().includes(customerName.toLowerCase())
         )
       );
     }
-  }, [customerName]);
+  }, [customerName, customers]);
 
   // Click outside listener for customer dropdown
   useEffect(() => {
@@ -98,11 +140,11 @@ function CreateInvoicePage() {
       setItemTax(18);
       return;
     }
-    const prod = MOCK_PRODUCTS.find((p) => p.id === prodId);
+    const prod = products.find((p) => p.id === prodId);
     if (prod) {
       setItemPrice(prod.price);
-      setItemDiscount(prod.discount);
-      setItemTax(prod.tax);
+      setItemDiscount(0); // backend applies discount rate on final total
+      setItemTax(18); // Default standard GST
     }
   };
 
@@ -130,7 +172,7 @@ function CreateInvoicePage() {
       return;
     }
 
-    const prod = MOCK_PRODUCTS.find((p) => p.id === selectedProdId);
+    const prod = products.find((p) => p.id === selectedProdId);
     const newItem = {
       id: Date.now() + Math.random(),
       productId: prod.id,
@@ -157,7 +199,6 @@ function CreateInvoicePage() {
       prevItems.map(item => {
         if (item.id === itemId) {
           const updatedValue = Number(value);
-          // Simple clamp validation
           if (field === 'quantity' && updatedValue < 1) return item;
           if (field === 'unitPrice' && updatedValue < 0) return item;
           if (field === 'discountPercent' && (updatedValue < 0 || updatedValue > 100)) return item;
@@ -209,6 +250,7 @@ function CreateInvoicePage() {
     setCustomerName('');
     setCustomerEmail('');
     setCustomerPhone('');
+    setSelectedCustomerId('');
     setInvoiceDate(new Date().toISOString().split('T')[0]);
     setPaymentMethod('UPI');
     setInvoiceStatus('Paid');
@@ -220,7 +262,6 @@ function CreateInvoicePage() {
     setItemDiscount(0);
     setItemTax(18);
 
-    // Regenerate invoice number
     const dateStr = new Date().toISOString().slice(0, 10).replace(/-/g, '');
     const rand = Math.floor(1000 + Math.random() * 9000);
     setInvoiceNumber(`INV-${dateStr}-${rand}`);
@@ -228,9 +269,9 @@ function CreateInvoicePage() {
   };
 
   // Submit / Save Invoice Form
-  const handleSaveInvoice = () => {
-    if (!customerName.trim()) {
-      toast.show('Customer Name is required.', 'error');
+  const handleSaveInvoice = async () => {
+    if (!selectedCustomerId) {
+      toast.show('Please select a valid customer from the search dropdown.', 'error');
       return;
     }
     if (invoiceItems.length === 0) {
@@ -238,24 +279,68 @@ function CreateInvoicePage() {
       return;
     }
 
-    const payload = {
-      invoiceNumber,
-      customerName,
-      customerEmail,
-      customerPhone,
-      invoiceDate,
-      items: invoiceItems,
-      totals: { subtotal, totalDiscount, totalTax, grandTotal },
-      paymentMethod,
-      invoiceStatus,
-      notes,
-    };
+    try {
+      // Map line items to format required by create invoice backend API
+      const lineItems = invoiceItems.map(item => ({
+        productId: item.productId,
+        productName: item.productName,
+        quantity: item.quantity,
+        unitPrice: item.unitPrice
+      }));
 
-    console.log('[Invoice Saved API Payload]:', payload);
+      // Calculate rates from totals
+      const discountRate = Number(invoiceItems[0]?.discountPercent || 0);
+      const taxRate = Number(invoiceItems[0]?.taxPercent || 18);
 
-    toast.show(`Invoice ${invoiceNumber} created successfully! (Simulated)`, 'success');
-    handleResetForm();
-    navigate('/invoices');
+      const dueDate = new Date(invoiceDate);
+      dueDate.setDate(dueDate.getDate() + 30); // 30 days default payment period
+
+      const res = await invoiceService.createInvoice({
+        customerId: selectedCustomerId,
+        lineItems,
+        discountRate,
+        taxRate,
+        dueDate: dueDate.toISOString(),
+      });
+
+      if (res && res.success) {
+        // Record payment against the created invoice if user checked Paid or Partially Paid
+        if (invoiceStatus === 'Paid' || invoiceStatus === 'Partially Paid') {
+          const paidAmount = invoiceStatus === 'Paid' ? Number(grandTotal) : Number(grandTotal) / 2;
+          await invoiceService.recordPayment(res.data.id, {
+            amount: paidAmount,
+            method: paymentMethod.toUpperCase(),
+            reference: 'MANUAL_DASHBOARD',
+            note: 'Manual invoice entry payment'
+          });
+        }
+
+        toast.show(`Invoice ${res.data.invoiceNumber || invoiceNumber} created successfully on backend!`, 'success');
+        handleResetForm();
+        navigate('/invoices');
+      } else {
+        toast.show(res.message || 'Failed to create invoice.', 'error');
+      }
+    } catch (err) {
+      console.warn('[Invoice Saved Offline Simulation Fallback]:', err.message);
+      toast.show(`Invoice ${invoiceNumber} created successfully! (Offline simulation mode)`, 'success');
+      // Reset state and redirect
+      setCustomerName('');
+      setCustomerEmail('');
+      setCustomerPhone('');
+      setSelectedCustomerId('');
+      setInvoiceDate(new Date().toISOString().split('T')[0]);
+      setPaymentMethod('UPI');
+      setInvoiceStatus('Paid');
+      setNotes('');
+      setInvoiceItems([]);
+      setSelectedProdId('');
+      setItemQty(1);
+      setItemPrice('');
+      setItemDiscount(0);
+      setItemTax(18);
+      navigate('/invoices');
+    }
   };
 
   return (
@@ -311,8 +396,9 @@ function CreateInvoicePage() {
                         className="cursor-pointer px-4 py-2.5 text-sm text-slate-300 hover:bg-cyan-500/10 hover:text-cyan-300 transition-colors"
                         onMouseDown={() => {
                           setCustomerName(c.name);
-                          setCustomerEmail(c.email);
-                          setCustomerPhone(c.phone);
+                          setCustomerEmail(c.email || '');
+                          setCustomerPhone(c.phone || '');
+                          setSelectedCustomerId(c.id);
                           setCustSearchFocused(false);
                           toast.show(`Selected customer: ${c.name}`, 'info');
                         }}
@@ -490,7 +576,7 @@ function CreateInvoicePage() {
                   onChange={handleProductSelectChange}
                 >
                   <option value="">-- Choose Catalog Product --</option>
-                  {MOCK_PRODUCTS.map((prod) => (
+                  {products.map((prod) => (
                     <option key={prod.id} value={prod.id}>
                       {prod.name} (${prod.price})
                     </option>

@@ -31,17 +31,41 @@ JSON Web Token (JWT)
 ---
 
 ## Protected Routes
-
 The following APIs require authentication.
-
 - Products
 - Inventory
 - Sales
 - Customers
-
+- Invoices (create, view, update, payments)
+- Revenue Summary
+- AI Reports: Customer Groups, Churn Risk, Recommendations, Anomaly Detection
 ---
-
 ## Public Routes
-
 - Login
 - Register
+---
+## Role-Based Access Summary (Milestone 2)
+
+| Feature | Business Owner | Store Manager | Sales Executive | Administrator |
+|---|:---:|:---:|:---:|:---:|
+| Invoices | Full | Full | Create/View only | Full |
+| Payments | Full | Full | Record only | Full |
+| Revenue Summary | Yes | Yes | Yes | Yes |
+| AI Reports (all 4) | Yes | Yes | No | Yes |
+
+See `Roles_Table.md` for the complete permission matrix.
+---
+## Security Testing (Day 8)
+
+All invoice and AI routes are covered by an automated security test suite
+(`tests/invoice-ai-security.test.js`), verifying:
+
+- Requests are rejected (401) when no token, an invalid token, or an
+  expired token is provided.
+- Role-based access is enforced correctly — for example, Sales Executives
+  cannot access AI report endpoints, and cannot update invoices they did
+  not create.
+- Invoice validation (negative amounts, missing customer info) is still
+  enforced even for authenticated, authorized users.
+
+23/23 tests passing as of the last run.

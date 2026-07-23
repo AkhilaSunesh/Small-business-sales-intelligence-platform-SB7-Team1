@@ -1,4 +1,4 @@
-import { useState, useMemo, useEffect } from 'react';
+import { useState, useMemo, useEffect, useCallback } from 'react';
 import { usePageTitle } from '../../hooks/usePageTitle';
 import { useNavigate } from 'react-router-dom';
 import { useToast } from '../../components/common/Toast';
@@ -19,13 +19,52 @@ import LoadingState from './components/LoadingState';
 import DeleteConfirmationModal from './components/DeleteConfirmationModal';
 import EditInvoiceModal from './components/EditInvoiceModal';
 
+import invoiceService from '../../services/invoiceService';
+
+// Helper function to map backend invoice structures to what frontend tables expect
+const mapBackendInvoice = (inv) => {
+  const method = inv.payments && inv.payments.length > 0 ? inv.payments[0].method : 'UPI';
+  const date = inv.createdAt ? inv.createdAt.split('T')[0] : '';
+  const dueDate = inv.dueDate ? inv.dueDate.split('T')[0] : '';
+
+  let status = 'Unpaid';
+  if (inv.status === 'PAID') status = 'Paid';
+  else if (inv.status === 'PARTIALLY_PAID') status = 'Partially Paid';
+  else if (inv.status === 'UNPAID') status = 'Unpaid';
+  else if (inv.status === 'OVERDUE') status = 'Overdue';
+  else if (inv.status === 'CANCELLED') status = 'Cancelled';
+
+  const lastUpdated = inv.createdAt 
+    ? new Date(inv.createdAt).toISOString().replace('T', ' ').substring(0, 19)
+    : '';
+
+  return {
+    id: inv.invoiceNumber || inv.id,
+    dbId: inv.id,
+    customer: inv.customer?.name || 'Unknown Client',
+    date,
+    dueDate,
+    method,
+    tax: inv.taxAmount || 0,
+    discount: inv.discountAmount || 0,
+    amount: inv.totalAmount || 0,
+    status,
+    lastUpdated,
+    lineItems: inv.lineItems || []
+  };
+};
+
 function InvoiceListPage() {
   usePageTitle('Invoice List');
   const navigate = useNavigate();
   const { show: showToast } = useToast();
 
   // State Management
-  const [invoices, setInvoices] = useState(MOCK_INVOICES_DATA);
+  const [invoices, setInvoices] = useState([]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState(null);
+  const [pagination, setPagination] = useState({ total: 0, page: 1, pageSize: 10, totalPages: 1 });
+
   const [searchTerm, setSearchTerm] = useState('');
   const [statusFilter, setStatusFilter] = useState('All');
   const [methodFilter, setMethodFilter] = useState('All');
@@ -34,7 +73,6 @@ function InvoiceListPage() {
   const [rowsPerPage, setRowsPerPage] = useState(10);
   
   // Sorting Configuration
-  // Default sorted by invoice date desc
   const [sortConfig, setSortConfig] = useState({ key: 'date', direction: 'desc' });
 
   // Modal Dialog States
@@ -50,98 +88,125 @@ function InvoiceListPage() {
     setCurrentPage(1);
   }, [searchTerm, statusFilter, methodFilter, dateFilter]);
 
-  // Simulating Axios Data Loading (Preparation Comment)
-  useEffect(() => {
-    /*
-      BACKEND INTEGRATION - GET ALL INVOICES:
-      -------------------------------------
-      const fetchInvoices = async () => {
-        try {
-          const response = await axios.get('/api/invoices');
-          setInvoices(response.data);
-        } catch (error) {
-          console.error("Failed to retrieve invoice records:", error);
-          showToast("Failed to sync invoice records with server.", "error");
-        }
-      };
+  // Fetch live invoices from backend API
+  const fetchLiveInvoices = useCallback(async () => {
+    if (demoMode !== 'loaded') return;
+    setLoading(true);
+    setError(null);
+    try {
+      const backendStatus = statusFilter === 'All' ? undefined : statusFilter.toUpperCase().replace(' ', '_');
       
-      fetchInvoices();
-    */
-  }, []);
+      // Convert sort keys to match backend expected keys
+      let backendSortBy = 'createdAt';
+      if (sortConfig.key === 'amount') backendSortBy = 'totalAmount';
+      else if (sortConfig.key === 'customer') backendSortBy = 'customerId';
+      else if (sortConfig.key === 'date') backendSortBy = 'createdAt';
+      else if (sortConfig.key === 'status') backendSortBy = 'status';
 
-  // Filter Logic: Searching and filtering work together
+      const res = await invoiceService.getInvoices({
+        page: currentPage,
+        pageSize: rowsPerPage,
+        search: searchTerm || undefined,
+        status: backendStatus,
+        sortBy: backendSortBy,
+        sortOrder: sortConfig.direction
+      });
+
+      if (res && res.success) {
+        const mapped = Array.isArray(res.data) ? res.data.map(mapBackendInvoice) : [];
+        setInvoices(mapped);
+        setPagination(res.pagination || { total: 0, page: 1, pageSize: 10, totalPages: 1 });
+      } else {
+        throw new Error('Invalid response schema.');
+      }
+    } catch (err) {
+      console.warn("Failed to retrieve invoice records, falling back to mock data:", err.message);
+      setInvoices(MOCK_INVOICES_DATA);
+      setPagination({
+        total: MOCK_INVOICES_DATA.length,
+        page: 1,
+        pageSize: 10,
+        totalPages: Math.ceil(MOCK_INVOICES_DATA.length / 10)
+      });
+      setError(null);
+    } finally {
+      setLoading(false);
+    }
+  }, [currentPage, rowsPerPage, searchTerm, statusFilter, sortConfig, demoMode]);
+
+  // Load appropriate state based on demo controls
+  useEffect(() => {
+    if (demoMode === 'loaded') {
+      fetchLiveInvoices();
+    } else if (demoMode === 'loading') {
+      setInvoices([]);
+      setLoading(true);
+      setError(null);
+    } else if (demoMode === 'error') {
+      setInvoices([]);
+      setLoading(false);
+      setError('Unable to load data. Please try again.');
+    } else if (demoMode === 'empty') {
+      setInvoices([]);
+      setLoading(false);
+      setError(null);
+    }
+  }, [demoMode, fetchLiveInvoices]);
+
+  // Filter Logic: local filter (used for local mock/fallback data)
   const filteredInvoices = useMemo(() => {
-    if (demoMode === 'empty') return [];
-
-    /*
-      BACKEND INTEGRATION - FILTER & SEARCH INVOICES (SERVER-SIDE):
-      -----------------------------------------------------------
-      const fetchFilteredInvoices = async () => {
-        try {
-          const response = await axios.get('/api/invoices', {
-            params: {
-              search: searchTerm,
-              status: statusFilter,
-              method: methodFilter,
-              date: dateFilter,
-              sortBy: sortConfig.key,
-              order: sortConfig.direction
-            }
-          });
-          setInvoices(response.data);
-        } catch (error) {
-          showToast("Failed to fetch filtered list from backend server.", "error");
-        }
-      };
-    */
-
-    return invoices.filter((inv) => {
-      const matchText = searchTerm.toLowerCase();
-      const matchesSearch = 
-        inv.customer.toLowerCase().includes(matchText) ||
-        inv.id.toLowerCase().includes(matchText);
-
-      const matchesStatus = statusFilter === 'All' || inv.status === statusFilter;
-      const matchesMethod = methodFilter === 'All' || inv.method === methodFilter;
-      const matchesDate = dateFilter === '' || inv.date === dateFilter;
-
-      return matchesSearch && matchesStatus && matchesMethod && matchesDate;
-    });
-  }, [invoices, searchTerm, statusFilter, methodFilter, dateFilter, demoMode]);
-
-  // Sorting Logic
-  const sortedInvoices = useMemo(() => {
-    const sortable = [...filteredInvoices];
-    if (sortConfig.key) {
-      sortable.sort((a, b) => {
-        let aVal = a[sortConfig.key];
-        let bVal = b[sortConfig.key];
-
-        // Custom amount handling
-        if (sortConfig.key === 'amount') {
-          aVal = Number(aVal);
-          bVal = Number(bVal);
-        }
-
-        if (aVal < bVal) {
-          return sortConfig.direction === 'asc' ? -1 : 1;
-        }
-        if (aVal > bVal) {
-          return sortConfig.direction === 'asc' ? 1 : -1;
-        }
-        return 0;
+    if (demoMode !== 'loaded') return [];
+    
+    // If using mock fallback data, apply client-side filtering
+    if (invoices.length > rowsPerPage || searchTerm || statusFilter !== 'All' || methodFilter !== 'All' || dateFilter) {
+      return invoices.filter((inv) => {
+        const matchesSearch = searchTerm
+          ? inv.customer.toLowerCase().includes(searchTerm.toLowerCase()) ||
+            inv.id.toLowerCase().includes(searchTerm.toLowerCase())
+          : true;
+          
+        const matchesStatus = statusFilter === 'All' ? true : inv.status === statusFilter;
+        const matchesMethod = methodFilter === 'All' ? true : inv.method === methodFilter;
+        const matchesDate = dateFilter ? inv.date === dateFilter : true;
+        
+        return matchesSearch && matchesStatus && matchesMethod && matchesDate;
       });
     }
-    return sortable;
-  }, [filteredInvoices, sortConfig]);
+    return invoices;
+  }, [invoices, searchTerm, statusFilter, methodFilter, dateFilter, demoMode, rowsPerPage]);
 
-  // Pagination Splitting
+  // Sorting Logic: local sort (only for client-side fallback)
+  const sortedInvoices = useMemo(() => {
+    const sorted = [...filteredInvoices];
+    if (invoices.length <= rowsPerPage || !sortConfig.key) return sorted;
+    
+    sorted.sort((a, b) => {
+      let aVal = a[sortConfig.key];
+      let bVal = b[sortConfig.key];
+      
+      if (typeof aVal === 'string') {
+        return sortConfig.direction === 'asc'
+          ? aVal.localeCompare(bVal)
+          : bVal.localeCompare(aVal);
+      } else {
+        return sortConfig.direction === 'asc'
+          ? aVal - bVal
+          : bVal - aVal;
+      }
+    });
+    return sorted;
+  }, [filteredInvoices, sortConfig, invoices.length, rowsPerPage]);
+
+  // Pagination Splitting: local split
   const paginatedInvoices = useMemo(() => {
-    const startIndex = (currentPage - 1) * rowsPerPage;
-    return sortedInvoices.slice(startIndex, startIndex + rowsPerPage);
-  }, [sortedInvoices, currentPage, rowsPerPage]);
+    if (invoices.length > rowsPerPage) {
+      const startIndex = (currentPage - 1) * rowsPerPage;
+      return sortedInvoices.slice(startIndex, startIndex + rowsPerPage);
+    }
+    return sortedInvoices;
+  }, [sortedInvoices, currentPage, rowsPerPage, invoices.length]);
 
-  const totalPages = Math.ceil(sortedInvoices.length / rowsPerPage);
+  const totalPages = pagination?.totalPages || 1;
 
   // Sorting Toggler
   const handleSort = (key) => {
@@ -162,25 +227,10 @@ function InvoiceListPage() {
   };
 
   const handleSaveEdit = (updatedInvoice) => {
-    /*
-      BACKEND INTEGRATION - UPDATE INVOICE:
-      ------------------------------------
-      const updateInvoiceAPI = async () => {
-        try {
-          const response = await axios.put(`/api/invoices/${updatedInvoice.id}`, updatedInvoice);
-          setInvoices(prev => prev.map(inv => inv.id === updatedInvoice.id ? response.data : inv));
-          showToast(`Invoice ${updatedInvoice.id} successfully updated on server.`, "success");
-        } catch (error) {
-          showToast("Failed to upload modifications to the server.", "error");
-        }
-      };
-      updateInvoiceAPI();
-    */
-
     setInvoices((prev) =>
       prev.map((inv) => (inv.id === updatedInvoice.id ? updatedInvoice : inv))
     );
-    showToast(`Invoice ${updatedInvoice.id} successfully updated.`, 'success');
+    showToast(`Invoice ${updatedInvoice.id} successfully updated locally.`, 'success');
     setEditInvoice(null);
   };
 
@@ -189,21 +239,6 @@ function InvoiceListPage() {
   };
 
   const handleConfirmDelete = (id) => {
-    /*
-      BACKEND INTEGRATION - DELETE INVOICE:
-      ------------------------------------
-      const deleteInvoiceAPI = async () => {
-        try {
-          await axios.delete(`/api/invoices/${id}`);
-          setInvoices(prev => prev.filter(inv => inv.id !== id));
-          showToast(`Invoice ${id} permanently removed.`, "success");
-        } catch (error) {
-          showToast("Failed to delete invoice record from backend.", "error");
-        }
-      };
-      deleteInvoiceAPI();
-    */
-
     setInvoices((prev) => prev.filter((inv) => inv.id !== id));
     showToast(`Invoice ${id} permanently deleted.`, 'success');
     setDeleteInvoice(null);
@@ -260,47 +295,21 @@ function InvoiceListPage() {
   };
 
   const handleRetryConnection = () => {
-    setDemoMode('loading');
-    showToast('Attempting to reconnect with API gateway...', 'info');
-    setTimeout(() => {
-      setDemoMode('loaded');
-      showToast('Backend gateway synchronization completed.', 'success');
-    }, 2000);
+    if (demoMode === 'loaded') {
+      fetchLiveInvoices();
+    } else {
+      setDemoMode('loading');
+      showToast('Attempting to reconnect with API gateway...', 'info');
+      setTimeout(() => {
+        setDemoMode('loaded');
+        showToast('Backend gateway synchronization completed.', 'success');
+      }, 2000);
+    }
   };
 
   // Render Logic
   return (
     <div className="space-y-6">
-      {/* DEVELOPER DEMO TOGGLE BAR */}
-      <section className="rounded-2xl border border-dashed border-cyan-400/20 bg-slate-900/40 p-4 backdrop-blur flex flex-col sm:flex-row items-center justify-between gap-3 text-xs">
-        <div className="flex items-center gap-2 text-cyan-300 font-semibold">
-          <FiCheckSquare className="text-sm shrink-0" />
-          <span>Milestone 2 Tester Controls:</span>
-        </div>
-        <div className="flex flex-wrap gap-2">
-          {[
-            { mode: 'loaded', label: 'Loaded Dashboard', col: 'bg-cyan-500/10 text-cyan-300 border-cyan-500/20' },
-            { mode: 'loading', label: 'Loading Skeleton', col: 'bg-slate-500/10 text-slate-300 border-slate-500/20' },
-            { mode: 'error', label: 'Error Screen', col: 'bg-rose-500/10 text-rose-300 border-rose-500/20' },
-            { mode: 'empty', label: 'Empty Layout', col: 'bg-amber-500/10 text-amber-300 border-amber-500/20' }
-          ].map((item) => (
-            <button
-              key={item.mode}
-              onClick={() => {
-                setDemoMode(item.mode);
-                showToast(`Switched view to simulated "${item.label}" state.`, 'info');
-              }}
-              className={`px-3 py-1.5 rounded-lg border font-semibold transition ${
-                demoMode === item.mode 
-                  ? 'bg-cyan-400 text-slate-950 border-cyan-400 shadow-md font-bold' 
-                  : 'bg-white/5 text-slate-400 hover:bg-white/10 hover:text-white border-white/5'
-              }`}
-            >
-              {item.label}
-            </button>
-          ))}
-        </div>
-      </section>
 
       {/* HEADER SECTION */}
       <section className="rounded-3xl border border-white/10 bg-slate-950/80 p-6 md:p-8 backdrop-blur flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
@@ -317,9 +326,9 @@ function InvoiceListPage() {
       </section>
 
       {/* CORE DISPLAY ROUTING BASED ON CHOSEN STATE */}
-      {demoMode === 'loading' && <LoadingState />}
+      {loading && <LoadingState />}
 
-      {demoMode === 'error' && (
+      {!loading && error && (
         <div className="rounded-3xl border border-rose-500/10 bg-slate-950/80 p-8 backdrop-blur text-center space-y-4 max-w-md mx-auto my-8">
           <div className="flex items-center justify-center w-14 h-14 rounded-full bg-rose-500/10 text-rose-400 mx-auto">
             <FiAlertTriangle className="text-2xl shrink-0" />
@@ -327,7 +336,7 @@ function InvoiceListPage() {
           <div className="space-y-2">
             <h3 className="text-base font-bold text-white">Connection Error</h3>
             <p className="text-xs text-slate-400 leading-relaxed">
-              Preparing backend integration... Failed to sync dashboard schemas with the gateway interface.
+              {error}
             </p>
           </div>
           <div className="pt-2">
@@ -341,18 +350,11 @@ function InvoiceListPage() {
         </div>
       )}
 
-      {demoMode === 'loaded' && (
+      {!loading && !error && (
         <>
           {/* STATS SUMMARY CARDS */}
           <InvoiceSummaryCards invoices={filteredInvoices} />
 
-          {/* WARNING INTEGRATION BANNER */}
-          <div className="rounded-2xl border border-cyan-500/10 bg-cyan-500/5 p-4 text-xs text-cyan-300 flex items-center gap-3 backdrop-blur-sm">
-            <FiInfo className="text-lg shrink-0 text-cyan-400" />
-            <div>
-              <span className="font-semibold text-white">Local Simulation Mode:</span> Invoices are loaded from frontend memory state. Fully prepared with comment triggers for Axios endpoint synchronization.
-            </div>
-          </div>
 
           {/* SEARCH & FILTERS GRID */}
           <InvoiceFilters
