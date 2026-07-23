@@ -2,21 +2,34 @@
 
 ## Overview
 
-The AIML module is responsible for data analysis, preprocessing, baseline sales forecasting, and exposing forecasting results through an API for integration with the backend and frontend components.
+The AIML module powers the intelligent features of **MarketMind AI**. It performs data preprocessing, sales forecasting, customer segmentation, churn prediction, product recommendation, and anomaly detection while exposing each functionality through REST APIs for backend integration.
 
 ---
 
-## Folder Structure
+# Folder Structure
 
 ```
 AIML/
 │
 ├── api/
-│   └── app.py
+│   ├── forecast/
+│   │   └── app.py
+│   ├── segmentation/
+│   │   └── app.py
+│   ├── churn/
+│   │   └── app.py
+│   ├── recommendation/
+│   │   └── app.py
+│   └── anomaly/
+│       └── app.py
 │
 ├── data/
 │   ├── Retail_Transaction_Dataset.csv
-│   └── preprocessed_data.csv
+│   ├── preprocessed_data.csv
+│   ├── customer_segmentation.csv
+│   ├── customer_churn.csv
+│   ├── product_recommendations.csv
+│   └── anomaly_detection.csv
 │
 ├── models/
 │   └── prophet_sales_forecast.pkl
@@ -24,7 +37,11 @@ AIML/
 ├── notebooks/
 │   ├── 01_EDA.ipynb
 │   ├── 02_Preprocessing.ipynb
-│   └── 03_Baseline_Forecasting.ipynb
+│   ├── 03_Baseline_Forecasting.ipynb
+│   ├── 04_Customer_Segmentation.ipynb
+│   ├── 05_Churn_Prediction.ipynb
+│   ├── 06_Product_Recommendation.ipynb
+│   └── 07_Anomaly_Detection.ipynb
 │
 ├── utils/
 │
@@ -33,380 +50,239 @@ AIML/
 
 ---
 
-## Dataset
+# Dataset
 
-- Source: Kaggle Retail Transaction Dataset
-- Records: 100,000
-- Features :
-  - CustomerID
-  - ProductID
-  - Quantity
-  - Price
-  - TransactionDate
-  - PaymentMethod
-  - StoreLocation
-  - ProductCategory
-  - DiscountApplied(%)
-  - TotalAmount
+**Source:** Kaggle Retail Transaction Dataset
 
----
+**Records:** 100,000
 
-## Completed Work
+### Features
 
-### 1. Exploratory Data Analysis (EDA)
-
-- Dataset inspection
-- Shape and data types
-- Missing value analysis
-- Duplicate record analysis
-- Statistical summary
-- Distribution visualizations
+- CustomerID
+- ProductID
+- Quantity
+- Price
+- TransactionDate
+- PaymentMethod
+- StoreLocation
+- ProductCategory
+- DiscountApplied (%)
+- TotalAmount
 
 ---
 
-### 2. Data Preprocessing
+# Milestone 2 Achievements
 
-- Converted TransactionDate to datetime format
-- Encoded categorical variables
-- Feature engineering
-- Created cleaned dataset
-- Saved preprocessed dataset
+## 1. Sales Forecasting
 
-Output:
+Developed a baseline sales forecasting model using **Facebook Prophet**.
+
+### Output
+
+- Daily sales forecast
+- Prophet trained model
+
+### API
+
+| Method | Endpoint |
+|---------|----------|
+| GET | / |
+| POST | /forecast |
+
+---
+
+## 2. Customer Segmentation
+
+Segmented customers based on purchasing behaviour.
+
+### Output File
 
 ```
-data/preprocessed_data.csv
+customer_segmentation.csv
 ```
+
+### API
+
+| Method | Endpoint |
+|---------|----------|
+| GET | /customer/<customer_id> |
+
+Returns:
+
+- CustomerID
+- CustomerGroup
 
 ---
 
-### 3. Baseline Forecasting
+## 3. Customer Churn Prediction
 
-Implemented a baseline sales forecasting model using Prophet.
+Implemented rule-based churn detection using customer inactivity.
 
-Evaluation Metrics:
-
-- Mean Absolute Error (MAE)
-- Root Mean Squared Error (RMSE)
-
-The model serves as the baseline for future model comparison.
-
-Saved Model:
+### Logic
 
 ```
-models/prophet_sales_forecast.pkl
+InactiveDays > 60
+        ↓
+At Risk
 ```
+
+Otherwise:
+
+```
+Not At Risk
+```
+
+### Output File
+
+```
+customer_churn.csv
+```
+
+### API
+
+| Method | Endpoint |
+|---------|----------|
+| GET | /customer/<customer_id> |
+
+Returns:
+
+- CustomerID
+- ChurnRisk
 
 ---
 
-### 4. API Integration
+## 4. Product Recommendation
 
-Developed a FastAPI service to expose the forecasting model.
+Implemented a purchase-frequency based recommendation engine.
 
-Available Endpoints:
+### Output File
 
-| Method | Endpoint | Description |
-|---------|----------|-------------|
-| GET | / | API Health Check |
-| POST | /forecast | Returns forecast values |
+```
+product_recommendations.csv
+```
 
-The API returns responses in JSON format for backend integration.
+### API
+
+| Method | Endpoint |
+|---------|----------|
+| GET | /recommend/<product_id> |
+
+Returns:
+
+- ProductID
+- Top 3 Recommended Products
 
 ---
 
-## Technologies Used
+## 5. Anomaly Detection
+
+Implemented statistical anomaly detection using the **3σ (Three Sigma) Rule** on transaction amount.
+
+### Logic
+
+```
+Mean ± 3 × Standard Deviation
+```
+
+Transactions outside the threshold are classified as anomalies.
+
+### Output File
+
+```
+anomaly_detection.csv
+```
+
+### API
+
+| Method | Endpoint |
+|---------|----------|
+| GET | /customer/<customer_id> |
+
+Returns:
+
+- CustomerID
+- TotalAmount
+- Anomaly Status
+
+---
+
+# APIs Developed
+
+| API | Framework |
+|------|-----------|
+| Forecast API | FastAPI |
+| Customer Segmentation API | Flask |
+| Churn Prediction API | Flask |
+| Product Recommendation API | Flask |
+| Anomaly Detection API | Flask |
+
+---
+
+# Technologies Used
 
 - Python
 - Pandas
 - NumPy
-- Matplotlib
-- Scikit-learn
 - Prophet
+- Scikit-learn
+- Flask
 - FastAPI
 - Joblib
+- Matplotlib
 - Jupyter Notebook
 
 ---
 
-## Future Improvements
+# Deliverables
 
-The following models are planned for future milestones:
+### Datasets
 
-- Random Forest Regressor
-- XGBoost Regressor
-- Hyperparameter Tuning
-- Model Comparison
-- Advanced Sales Forecasting
-- API Enhancement
+- preprocessed_data.csv
+- customer_segmentation.csv
+- customer_churn.csv
+- product_recommendations.csv
+- anomaly_detection.csv
 
----
+### Model
 
-## Team
+- prophet_sales_forecast.pkl
 
-Project: **MarketMind AI**
+### APIs
 
-Module: **Artificial Intelligence & Machine Learning**
-
-Week 1 Status: **Completed**
-
-
-## Customer Segmentation API
-
-### Base URL
-
-http://127.0.0.1:5000
+- Forecast API
+- Customer Segmentation API
+- Churn Prediction API
+- Product Recommendation API
+- Anomaly Detection API
 
 ---
 
-### Endpoint
+# Module Status
 
-GET /customer/<customer_id>
+## Milestone 2
 
----
+✅ Data Preprocessing Completed
 
-### Description
+✅ Sales Forecasting Completed
 
-Returns the customer segment for the given Customer ID.
+✅ Customer Segmentation Completed
 
----
+✅ Churn Prediction Completed
 
-### Example Request
+✅ Product Recommendation Completed
 
-GET /customer/87
+✅ Anomaly Detection Completed
 
----
+✅ Five REST APIs Developed
 
-### Example Response
-
-{
-    "CustomerID": 87,
-    "CustomerGroup": "Occasional"
-}
+✅ Backend Integration Ready
 
 ---
 
-### Error Response
+# Project
 
-{
-    "message": "Customer Not Found"
-}
+**MarketMind AI – Small Business Sales Intelligence Platform**
 
-# Churn Prediction Module
+**Module:** Artificial Intelligence & Machine Learning
 
-## Objective
-
-Identify customers who are likely to stop purchasing based on transaction inactivity.
-
----
-
-## Method
-
-A simple rule-based churn detection approach is used.
-
-Rule:
-
-- InactiveDays > 60 → At Risk
-- Otherwise → Not At Risk
-
----
-
-## Features Used
-
-- CustomerID
-- LastPurchaseDate
-- TotalSpent
-- TotalQuantity
-- InactiveDays
-
----
-
-## Output
-
-Generated File:
-
-data/customer_churn.csv
-
-Output Columns:
-
-- CustomerID
-- LastPurchaseDate
-- TotalSpent
-- TotalQuantity
-- InactiveDays
-- ChurnRisk
-
-# Churn Prediction API
-
-## Overview
-
-This API returns the churn status of a customer using the churn prediction dataset generated during Day 4.
-
----
-
-## Endpoint
-
-GET /customer/<customer_id>
-
----
-
-## Description
-
-Returns the churn status for the given Customer ID.
-
----
-
-## Example Request
-
-GET /customer/14
-
----
-
-## Example Response
-
-{
-    "CustomerID": 14,
-    "ChurnRisk": "At Risk"
-}
-
----
-
-## Error Response
-
-{
-    "message": "Customer Not Found"
-}
-
----
-
-## Data Source
-
-data/customer_churn.csv
-
----
-
-## Output Fields
-
-- CustomerID
-- ChurnRisk
-
-# Product Recommendation
-
-## Overview
-
-This module recommends products using purchase frequency from the sales dataset.
-
----
-
-## Logic Used
-
-Products are ranked according to how frequently they appear in the historical sales data.
-
-When a product is requested, the same product is excluded and the next top purchased products are recommended.
-
----
-
-## Input
-
-Product ID
-
----
-
-## Output
-
-Top 3 Recommended Products
-
----
-
-## Dataset Used
-
-data/preprocessed_data.csv
-
----
-
-## Generated File
-
-data/product_recommendations.csv
-
-# Product Recommendation API
-
-## Overview
-
-This API provides the top recommended products for a given Product ID based on historical purchase frequency.
-
----
-
-## Endpoint
-
-GET /recommend/<product_id>
-
----
-
-## Description
-
-Returns the top three recommended products excluding the requested product.
-
----
-
-## Example Request
-
-GET /recommend/A
-
----
-
-## Example Response
-
-{
-    "ProductID": "A",
-    "Recommendations": [
-        "C",
-        "D",
-        "B"
-    ]
-}
-
----
-
-## Dataset Used
-
-data/product_recommendations.csv
-
----
-
-## Output
-
-- ProductID
-- Recommendations
-# Anomaly Detection
-
-## Overview
-
-This module detects unusual sales transactions using a statistical threshold based on the TotalAmount field.
-
----
-
-## Method
-
-Mean ± 3 × Standard Deviation (3σ Rule)
-
-Transactions outside this range are flagged as anomalies.
-
----
-
-## Input
-
-Retail_Transaction_Dataset.csv
-
----
-
-## Output
-
-anomaly_detection.csv
-
----
-
-## Output Fields
-
-- CustomerID
-- ProductID
-- TotalAmount
-- Anomaly
+**Status:** Milestone 2 Completed ✅
