@@ -22,6 +22,7 @@ const permissions = {
         invoices:          ["GET", "POST", "PATCH"],
         payments:          ["GET", "POST"],
         revenue:           ["GET"],
+        forecast:          ["GET"],
         "customer-groups": ["GET"],
         churn:             ["GET"],
         recommendations:   ["GET"],

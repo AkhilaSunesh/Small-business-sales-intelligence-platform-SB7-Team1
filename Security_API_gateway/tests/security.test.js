@@ -141,12 +141,13 @@ describe("RBAC role enforcement", () => {
         expect(res.statusCode).toBe(200);
     });
 
-    test("Missing roleId in token returns 403", async () => {
+    test("Token with no roleId returns 401 (invalid payload rejected at authentication)", async () => {
         const tokenNoRole = jwt.sign({ id: "u1" }, SECRET, { expiresIn: "1h" });
         const res = await request(app)
             .get("/api/inventory")
             .set("Authorization", `Bearer ${tokenNoRole}`);
-        expect(res.statusCode).toBe(403);
+        // authenticate.js validates that roleId is present; missing roleId = invalid token → 401
+        expect(res.statusCode).toBe(401);
     });
 });
 
@@ -376,5 +377,51 @@ describe("POST /api/auth/logout", () => {
             .set("Authorization", `Bearer ${validToken(1)}`);
         expect(res.statusCode).toBe(200);
         expect(res.body.success).toBe(true);
+    });
+});
+
+// ─── 11. Forecast route ───────────────────────────────────────────────────────
+describe("GET /api/forecast", () => {
+    test("returns 401 without token", async () => {
+        const res = await request(app).get("/api/forecast");
+        expect(res.statusCode).toBe(401);
+    });
+
+    test("Role 3 (Sales Executive) is forbidden from forecast", async () => {
+        const res = await request(app)
+            .get("/api/forecast")
+            .set("Authorization", `Bearer ${validToken(3)}`);
+        expect(res.statusCode).toBe(403);
+    });
+
+    test("Role 2 (Store Manager) can access forecast", async () => {
+        axios.mockResolvedValueOnce({
+            status: 200,
+            data: {
+                success: true,
+                period: 30,
+                lookback: 90,
+                smaWindow: 7,
+                generatedAt: new Date().toISOString(),
+                forecast: [],
+                historical: []
+            }
+        });
+        const res = await request(app)
+            .get("/api/forecast")
+            .set("Authorization", `Bearer ${validToken(2)}`);
+        expect(res.statusCode).toBe(200);
+        expect(res.body.success).toBe(true);
+    });
+
+    test("Invalid days param returns 400", async () => {
+        // The backend validates; the gateway forwards and propagates the 400
+        const err = new Error("Bad Request");
+        err.response = { status: 400, data: { success: false, message: "Query param 'days' must be between 1 and 365." } };
+        axios.mockRejectedValueOnce(err);
+        const res = await request(app)
+            .get("/api/forecast?days=999")
+            .set("Authorization", `Bearer ${validToken(1)}`);
+        expect(res.statusCode).toBe(400);
     });
 });
