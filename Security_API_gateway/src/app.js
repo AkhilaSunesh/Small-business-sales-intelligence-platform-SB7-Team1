@@ -13,6 +13,7 @@ const productsRoutes  = require("./routes/products.routes");
 const customersRoutes = require("./routes/customers.routes");
 const analyticsRoutes = require("./routes/analytics.routes");
 const invoicesRoutes  = require("./routes/invoices.routes");
+const forecastRoutes  = require("./routes/forecast.routes");
 const aiRoutes        = require("./routes/ai.routes");
 
 const authenticate              = require("./middleware/authenticate");
@@ -53,6 +54,7 @@ app.use("/api/products",  authenticate, authorize, apiLimiter, productsRoutes);
 app.use("/api/customers", authenticate, authorize, apiLimiter, customersRoutes);
 app.use("/api/analytics", authenticate, authorize, apiLimiter, analyticsRoutes);
 app.use("/api/invoices",            authenticate, authorize, apiLimiter, invoicesRoutes);
+app.use("/api/forecast",            authenticate, authorize, apiLimiter, forecastRoutes);
 
 // ── AI Insight routes (protected) ─────────────────────────────────────────────
 app.use("/api/customer-groups", authenticate, authorize, apiLimiter,  aiLimiter, auditSuccessfulAction("AI Report Requested", "customer-groups"), aiRoutes);

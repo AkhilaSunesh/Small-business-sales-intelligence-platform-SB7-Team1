@@ -14,6 +14,7 @@
     { "name": "Sales",     "description": "Sales transactions and CSV upload (proxied to backend)" },
     { "name": "Dashboard", "description": "KPI summary (proxied to backend)" },
     { "name": "Analytics", "description": "Revenue and top-product analytics (proxied to backend)" },
+    { "name": "Forecast",  "description": "Sales forecast from historical data (proxied to backend)" },
     { "name": "Products",  "description": "Product catalogue (proxied to backend)" },
     { "name": "Customers", "description": "Customer list (proxied to backend)" }
   ],
@@ -297,6 +298,52 @@
         }
       }
     },
+    "/api/forecast": {
+      "get": {
+        "tags": ["Forecast"],
+        "summary": "Sales forecast from historical transaction data",
+        "description": "Generates a day-by-day sales forecast using a 7-day simple moving average over historical SalesTransaction records already in the database. No external ML library required.\n\nAccess: Roles 1 (Business Owner), 2 (Store Manager), 4 (System Administrator).",
+        "security": [{ "bearerAuth": [] }],
+        "parameters": [
+          {
+            "name": "days",
+            "in": "query",
+            "required": false,
+            "schema": { "type": "integer", "default": 30, "minimum": 1, "maximum": 365 },
+            "description": "Number of future days to forecast (default 30)"
+          },
+          {
+            "name": "lookback",
+            "in": "query",
+            "required": false,
+            "schema": { "type": "integer", "default": 90, "minimum": 7, "maximum": 365 },
+            "description": "Historical days to base the SMA on (default 90)"
+          },
+          {
+            "name": "window",
+            "in": "query",
+            "required": false,
+            "schema": { "type": "integer", "default": 7, "minimum": 2, "maximum": 30 },
+            "description": "SMA window size in days (default 7)"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Forecast data with historical actuals",
+            "content": {
+              "application/json": {
+                "schema": { "$ref": "#/components/schemas/GW_ForecastResponse" }
+              }
+            }
+          },
+          "400": { "$ref": "#/components/responses/ValidationError" },
+          "401": { "$ref": "#/components/responses/Unauthorized" },
+          "403": { "$ref": "#/components/responses/Forbidden" },
+          "429": { "$ref": "#/components/responses/RateLimited" },
+          "500": { "description": "Forecast generation failed" }
+        }
+      }
+    },
     "/api/products": {
       "get": {
         "tags": ["Products"],
@@ -502,6 +549,42 @@
                     "data":   { "type": "object" }
                   }
                 }
+              }
+            }
+          }
+        }
+      },
+
+      "GW_ForecastResponse": {
+        "type": "object",
+        "properties": {
+          "success":     { "type": "boolean" },
+          "period":      { "type": "integer", "description": "Number of forecast days requested" },
+          "lookback":    { "type": "integer", "description": "Historical days used as SMA input" },
+          "smaWindow":   { "type": "integer", "description": "Rolling average window size in days" },
+          "generatedAt": { "type": "string", "format": "date-time" },
+          "forecast": {
+            "type": "array",
+            "description": "Future daily revenue and transaction projections",
+            "items": {
+              "type": "object",
+              "properties": {
+                "date":                 { "type": "string", "format": "date", "example": "2026-08-01" },
+                "predictedSales":       { "type": "number",  "example": 1234.56 },
+                "forecastRevenue":      { "type": "number",  "example": 1234.56, "deprecated": true },
+                "forecastTransactions": { "type": "integer", "example": 12 }
+              }
+            }
+          },
+          "historical": {
+            "type": "array",
+            "description": "Historical daily actuals used as the SMA seed",
+            "items": {
+              "type": "object",
+              "properties": {
+                "date":         { "type": "string", "format": "date" },
+                "revenue":      { "type": "number" },
+                "transactions": { "type": "integer" }
               }
             }
           }
