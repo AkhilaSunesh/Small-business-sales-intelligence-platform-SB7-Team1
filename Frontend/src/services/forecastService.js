@@ -17,9 +17,8 @@ export async function getForecastReportsData(range = '6m') {
   else if (range === '1y') periods = 365;
 
   try {
-    // Attempt to hit the Forecast API.
-    // In Render, uvicorn runs the Prophet model app, but it is not routed in gateway.
-    // Try hitting /api/analytics/forecast, /api/forecast or /forecast
+    // TODO: Connect to Forecast Reports API once the endpoint is mounted on the API Gateway.
+    // Currently, uvicorn runs the Prophet model, but the /api/forecast route is not configured in the gateway.
     const response = await api.post('/api/forecast', { periods });
     if (response.data && Array.isArray(response.data)) {
       // Map prophet records {ds: '2026-07-15', yhat: 1250.22} to frontend structure

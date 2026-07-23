@@ -32,6 +32,17 @@ function LoginPage() {
     setForm((prev) => ({ ...prev, [name]: value }));
   };
 
+  const handleAutoFill = (selectedRole) => {
+    const defaultEmail = selectedRole === 'Admin' ? 'admin@marketmind.ai' : 'manager@marketmind.ai';
+    setForm({
+      email: defaultEmail,
+      password: 'password123',
+      role: selectedRole,
+      captchaInput: captcha
+    });
+    setError('');
+  };
+
   const handleSubmit = (event) => {
     event.preventDefault();
     if (!form.email || !form.password || !form.role) {
@@ -119,6 +130,8 @@ function LoginPage() {
               </label>
               <div className="flex gap-3 items-center">
                 <div 
+                  role="img"
+                  aria-label={`CAPTCHA verification code: ${captcha}`}
                   className="flex-1 flex items-center justify-center select-none rounded-2xl border border-white/10 py-3 text-lg font-bold tracking-widest text-cyan-300 bg-gradient-to-r from-slate-900 via-slate-800 to-slate-900 border-dashed"
                   style={{
                     textShadow: '2px 2px 4px rgba(0, 0, 0, 0.6), -1px -1px 0 rgba(255, 255, 255, 0.1)',
@@ -133,6 +146,7 @@ function LoginPage() {
                   onClick={generateCaptcha}
                   className="p-3.5 rounded-2xl border border-white/10 bg-white/5 text-slate-350 hover:text-white hover:bg-white/10 transition"
                   title="Refresh CAPTCHA"
+                  aria-label="Refresh CAPTCHA"
                 >
                   <FiRefreshCw className="animate-spin-once" />
                 </button>
@@ -144,14 +158,36 @@ function LoginPage() {
                 onChange={handleChange}
                 placeholder="Enter the code shown above"
                 autoComplete="off"
+                aria-label="CAPTCHA Input Code"
               />
             </div>
 
-            {error ? <p className="text-sm text-rose-450">{error}</p> : null}
+            {error ? <p className="text-sm text-rose-455">{error}</p> : null}
 
             <Button type="submit" className="w-full">
               Continue to dashboard
             </Button>
+
+            {/* Quick Demo Autofill Credentials */}
+            <div className="pt-4 mt-4 border-t border-white/5 space-y-2">
+              <p className="text-xs text-slate-400 text-center font-medium">Quick Demo Autofill Credentials:</p>
+              <div className="flex gap-2 justify-center">
+                <button
+                  type="button"
+                  onClick={() => handleAutoFill('Admin')}
+                  className="px-2.5 py-1 text-[11px] rounded-full border border-white/10 bg-white/5 text-slate-300 hover:bg-cyan-400/10 hover:text-cyan-300 transition"
+                >
+                  Admin Role
+                </button>
+                <button
+                  type="button"
+                  onClick={() => handleAutoFill('Store Manager')}
+                  className="px-2.5 py-1 text-[11px] rounded-full border border-white/10 bg-white/5 text-slate-300 hover:bg-cyan-400/10 hover:text-cyan-300 transition"
+                >
+                  Store Manager
+                </button>
+              </div>
+            </div>
 
             <div className="text-center text-sm text-slate-400 mt-4">
               Don&apos;t have an account?{' '}
