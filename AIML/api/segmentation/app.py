@@ -4,7 +4,7 @@ import pandas as pd
 app = Flask(__name__)
 
 # Load customer segmentation data
-customer_data = pd.read_csv("../data/customer_segmentation.csv")
+customer_data = pd.read_csv("../../data/customer_segmentation.csv")
 
 
 @app.route("/")
