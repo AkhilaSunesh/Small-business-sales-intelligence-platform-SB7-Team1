@@ -4,6 +4,7 @@ import { FiPlus, FiTrash2, FiFileText, FiRefreshCw, FiX, FiCheck, FiPrinter } fr
 import { useToast } from '../../components/common/Toast';
 import { useNavigate } from 'react-router-dom';
 import Button from '../../components/ui/Button';
+import { useAppContext } from '../../context/AppContext';
 
 // Reusable API Services
 import customerService from '../../services/customerService';
@@ -31,6 +32,7 @@ function CreateInvoicePage() {
   usePageTitle('Create Invoice');
   const toast = useToast();
   const navigate = useNavigate();
+  const { demoMode } = useAppContext();
 
   // Generated Invoice number on load
   const [invoiceNumber, setInvoiceNumber] = useState('');
@@ -76,6 +78,26 @@ function CreateInvoicePage() {
   // Fetch client and product catalog from Backend database
   useEffect(() => {
     const loadCatalogs = async () => {
+      if (demoMode === 'loading') {
+        setLoadingCatalogs(true);
+        return;
+      }
+      if (demoMode === 'error') {
+        setLoadingCatalogs(false);
+        setCustomers([]);
+        setFilteredCusts([]);
+        setProducts([]);
+        toast.show("API Error: Connection to client database failed.", "error");
+        return;
+      }
+      if (demoMode === 'empty') {
+        setLoadingCatalogs(false);
+        setCustomers([]);
+        setFilteredCusts([]);
+        setProducts([]);
+        return;
+      }
+
       setLoadingCatalogs(true);
       try {
         const [custRes, prodRes] = await Promise.all([
@@ -100,7 +122,7 @@ function CreateInvoicePage() {
       }
     };
     loadCatalogs();
-  }, []);
+  }, [demoMode]);
 
   // Filter customers based on input text
   useEffect(() => {
@@ -344,7 +366,16 @@ function CreateInvoicePage() {
   };
 
   return (
-    <div className="space-y-6">
+    <div className="space-y-6 relative min-h-[500px]">
+      {loadingCatalogs && (
+        <div className="absolute inset-0 z-30 flex items-center justify-center rounded-[2rem] bg-slate-950/60 backdrop-blur-sm min-h-[500px]">
+          <div className="flex flex-col items-center gap-3">
+            <FiRefreshCw className="animate-spin text-4xl text-cyan-400" />
+            <p className="text-sm font-semibold text-slate-350">Loading client and product catalogs...</p>
+          </div>
+        </div>
+      )}
+
       {/* Top Title Section */}
       <section className="rounded-3xl border border-white/10 bg-slate-950/80 p-6 md:p-8 backdrop-blur flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
         <div>

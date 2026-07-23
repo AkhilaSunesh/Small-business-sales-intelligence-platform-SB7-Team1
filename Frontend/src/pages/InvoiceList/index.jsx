@@ -7,6 +7,7 @@ import {
   FiDownload, FiPrinter, FiX, FiCheckSquare, FiInfo
 } from 'react-icons/fi';
 import Button from '../../components/ui/Button';
+import { useAppContext } from '../../context/AppContext';
 
 // Data and Components
 import { MOCK_INVOICES_DATA } from './mockInvoices';
@@ -81,7 +82,7 @@ function InvoiceListPage() {
   const [deleteInvoice, setDeleteInvoice] = useState(null);
 
   // Demo state toggle for testing Loading, Error, Empty list structures
-  const [demoMode, setDemoMode] = useState('loaded'); // 'loaded' | 'loading' | 'error' | 'empty'
+  const { demoMode, setDemoMode } = useAppContext();
 
   // Reset page number on search/filter update to avoid out-of-range pages
   useEffect(() => {
