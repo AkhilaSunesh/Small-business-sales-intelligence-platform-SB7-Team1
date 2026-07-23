@@ -5,6 +5,7 @@ import Input from '../../components/ui/Input';
 import Button from '../../components/ui/Button';
 import { mockRecommendations } from '../../constants/recommendationsData';
 import recommendationService from '../../services/recommendationService';
+import { useAppContext } from '../../context/AppContext';
 
 function RecommendationsPage() {
   usePageTitle('Recommendations');
@@ -16,7 +17,7 @@ function RecommendationsPage() {
   const [searchTerm, setSearchTerm] = useState('');
 
   // Tester control mode
-  const [demoMode, setDemoMode] = useState('loaded'); // 'loaded' | 'loading' | 'error' | 'empty'
+  const { demoMode, setDemoMode } = useAppContext();
 
   // Fetch live recommendations from API
   const fetchRecommendations = useCallback(async () => {
