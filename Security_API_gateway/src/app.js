@@ -17,8 +17,8 @@ const aiRoutes        = require("./routes/ai.routes");
 
 const authenticate              = require("./middleware/authenticate");
 const authorize                 = require("./middleware/authorize");
-const { auditRejectMiddleware } = require("./middleware/auditLogger");
-const { apiLimiter }            = require("./middleware/rateLimiter");
+const {auditRejectMiddleware,auditSuccessfulAction} = require("./middleware/auditLogger");
+const { apiLimiter, aiLimiter } = require("./middleware/rateLimiter");
 
 const app = express();
 
@@ -55,12 +55,11 @@ app.use("/api/analytics", authenticate, authorize, apiLimiter, analyticsRoutes);
 app.use("/api/invoices",            authenticate, authorize, apiLimiter, invoicesRoutes);
 
 // ── AI Insight routes (protected) ─────────────────────────────────────────────
-app.use("/api/customer-groups",    authenticate, authorize, apiLimiter, aiRoutes);
-app.use("/api/churn",              authenticate, authorize, apiLimiter, aiRoutes);
-app.use("/api/recommendations",    authenticate, authorize, apiLimiter, aiRoutes);
-app.use("/api/anomaly-detection",  authenticate, authorize, apiLimiter, aiRoutes);
-
-// ── Centralised error handler ─────────────────────────────────────────────────
+app.use("/api/customer-groups", authenticate, authorize, apiLimiter,  aiLimiter, auditSuccessfulAction("AI Report Requested", "customer-groups"), aiRoutes);
+app.use("/api/churn", authenticate, authorize, apiLimiter,  aiLimiter, auditSuccessfulAction("AI Report Requested", "churn"), aiRoutes);
+app.use("/api/recommendations", authenticate, authorize, apiLimiter,  aiLimiter, auditSuccessfulAction("AI Report Requested", "recommendations"), aiRoutes);
+app.use("/api/anomaly-detection", authenticate, authorize, apiLimiter,  aiLimiter,auditSuccessfulAction("AI Report Requested", "anomaly-detection"), aiRoutes);
+// ── Centralised error handler ─────────────────────────────────────── ──────────
 app.use((err, req, res, next) => {
     console.error(err);
     if (res.headersSent) return next(err);

@@ -2,6 +2,7 @@ const express = require("express");
 const axios   = require("axios");
 const { validateCreateInvoice, validateRecordPayment } = require("../validations/invoice.validation");
 const router  = express.Router();
+const { auditSuccessfulAction } = require("../middleware/auditLogger");
 
 const BACKEND_API_URL = process.env.BACKEND_API_URL || "http://localhost:5000/api";
 
@@ -34,13 +35,13 @@ router.get("/revenue/summary", (req, res) => forward(req, res, "/invoices/revenu
 router.get("/status/:status", (req, res) => forward(req, res, `/invoices/status/${req.params.status}`));
 
 // POST /api/invoices — create invoice
-router.post("/", validateCreateInvoice, (req, res) => forward(req, res, "/invoices"));
+router.post("/",validateCreateInvoice,auditSuccessfulAction("Invoice Created", "create"),(req, res) => forward(req, res, "/invoices"));
 
 // POST /api/invoices/overdue/check — check overdue
 router.post("/overdue/check", (req, res) => forward(req, res, "/invoices/overdue/check"));
 
 // POST /api/invoices/:id/payments — record payment
-router.post("/:id/payments", validateRecordPayment, (req, res) => forward(req, res, `/invoices/${req.params.id}/payments`));
+router.post("/:id/payments",validateRecordPayment,auditSuccessfulAction("Invoice Payment Updated", "record-payment"),(req, res) => forward(req, res, `/invoices/${req.params.id}/payments`));
 
 // GET /api/invoices/:id — single invoice
 router.get("/:id", (req, res) => forward(req, res, `/invoices/${req.params.id}`));
