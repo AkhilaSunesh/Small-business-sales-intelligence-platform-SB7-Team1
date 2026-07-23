@@ -4,6 +4,7 @@ import { FiUsers, FiUserCheck, FiAward, FiPieChart, FiList, FiAlertTriangle, FiC
 import { ResponsiveContainer, PieChart, Pie, Cell, Tooltip, Legend } from 'recharts';
 import StatCard from '../../components/common/StatCard';
 import Button from '../../components/ui/Button';
+import { useAppContext } from '../../context/AppContext';
 import {
   customerSummaryStats,
   customerDistributionData,
@@ -22,7 +23,7 @@ function CustomerInsightsPage() {
   const [customers, setCustomers] = useState([]);
 
   // Tester control mode
-  const [demoMode, setDemoMode] = useState('loaded'); // 'loaded' | 'loading' | 'error' | 'empty'
+  const { demoMode, setDemoMode } = useAppContext();
 
   // Fetch live segmentation from API
   const fetchCustomerSegmentation = useCallback(async () => {

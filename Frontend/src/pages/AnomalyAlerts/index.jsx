@@ -4,6 +4,7 @@ import { FiSearch, FiAlertTriangle, FiAlertCircle, FiInfo, FiCheckCircle, FiChec
 import Button from '../../components/ui/Button';
 import { mockAnomalyAlerts } from '../../constants/anomalyAlertsData';
 import alertService from '../../services/alertService';
+import { useAppContext } from '../../context/AppContext';
 
 function AnomalyAlertsPage() {
   usePageTitle('Anomaly Alerts');
@@ -15,7 +16,7 @@ function AnomalyAlertsPage() {
   const [searchTerm, setSearchTerm] = useState('');
 
   // Tester control mode
-  const [demoMode, setDemoMode] = useState('loaded'); // 'loaded' | 'loading' | 'error' | 'empty'
+  const { demoMode, setDemoMode } = useAppContext();
 
   // Fetch live anomalies from API
   const fetchAnomalyAlerts = useCallback(async () => {

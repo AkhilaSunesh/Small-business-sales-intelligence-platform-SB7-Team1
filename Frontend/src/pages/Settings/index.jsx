@@ -4,12 +4,13 @@ import { useAuth } from '../../context/AuthContext';
 import { useTranslation } from 'react-i18next';
 import Button from '../../components/ui/Button';
 import Input from '../../components/ui/Input';
+import { FiAlertTriangle, FiRefreshCw } from 'react-icons/fi';
 
 function SettingsPage() {
   usePageTitle('Settings');
 
   const { t, i18n } = useTranslation();
-  const { user, logout, theme, setTheme } = useAuth();
+  const { user, logout, theme, setTheme, demoMode, setDemoMode } = useAuth();
   const [showPasswordForm, setShowPasswordForm] = useState(false);
   const [showEditProfile, setShowEditProfile] = useState(false);
 
@@ -78,17 +79,81 @@ function SettingsPage() {
     }
   };
 
+  const isDemoEmpty = demoMode === 'empty';
+  const isDemoError = demoMode === 'error';
+  const isDemoLoading = demoMode === 'loading';
+
   return (
     <div className="space-y-6">
       {/* Page Header */}
-      <section className="rounded-3xl border border-white/10 bg-slate-950/80 p-8">
-        <h1 className="text-3xl font-semibold text-white">{t('settings')}</h1>
-        <p className="mt-2 text-sm text-slate-400">
-          {t('manageProfile')}
-        </p>
+      <section className="rounded-3xl border border-white/10 bg-slate-950/80 p-8 flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
+        <div>
+          <h1 className="text-3xl font-semibold text-white">{t('settings')}</h1>
+          <p className="mt-2 text-sm text-slate-400">
+            {t('manageProfile')}
+          </p>
+        </div>
+        {isDemoError && (
+          <Button
+            onClick={() => {
+              setDemoMode('loading');
+              setTimeout(() => setDemoMode('loaded'), 1000);
+            }}
+            variant="secondary"
+            className="gap-2 py-2 px-4 rounded-xl text-xs font-bold"
+          >
+            <FiRefreshCw className="text-sm" /> Retry Connection
+          </Button>
+        )}
       </section>
 
-      {/* User Profile Section */}
+      {/* CORE DISPLAY ROUTING */}
+      {isDemoError ? (
+        /* Connection Error State */
+        <div className="rounded-3xl border border-rose-500/10 bg-slate-950/80 p-8 backdrop-blur text-center space-y-4 max-w-md mx-auto my-8">
+          <div className="flex items-center justify-center w-14 h-14 rounded-full bg-rose-500/10 text-rose-450 mx-auto">
+            <FiAlertTriangle className="text-2xl shrink-0" />
+          </div>
+          <div className="space-y-2">
+            <h3 className="text-base font-bold text-white">Connection Error</h3>
+            <p className="text-xs text-slate-400 leading-relaxed font-sans">
+              Unable to sync account credentials with server database.
+            </p>
+          </div>
+          <div className="pt-2">
+            <Button
+              onClick={() => {
+                setDemoMode('loading');
+                setTimeout(() => setDemoMode('loaded'), 1000);
+              }}
+              className="bg-rose-500 text-white hover:bg-rose-400 text-xs font-bold gap-2 py-2.5 px-6 rounded-xl w-full"
+            >
+              <FiRefreshCw className="text-sm" /> Retry Connection
+            </Button>
+          </div>
+        </div>
+      ) : isDemoLoading ? (
+        /* Loading Skeletons */
+        <div className="space-y-6 animate-pulse">
+          <section className="rounded-3xl border border-white/10 bg-slate-950/80 p-6 space-y-4">
+            <div className="h-5 w-32 bg-white/10 rounded"></div>
+            <div className="grid gap-4 sm:grid-cols-2">
+              <div className="h-16 bg-white/5 rounded-2xl"></div>
+              <div className="h-16 bg-white/5 rounded-2xl"></div>
+            </div>
+          </section>
+          <section className="rounded-3xl border border-white/10 bg-slate-950/80 p-6 space-y-4">
+            <div className="h-5 w-40 bg-white/10 rounded"></div>
+            <div className="space-y-3">
+              {[...Array(3)].map((_, i) => (
+                <div key={i} className="h-14 bg-white/5 rounded-2xl"></div>
+              ))}
+            </div>
+          </section>
+        </div>
+      ) : (
+        <>
+          {/* User Profile Section */}
       <section className="rounded-3xl border border-white/10 bg-slate-950/80 p-6">
         <div className="flex items-start justify-between">
           <div>
@@ -372,6 +437,8 @@ function SettingsPage() {
           {t('logout')}
         </Button>
       </section>
+        </>
+      )}
     </div>
   );
 }

@@ -27,6 +27,7 @@ import { FILTER_OPTIONS } from '../../constants/forecastData';
 import { getForecastReportsData } from '../../services/forecastService';
 import { exportCSV, exportPDF } from '../../utils/exportUtils';
 import StatCard from '../../components/common/StatCard';
+import { useAppContext } from '../../context/AppContext';
 
 function ForecastReportsPage() {
   usePageTitle('Forecast Reports');
@@ -38,7 +39,7 @@ function ForecastReportsPage() {
   const [error, setError] = useState(null);
 
   // Tester control mode
-  const [demoMode, setDemoMode] = useState('loaded'); // 'loaded' | 'loading' | 'error' | 'empty'
+  const { demoMode, setDemoMode } = useAppContext();
 
   // Dropdown & Export UI State
   const [exportOpen, setExportOpen] = useState(false);
