@@ -285,4 +285,4 @@ Returns:
 
 **Module:** Artificial Intelligence & Machine Learning
 
-**Status:** Milestone 2 Completed ✅
+**Status:** Milestone 2 Completed
