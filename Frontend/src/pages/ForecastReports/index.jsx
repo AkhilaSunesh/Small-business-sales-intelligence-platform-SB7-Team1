@@ -111,11 +111,11 @@ function ForecastReportsPage() {
   // Export handlers (Day 7)
   const handleExportCSV = () => {
     setExportOpen(false);
-    if (!forecastData || !forecastData.items || forecastData.items.length === 0) {
+    if (!forecastData || !forecastData.forecast || forecastData.forecast.length === 0) {
       showToast('No forecast data available to export.', 'error');
       return;
     }
-    const result = exportCSV(forecastData.items, `Forecast_Report_${selectedRange}.csv`);
+    const result = exportCSV(forecastData.forecast, `Forecast_Report_${selectedRange}.csv`);
     if (result.success) {
       showToast(result.message, 'success');
     } else {
@@ -125,13 +125,13 @@ function ForecastReportsPage() {
 
   const handleExportPDF = () => {
     setExportOpen(false);
-    if (!forecastData || !forecastData.items || forecastData.items.length === 0) {
+    if (!forecastData || !forecastData.forecast || forecastData.forecast.length === 0) {
       showToast('No forecast data available to export.', 'error');
       return;
     }
     const result = exportPDF(
       forecastData.summary,
-      forecastData.items,
+      forecastData.forecast,
       `Forecast_Report_${selectedRange}.pdf`
     );
     if (result.success) {
@@ -142,7 +142,7 @@ function ForecastReportsPage() {
   };
 
   const summary = forecastData?.summary || {};
-  const items = forecastData?.items || [];
+  const items = forecastData?.forecast || [];
 
   return (
     <div className="space-y-6">
@@ -368,7 +368,7 @@ function ForecastReportsPage() {
                     />
                     <Area
                       type="monotone"
-                      dataKey="predictedSales"
+                      dataKey="forecastTransactions"
                       name="Predicted Sales"
                       stroke="#06b6d4"
                       strokeWidth={3}
@@ -418,10 +418,10 @@ function ForecastReportsPage() {
                       <tr key={idx} className="hover:bg-white/5 transition-colors">
                         <td className="py-3.5 px-4 font-medium text-white">{row.month}</td>
                         <td className="py-3.5 px-4 font-mono font-semibold text-cyan-400">
-                          {row.predictedSales.toLocaleString()} units
+                          {(row.forecastTransactions ?? 0).toLocaleString()} units
                         </td>
                         <td className="py-3.5 px-4 font-mono font-semibold text-slate-200">
-                          ${row.revenue.toLocaleString()}
+                          ${(row.forecastRevenue ?? 0).toLocaleString()}
                         </td>
                         <td className="py-3.5 px-4">
                           <span
