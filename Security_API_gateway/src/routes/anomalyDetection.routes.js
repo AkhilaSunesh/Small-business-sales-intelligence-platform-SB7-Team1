@@ -1,0 +1,38 @@
+const express = require("express");
+const axios   = require("axios");
+const router  = express.Router();
+
+const AI_API_URL = process.env.AI_API_URL || "http://localhost:5001";
+
+const forwardToAI = async (req, res, aiPath) => {
+    try {
+        const response = await axios({
+            method:  req.method,
+            url:     `${AI_API_URL}${aiPath}`,
+            params:  req.query,
+            data:    req.body,
+            headers: {
+                Authorization:  req.headers.authorization || "",
+                "Content-Type": req.headers["content-type"] || "application/json"
+            },
+            timeout: 10000
+        });
+        res.status(response.status).json(response.data);
+    } catch (error) {
+        if (!error.response) {
+            return res.status(200).json({
+                success: true,
+                data:    [],
+                message: "AI service is currently unavailable. Showing empty results."
+            });
+        }
+        const status = error.response.status || 500;
+        res.status(status).json(error.response.data || { success: false, message: error.message });
+    }
+};
+
+// Mounted at /api/anomaly-detection
+router.get("/",       (req, res) => forwardToAI(req, res, "/anomaly-detection"));
+router.post("/check", (req, res) => forwardToAI(req, res, "/anomaly-detection/check"));
+
+module.exports = router;
