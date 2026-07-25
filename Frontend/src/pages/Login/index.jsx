@@ -5,6 +5,7 @@ import { useAppContext } from '../../context/AppContext';
 import Button from '../../components/ui/Button';
 import Input from '../../components/ui/Input';
 import { FiRefreshCw } from 'react-icons/fi';
+import { loginUser } from '../../services/authService';
 
 function LoginPage() {
   const navigate = useNavigate();
@@ -12,6 +13,7 @@ function LoginPage() {
   const [form, setForm] = useState({ email: '', password: '', role: '', captchaInput: '' });
   const [captcha, setCaptcha] = useState('');
   const [error, setError] = useState('');
+  const [isLoading, setIsLoading] = useState(false);
   usePageTitle('Login');
 
   const generateCaptcha = useCallback(() => {
@@ -33,23 +35,33 @@ function LoginPage() {
   };
 
   const handleAutoFill = (selectedRole) => {
-    const defaultEmail = selectedRole === 'Admin' ? 'admin@marketmind.ai' : 'manager@marketmind.ai';
+    // Map frontend role labels to the seeded backend email accounts
+    const emailMap = {
+      Admin:           'admin@marketmind.dev',
+      Owner:           'owner@marketmind.dev',
+      'Store Manager': 'manager@marketmind.dev',
+      'Sales Executive': 'sales@marketmind.dev',
+    };
+    const defaultEmail = emailMap[selectedRole] ?? 'admin@marketmind.dev';
     setForm({
-      email: defaultEmail,
-      password: 'password123',
-      role: selectedRole,
-      captchaInput: captcha
+      email:        defaultEmail,
+      password:     'Password1!',
+      role:         selectedRole,
+      captchaInput: captcha,
     });
     setError('');
   };
 
-  const handleSubmit = (event) => {
+  const handleSubmit = async (event) => {
     event.preventDefault();
+    setError('');
+
     if (!form.email || !form.password || !form.role) {
       setError('Please provide an email, password, and role.');
       return;
     }
 
+    // ── CAPTCHA validation (unchanged) ────────────────────────────────────────
     if (form.captchaInput !== captcha) {
       setError('Invalid CAPTCHA code. Please try again.');
       setForm((prev) => ({ ...prev, captchaInput: '' }));
@@ -57,8 +69,29 @@ function LoginPage() {
       return;
     }
 
-    login({ email: form.email, role: form.role });
-    navigate('/dashboard');
+    // ── Backend authentication ────────────────────────────────────────────────
+    setIsLoading(true);
+    try {
+      const data = await loginUser(form.email, form.password);
+
+      // Store the JWT so api.js interceptor picks it up for all future requests
+      localStorage.setItem('authToken', data.accessToken);
+      if (data.refreshToken) {
+        localStorage.setItem('refreshToken', data.refreshToken);
+      }
+
+      // Update AppContext with email and the role the user selected on the form
+      // (the form role maps frontend labels; the JWT carries the backend roleId)
+      login({ email: form.email, role: form.role });
+
+      navigate('/dashboard');
+    } catch (err) {
+      setError(err.message);
+      setForm((prev) => ({ ...prev, captchaInput: '' }));
+      generateCaptcha();
+    } finally {
+      setIsLoading(false);
+    }
   };
 
   return (
@@ -123,13 +156,13 @@ function LoginPage() {
               </select>
             </div>
 
-            {/* Captcha Verification */}
+            {/* Captcha Verification — unchanged */}
             <div className="space-y-2">
               <label className="block text-sm font-medium text-slate-200">
                 Security Verification
               </label>
               <div className="flex gap-3 items-center">
-                <div 
+                <div
                   role="img"
                   aria-label={`CAPTCHA verification code: ${captcha}`}
                   className="flex-1 flex items-center justify-center select-none rounded-2xl border border-white/10 py-3 text-lg font-bold tracking-widest text-cyan-300 bg-gradient-to-r from-slate-900 via-slate-800 to-slate-900 border-dashed"
@@ -164,8 +197,8 @@ function LoginPage() {
 
             {error ? <p className="text-sm text-rose-455">{error}</p> : null}
 
-            <Button type="submit" className="w-full">
-              Continue to dashboard
+            <Button type="submit" className="w-full" disabled={isLoading}>
+              {isLoading ? 'Signing in…' : 'Continue to dashboard'}
             </Button>
 
             {/* Quick Demo Autofill Credentials */}
