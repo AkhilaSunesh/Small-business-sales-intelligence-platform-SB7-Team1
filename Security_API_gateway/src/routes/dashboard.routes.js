@@ -24,6 +24,15 @@ const forward = async (req, res, backendPath) => {
 };
 
 // GET /api/dashboard/summary
-router.get("/summary", (req, res) => forward(req, res, "/dashboard/summary"));
+router.get("/summary",       (req, res) => forward(req, res, "/dashboard/summary"));
+
+// GET /api/dashboard/total-revenue
+router.get("/total-revenue", (req, res) => forward(req, res, "/dashboard/total-revenue"));
+
+// GET /api/dashboard/top-products
+router.get("/top-products",  (req, res) => forward(req, res, "/dashboard/top-products"));
+
+// GET /api/dashboard/sales-trend?range=30d
+router.get("/sales-trend",   (req, res) => forward(req, res, "/dashboard/sales-trend"));
 
 module.exports = router;
