@@ -5,7 +5,6 @@ import { usePageTitle } from '../../hooks/usePageTitle';
 import useUpload from '../../hooks/useUpload';
 import ErrorMessage from '../../components/common/ErrorMessage';
 import { useToast } from '../../components/common/Toast';
-import { useAppContext } from '../../context/AppContext';
 
 function PreviewTable({ headers, rows }) {
   return (
@@ -38,15 +37,11 @@ function PreviewTable({ headers, rows }) {
 
 export default function UploadPage() {
   usePageTitle('Upload Center');
-  const { demoMode } = useAppContext();
   const [csvData, setCsvData] = useState({ headers: [], rows: [] });
   const [errors, setErrors] = useState([]);
   const { loading, error: uploadError, success: uploadSuccess, upload, reset } = useUpload();
   const [selectedFile, setSelectedFile] = useState(null);
   const toast = useToast();
-
-  const isDemoLoading = demoMode === 'loading' || loading;
-  const isDemoError = demoMode === 'error' ? 'Connection refused: Sales upload backend API is offline.' : uploadError;
 
   const handleFileLoad = async (payload, err) => {
     setErrors([]);
@@ -134,16 +129,16 @@ export default function UploadPage() {
                   setErrors([res.message]);
                 }
               }}
-              disabled={isDemoLoading}
+              disabled={loading}
               className="ml-2 rounded-lg bg-emerald-600/10 px-3 py-2 text-sm text-emerald-200 hover:bg-emerald-600/20 disabled:opacity-50"
             >
-              {isDemoLoading ? 'Uploading...' : 'Upload'}
+              {loading ? 'Uploading...' : 'Upload'}
             </button>
           </div>
 
           {errors.length > 0 && <ErrorMessage messages={errors} title="Validation errors" />}
 
-          {isDemoError && <ErrorMessage messages={[isDemoError]} title="Upload error" />}
+          {uploadError && <ErrorMessage messages={[uploadError]} title="Upload error" />}
 
           {uploadSuccess && (
             <div className="mt-4">

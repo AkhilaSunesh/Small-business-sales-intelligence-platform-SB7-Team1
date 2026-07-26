@@ -2,7 +2,6 @@ import { useState, useMemo } from 'react';
 import { usePageTitle } from '../../hooks/usePageTitle';
 import Button from '../../components/ui/Button';
 import Input from '../../components/ui/Input';
-import { useAppContext } from '../../context/AppContext';
 import { 
   FiSearch, 
   FiUserPlus, 
@@ -18,7 +17,7 @@ import {
   FiX
 } from 'react-icons/fi';
 
-const INITIAL_MOCK_USERS = [
+const INITIAL_USERS = [
   { id: 'USR001', name: 'Alok Sharma', email: 'alok.sharma@example.com', role: 'Owner', status: 'Active', lastLogin: '2026-07-12 10:15 AM' },
   { id: 'USR002', name: 'Priya Patel', email: 'priya.patel@example.com', role: 'Store Manager', status: 'Active', lastLogin: '2026-07-12 09:30 AM' },
   { id: 'USR003', name: 'Rajesh Kumar', email: 'rajesh.kumar@example.com', role: 'Sales Executive', status: 'Active', lastLogin: '2026-07-11 05:45 PM' },
@@ -33,9 +32,8 @@ const INITIAL_MOCK_USERS = [
 
 function UsersPage() {
   usePageTitle('User Management');
-  const { demoMode, setDemoMode } = useAppContext();
 
-  const [users, setUsers] = useState(INITIAL_MOCK_USERS);
+  const [users, setUsers] = useState(INITIAL_USERS);
   const [searchTerm, setSearchTerm] = useState('');
   const [roleFilter, setRoleFilter] = useState('');
   const [statusFilter, setStatusFilter] = useState('');
@@ -61,25 +59,17 @@ function UsersPage() {
   });
   const [formErrors, setFormErrors] = useState({});
 
-  const isDemoEmpty = demoMode === 'empty';
-  const isDemoError = demoMode === 'error';
-  const isDemoLoading = demoMode === 'loading';
-
   // Summary Metrics calculations
   const stats = useMemo(() => {
-    if (isDemoEmpty) {
-      return { total: 0, active: 0, inactive: 0, pending: 0 };
-    }
     const total = users.length;
     const active = users.filter(u => u.status === 'Active').length;
     const inactive = users.filter(u => u.status === 'Inactive').length;
     const pending = users.filter(u => u.status === 'Pending').length;
     return { total, active, inactive, pending };
-  }, [users, isDemoEmpty]);
+  }, [users]);
 
   // Sort & Filter logic
   const filteredAndSortedUsers = useMemo(() => {
-    if (isDemoEmpty) return [];
     let result = [...users];
 
     // Filter by Search term (name or email)
@@ -357,30 +347,7 @@ function UsersPage() {
 
       {/* Users Table */}
       <section className="rounded-3xl border border-white/10 bg-slate-950/80 p-6 overflow-hidden">
-        {isDemoError ? (
-          <div className="text-center py-8 space-y-4 max-w-sm mx-auto">
-            <FiAlertTriangle className="text-4xl text-rose-450 mx-auto" />
-            <h3 className="text-base font-semibold text-white">Connection Error</h3>
-            <p className="text-xs text-slate-400">Unable to reach the user directories API server. Please retry.</p>
-            <Button
-              onClick={() => {
-                setDemoMode('loading');
-                setTimeout(() => setDemoMode('loaded'), 1000);
-              }}
-              variant="secondary"
-              className="text-xs font-bold gap-2 py-2 px-4 rounded-xl w-full"
-            >
-              <FiRefreshCw className="text-xs" /> Retry Connection
-            </Button>
-          </div>
-        ) : isDemoLoading ? (
-          <div className="space-y-3 animate-pulse py-4">
-            <div className="h-10 bg-white/5 border-b border-white/10 rounded-xl" />
-            {[...Array(4)].map((_, i) => (
-              <div key={i} className="h-12 bg-white/2 rounded-lg" />
-            ))}
-          </div>
-        ) : isDemoEmpty || users.length === 0 ? (
+        {users.length === 0 ? (
           <div className="text-center py-12 space-y-3">
             <FiUsers className="text-5xl text-slate-600 mx-auto" />
             <h3 className="text-base font-semibold text-white">No registered dashboard users.</h3>

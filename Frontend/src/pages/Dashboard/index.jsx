@@ -2,26 +2,18 @@ import { usePageTitle } from '../../hooks/usePageTitle';
 import StatCard from '../../components/common/StatCard';
 import SalesTrendChart from '../../components/ui/SalesTrendChart';
 import TopProductsChart from '../../components/ui/TopProductsChart';
-import { summaryStats as mockSummary, salesOver30Days as mockSales, topProducts as mockTop } from '../../constants/mockData';
 import useDashboardData from '../../hooks/useDashboardData';
-import { useAppContext } from '../../context/AppContext';
 import { FiAlertTriangle, FiRefreshCw, FiInbox } from 'react-icons/fi';
 import Button from '../../components/ui/Button';
 
 function DashboardPage() {
   usePageTitle('Dashboard');
-  const { demoMode } = useAppContext();
   const { loading, error, summary, trend, topProducts, refetch } = useDashboardData();
 
-  const isDemoEmpty = demoMode === 'empty';
-  const isDemoError = demoMode === 'error' || error;
+  const stats = summary || {};
 
-  const stats = isDemoEmpty
-    ? { totalRevenue: '$0', totalOrders: '0', avgOrderValue: '$0', activeProducts: '0' }
-    : summary || mockSummary;
-
-  const salesData = isDemoEmpty ? [] : (trend && trend.length > 0 ? trend : mockSales);
-  const products = isDemoEmpty ? [] : (topProducts && topProducts.length > 0 ? topProducts : mockTop);
+  const salesData = trend && trend.length > 0 ? trend : [];
+  const products = topProducts && topProducts.length > 0 ? topProducts : [];
 
   return (
     <div className="space-y-6">
@@ -31,7 +23,7 @@ function DashboardPage() {
           <h1 className="text-3xl font-bold tracking-tight text-white">Dashboard</h1>
           <p className="mt-1.5 text-sm text-slate-400">Monitor sales performance and business insights in real time.</p>
         </div>
-        {isDemoError && (
+        {error && (
           <Button onClick={refetch} variant="secondary" className="gap-2 self-start py-2.5 px-5 rounded-xl text-xs font-bold">
             <FiRefreshCw /> Retry Connection
           </Button>
@@ -39,7 +31,7 @@ function DashboardPage() {
       </section>
 
       {/* CORE DISPLAY ROUTING */}
-      {isDemoError ? (
+      {error ? (
         /* Connection Error State */
         <div className="rounded-3xl border border-rose-500/10 bg-slate-950/80 p-8 backdrop-blur text-center space-y-4 max-w-md mx-auto my-8">
           <div className="flex items-center justify-center w-14 h-14 rounded-full bg-rose-500/10 text-rose-400 mx-auto">
@@ -72,7 +64,7 @@ function DashboardPage() {
               <h3 className="text-sm text-slate-350 font-medium mb-4">Daily Sales (last 30 days)</h3>
               {loading ? (
                 <div className="h-56 animate-pulse rounded-2xl bg-white/5" />
-              ) : isDemoEmpty || salesData.length === 0 ? (
+              ) : salesData.length === 0 ? (
                 <div className="h-56 flex flex-col items-center justify-center text-slate-500 bg-slate-900/20 rounded-2xl border border-dashed border-white/5 p-4">
                   <FiInbox className="text-3xl mb-2 text-slate-600" />
                   <p className="text-xs">No sales transaction records found.</p>
@@ -93,7 +85,7 @@ function DashboardPage() {
               <h3 className="text-sm text-slate-350 font-medium mb-4">Top Products</h3>
               {loading ? (
                 <div className="h-56 animate-pulse rounded-2xl bg-white/5" />
-              ) : isDemoEmpty || products.length === 0 ? (
+              ) : products.length === 0 ? (
                 <div className="h-56 flex flex-col items-center justify-center text-slate-500 bg-slate-900/20 rounded-2xl border border-dashed border-white/5 p-4">
                   <FiInbox className="text-3xl mb-2 text-slate-600" />
                   <p className="text-xs">No active product listings.</p>

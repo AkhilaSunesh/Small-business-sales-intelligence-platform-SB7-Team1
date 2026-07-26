@@ -107,8 +107,6 @@ export function AppProvider({ children }) {
     setUser(newUser);
   }, []);
 
-  const [demoMode, setDemoMode] = useState('loaded'); // 'loaded' | 'loading' | 'error' | 'empty'
-
   const logout = useCallback(() => {
     try {
       localStorage.removeItem('marketmindUser');
@@ -127,14 +125,12 @@ export function AppProvider({ children }) {
       availableRoles: USER_ROLES,
       theme,
       setTheme,
-      demoMode,
-      setDemoMode,
       // navigation items based on current user role (falls back to Owner if none)
       navItems: ROLE_NAV[user?.role] ?? ROLE_NAV.Owner,
       login,
       logout,
     }),
-    [user, login, logout, theme, demoMode],
+    [user, login, logout, theme],
   );
 
   return <AppContext.Provider value={value}>{children}</AppContext.Provider>;

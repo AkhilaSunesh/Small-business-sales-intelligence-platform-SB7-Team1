@@ -1,15 +1,15 @@
-import { useState, useMemo } from 'react';
+import { useState, useMemo, useEffect, useCallback } from 'react';
 import { usePageTitle } from '../../hooks/usePageTitle';
 import StatCard from '../../components/common/StatCard';
 import Button from '../../components/ui/Button';
 import Input from '../../components/ui/Input';
-import { reportsSalesData, reportsStats } from '../../constants/mockData';
 import { useAppContext } from '../../context/AppContext';
 import { FiAlertTriangle, FiRefreshCw, FiInbox, FiFileText } from 'react-icons/fi';
+import invoiceService from '../../services/invoiceService';
 
 function ReportsPage() {
   usePageTitle('Reports');
-  const { demoMode, setDemoMode } = useAppContext();
+  const { isAuthenticated } = useAppContext();
 
   const [searchQuery, setSearchQuery] = useState('');
   const [filterType, setFilterType] = useState('All');
@@ -20,18 +20,74 @@ function ReportsPage() {
   const [sortOrder, setSortOrder] = useState('desc');
   const itemsPerPage = 5;
 
-  const isDemoEmpty = demoMode === 'empty';
-  const isDemoError = demoMode === 'error';
-  const isDemoLoading = demoMode === 'loading';
+  const [reportsData, setReportsData] = useState([]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState(null);
 
-  const stats = isDemoEmpty
-    ? { totalRevenue: '$0', totalSales: '0', totalOrders: '0', topSellingProduct: 'None' }
-    : reportsStats;
+  const fetchReports = useCallback(async () => {
+    setLoading(true);
+    setError(null);
+    try {
+      const res = await invoiceService.getInvoices({ page: 1, pageSize: 100 });
+      if (res && res.success && Array.isArray(res.data)) {
+        const mapped = res.data.map((inv) => {
+          const date = inv.createdAt ? inv.createdAt.split('T')[0] : '';
+          const amount = inv.totalAmount || 0;
+          let status = 'Pending';
+          if (inv.status === 'PAID') status = 'Completed';
+          else if (inv.status === 'UNPAID') status = 'Pending';
+          else if (inv.status === 'CANCELLED') status = 'Cancelled';
+
+          return {
+            id: inv.invoiceNumber || inv.id,
+            product: inv.lineItems?.[0]?.productName || 'N/A',
+            category: inv.lineItems?.[0]?.productCategory || 'General',
+            quantity: inv.lineItems?.reduce((sum, li) => sum + (li.quantity || 0), 0) || 0,
+            amount: `$${amount.toFixed(2)}`,
+            amountRaw: amount,
+            date,
+            status,
+          };
+        });
+        setReportsData(mapped);
+      } else {
+        setReportsData([]);
+      }
+    } catch (err) {
+      setError(err?.message || 'Failed to fetch reports data');
+    } finally {
+      setLoading(false);
+    }
+  }, []);
+
+  useEffect(() => {
+    fetchReports();
+  }, [fetchReports]);
+
+  // Compute stats from data
+  const stats = useMemo(() => {
+    if (!reportsData.length) {
+      return { totalRevenue: '$0', totalSales: '0', totalOrders: '0', topSellingProduct: 'None' };
+    }
+    const totalRevenue = reportsData.reduce((sum, item) => sum + (item.amountRaw || 0), 0);
+    const totalOrders = reportsData.length;
+    const totalSales = reportsData.reduce((sum, item) => sum + item.quantity, 0);
+    const productCounts = {};
+    reportsData.forEach((item) => {
+      productCounts[item.product] = (productCounts[item.product] || 0) + item.quantity;
+    });
+    const topProduct = Object.entries(productCounts).sort((a, b) => b[1] - a[1])[0]?.[0] || 'None';
+    return {
+      totalRevenue: `$${totalRevenue.toLocaleString()}`,
+      totalSales: totalSales.toString(),
+      totalOrders: totalOrders.toString(),
+      topSellingProduct: topProduct,
+    };
+  }, [reportsData]);
 
   // Filter data based on search and filters
   const filteredData = useMemo(() => {
-    if (isDemoEmpty) return [];
-    let data = [...reportsSalesData];
+    let data = [...reportsData];
 
     // Search filter
     if (searchQuery) {
@@ -49,11 +105,7 @@ function ReportsPage() {
       if (filterType === 'Sales') {
         data = data.filter((item) => item.status === 'Completed');
       } else if (filterType === 'Revenue') {
-        data = data.sort((a, b) => {
-          const amountA = parseInt(a.amount.replace(/\D/g, ''));
-          const amountB = parseInt(b.amount.replace(/\D/g, ''));
-          return amountB - amountA;
-        });
+        data = data.sort((a, b) => b.amountRaw - a.amountRaw);
       } else if (filterType === 'Inventory') {
         data = data.sort((a, b) => b.quantity - a.quantity);
       }
@@ -73,7 +125,7 @@ function ReportsPage() {
     }
 
     return data;
-  }, [searchQuery, filterType, startDate, endDate]);
+  }, [searchQuery, filterType, startDate, endDate, reportsData]);
 
   // Sort data
   const sortedData = useMemo(() => {
@@ -83,8 +135,8 @@ function ReportsPage() {
       let bVal = b[sortField];
 
       if (sortField === 'amount') {
-        aVal = parseInt(a.amount.replace(/\D/g, ''));
-        bVal = parseInt(b.amount.replace(/\D/g, ''));
+        aVal = a.amountRaw;
+        bVal = b.amountRaw;
       } else if (sortField === 'date') {
         aVal = new Date(a.date);
         bVal = new Date(b.date);
@@ -172,12 +224,9 @@ ${sortedData
             Analyze your sales performance with detailed reports and insights.
           </p>
         </div>
-        {isDemoError && (
+        {error && (
           <Button
-            onClick={() => {
-              setDemoMode('loading');
-              setTimeout(() => setDemoMode('loaded'), 1000);
-            }}
+            onClick={fetchReports}
             variant="secondary"
             className="gap-2 py-2 px-4 rounded-xl text-xs font-bold"
           >
@@ -187,7 +236,7 @@ ${sortedData
       </section>
 
       {/* CORE DISPLAY ROUTING */}
-      {isDemoError ? (
+      {error ? (
         /* Connection Error State */
         <div className="rounded-3xl border border-rose-500/10 bg-slate-950/80 p-8 backdrop-blur text-center space-y-4 max-w-md mx-auto my-8">
           <div className="flex items-center justify-center w-14 h-14 rounded-full bg-rose-500/10 text-rose-400 mx-auto">
@@ -201,17 +250,14 @@ ${sortedData
           </div>
           <div className="pt-2">
             <Button
-              onClick={() => {
-                setDemoMode('loading');
-                setTimeout(() => setDemoMode('loaded'), 1000);
-              }}
+              onClick={fetchReports}
               className="bg-rose-500 text-white hover:bg-rose-400 text-xs font-bold gap-2 py-2.5 px-6 rounded-xl w-full"
             >
               <FiRefreshCw className="text-sm" /> Retry Connection
             </Button>
           </div>
         </div>
-      ) : isDemoLoading ? (
+      ) : loading ? (
         /* Loading Skeletons */
         <div className="space-y-6">
           <div className="grid gap-6 sm:grid-cols-2 lg:grid-cols-4">
@@ -328,19 +374,19 @@ ${sortedData
 
           {/* Export Buttons */}
           <section className="flex flex-wrap gap-3">
-            <Button variant="primary" onClick={handleExportCSV} disabled={isDemoEmpty}>
+            <Button variant="primary" onClick={handleExportCSV} disabled={sortedData.length === 0}>
               📥 Export CSV
             </Button>
-            <Button variant="secondary" onClick={handleExportPDF} disabled={isDemoEmpty}>
+            <Button variant="secondary" onClick={handleExportPDF} disabled={sortedData.length === 0}>
               📄 Export PDF
             </Button>
-            <Button variant="secondary" onClick={handlePrint} disabled={isDemoEmpty}>
+            <Button variant="secondary" onClick={handlePrint} disabled={sortedData.length === 0}>
               🖨️ Print
             </Button>
           </section>
 
           {/* Sales Report Table */}
-          {isDemoEmpty || sortedData.length === 0 ? (
+          {sortedData.length === 0 ? (
             <section className="rounded-3xl border border-white/10 bg-slate-950/80 p-12 text-center backdrop-blur">
               <FiInbox className="text-5xl text-slate-600 mx-auto mb-4" />
               <h3 className="text-lg font-semibold text-white">No sales reports available.</h3>

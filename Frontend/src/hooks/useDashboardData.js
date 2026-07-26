@@ -1,9 +1,7 @@
 import { useCallback, useEffect, useState } from 'react';
 import { getTotalRevenue, getSalesTrend, getTopProducts } from '../services/dashboardService';
-import { useAppContext } from '../context/AppContext';
 
 export default function useDashboardData() {
-  const { demoMode } = useAppContext();
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
   const [summary, setSummary] = useState(null);
@@ -19,25 +17,6 @@ export default function useDashboardData() {
   };
 
   const fetchAll = useCallback(async () => {
-    if (demoMode === 'loading') {
-      setLoading(true);
-      setError(null);
-      return;
-    }
-    if (demoMode === 'error') {
-      setLoading(false);
-      setError('Connection refused: Dashboard API backend is offline.');
-      return;
-    }
-    if (demoMode === 'empty') {
-      setLoading(false);
-      setError(null);
-      setSummary({ totalRevenue: '$0', totalOrders: '0', avgOrderValue: '$0', activeProducts: '0' });
-      setTrend([]);
-      setTopProducts([]);
-      return;
-    }
-
     if (!hasAuthToken()) {
       setLoading(false);
       setError(null);
@@ -61,7 +40,7 @@ export default function useDashboardData() {
     } finally {
       setLoading(false);
     }
-  }, [demoMode]);
+  }, []);
 
   useEffect(() => {
     fetchAll();

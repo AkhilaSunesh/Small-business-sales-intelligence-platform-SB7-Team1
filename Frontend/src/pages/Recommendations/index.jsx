@@ -3,9 +3,7 @@ import { usePageTitle } from '../../hooks/usePageTitle';
 import { FiSearch, FiZap, FiShoppingBag, FiArrowRight, FiAlertTriangle, FiCheckSquare, FiRefreshCw } from 'react-icons/fi';
 import Input from '../../components/ui/Input';
 import Button from '../../components/ui/Button';
-import { mockRecommendations } from '../../constants/recommendationsData';
 import recommendationService from '../../services/recommendationService';
-import { useAppContext } from '../../context/AppContext';
 
 function RecommendationsPage() {
   usePageTitle('Recommendations');
@@ -16,12 +14,8 @@ function RecommendationsPage() {
   const [recommendations, setRecommendations] = useState([]);
   const [searchTerm, setSearchTerm] = useState('');
 
-  // Tester control mode
-  const { demoMode, setDemoMode } = useAppContext();
-
   // Fetch live recommendations from API
   const fetchRecommendations = useCallback(async () => {
-    if (demoMode !== 'loaded') return;
     setIsLoading(true);
     setError(null);
     try {
@@ -32,32 +26,17 @@ function RecommendationsPage() {
         throw new Error('Invalid recommendations response format.');
       }
     } catch (err) {
-      console.warn("Failed to load live recommendations, falling back to mock data:", err.message);
-      setRecommendations(mockRecommendations);
-      setError(null);
+      console.error("Failed to load recommendations:", err.message);
+      setError(err?.message || 'Unable to load recommendations. Please try again.');
     } finally {
       setIsLoading(false);
     }
-  }, [demoMode]);
+  }, []);
 
-  // Load appropriate datasets based on chosen demo controls
+  // Load appropriate datasets
   useEffect(() => {
-    if (demoMode === 'loaded') {
-      fetchRecommendations();
-    } else if (demoMode === 'loading') {
-      setRecommendations([]);
-      setIsLoading(true);
-      setError(null);
-    } else if (demoMode === 'error') {
-      setRecommendations([]);
-      setIsLoading(false);
-      setError("Unable to load data. Please try again.");
-    } else if (demoMode === 'empty') {
-      setRecommendations([]);
-      setIsLoading(false);
-      setError(null);
-    }
-  }, [demoMode, fetchRecommendations]);
+    fetchRecommendations();
+  }, [fetchRecommendations]);
 
   // Filter recommendations by product name (purchased or recommended) or reason
   const filteredRecommendations = useMemo(() => {
@@ -72,14 +51,7 @@ function RecommendationsPage() {
   }, [recommendations, searchTerm]);
 
   const handleRetryConnection = () => {
-    if (demoMode === 'loaded') {
-      fetchRecommendations();
-    } else {
-      setDemoMode('loading');
-      setTimeout(() => {
-        setDemoMode('loaded');
-      }, 1000);
-    }
+    fetchRecommendations();
   };
 
   return (

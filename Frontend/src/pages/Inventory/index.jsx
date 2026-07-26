@@ -1,15 +1,9 @@
+import { useState, useEffect, useCallback } from 'react';
 import { FiAlertTriangle, FiPackage, FiInbox, FiRefreshCw } from 'react-icons/fi';
 import { usePageTitle } from '../../hooks/usePageTitle';
 import SectionCard from '../../components/common/SectionCard';
-import { useAppContext } from '../../context/AppContext';
+import productService from '../../services/productService';
 import Button from '../../components/ui/Button';
-
-const inventoryRows = [
-  { sku: 'MM-1001', product: 'Smart Speaker', category: 'Electronics', stock: 148, status: 'Healthy' },
-  { sku: 'MM-1002', product: 'Wireless Headset', category: 'Accessories', stock: 32, status: 'Low stock' },
-  { sku: 'MM-1003', product: 'Office Chair', category: 'Furniture', stock: 76, status: 'Healthy' },
-  { sku: 'MM-1004', product: 'USB-C Hub', category: 'Accessories', stock: 9, status: 'Critical' },
-];
 
 function statusClasses(status) {
   if (status === 'Critical') {
@@ -23,21 +17,63 @@ function statusClasses(status) {
   return 'bg-emerald-400/10 text-emerald-200 ring-1 ring-emerald-400/20';
 }
 
+function getStockStatus(stock) {
+  if (stock <= 10) return 'Critical';
+  if (stock <= 50) return 'Low stock';
+  return 'Healthy';
+}
+
 function InventoryPage() {
   usePageTitle('Inventory');
-  const { demoMode, setDemoMode } = useAppContext();
 
-  const isDemoEmpty = demoMode === 'empty';
-  const isDemoError = demoMode === 'error';
-  const isDemoLoading = demoMode === 'loading';
+  const [inventoryRows, setInventoryRows] = useState([]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState(null);
+
+  const fetchProducts = useCallback(async () => {
+    setLoading(true);
+    setError(null);
+    try {
+      const res = await productService.getProducts();
+      if (res && res.success && Array.isArray(res.data)) {
+        const mapped = res.data.map((prod) => ({
+          sku: prod.sku || prod.id || 'N/A',
+          product: prod.name || 'Unknown Product',
+          category: prod.category || 'General',
+          stock: prod.stock ?? prod.quantity ?? 0,
+          status: getStockStatus(prod.stock ?? prod.quantity ?? 0),
+        }));
+        setInventoryRows(mapped);
+      } else if (Array.isArray(res)) {
+        const mapped = res.map((prod) => ({
+          sku: prod.sku || prod.id || 'N/A',
+          product: prod.name || 'Unknown Product',
+          category: prod.category || 'General',
+          stock: prod.stock ?? prod.quantity ?? 0,
+          status: getStockStatus(prod.stock ?? prod.quantity ?? 0),
+        }));
+        setInventoryRows(mapped);
+      } else {
+        setInventoryRows([]);
+      }
+    } catch (err) {
+      setError(err?.message || 'Failed to fetch inventory data');
+    } finally {
+      setLoading(false);
+    }
+  }, []);
+
+  useEffect(() => {
+    fetchProducts();
+  }, [fetchProducts]);
 
   return (
     <SectionCard
       title="Inventory summary"
-      subtitle="Mock product records to demonstrate table layout and status states."
+      subtitle="Live product records from the database."
     >
       {/* CORE DISPLAY ROUTING */}
-      {isDemoError ? (
+      {error ? (
         /* Connection Error State */
         <div className="rounded-3xl border border-rose-500/10 bg-slate-950/80 p-8 backdrop-blur text-center space-y-4 max-w-md mx-auto my-8">
           <div className="flex items-center justify-center w-14 h-14 rounded-full bg-rose-500/10 text-rose-400 mx-auto">
@@ -51,17 +87,14 @@ function InventoryPage() {
           </div>
           <div className="pt-2">
             <Button
-              onClick={() => {
-                setDemoMode('loading');
-                setTimeout(() => setDemoMode('loaded'), 1000);
-              }}
+              onClick={fetchProducts}
               className="bg-rose-500 text-white hover:bg-rose-400 text-xs font-bold gap-2 py-2.5 px-6 rounded-xl w-full"
             >
               <FiRefreshCw className="text-sm" /> Retry Connection
             </Button>
           </div>
         </div>
-      ) : isDemoLoading ? (
+      ) : loading ? (
         /* Loading Skeleton */
         <div className="overflow-hidden rounded-2xl border border-white/10 animate-pulse bg-slate-950/20">
           <div className="h-10 bg-white/5 border-b border-white/10" />
@@ -69,7 +102,7 @@ function InventoryPage() {
             <div key={i} className="h-14 border-b border-white/5 bg-white/2" />
           ))}
         </div>
-      ) : isDemoEmpty ? (
+      ) : inventoryRows.length === 0 ? (
         /* Empty State */
         <div className="rounded-3xl border border-white/10 bg-slate-950/80 p-12 text-center text-slate-400 backdrop-blur">
           <FiInbox className="text-5xl text-slate-650 mx-auto mb-4" />
@@ -117,7 +150,7 @@ function InventoryPage() {
 
           <div className="mt-4 inline-flex items-center gap-2 rounded-full border border-white/10 bg-white/5 px-4 py-2 text-sm text-slate-300">
             <FiPackage className="text-cyan-300" />
-            4 sample inventory records loaded from mock data
+            {inventoryRows.length} product records loaded from database
           </div>
         </>
       )}

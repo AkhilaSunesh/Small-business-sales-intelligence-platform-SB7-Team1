@@ -27,7 +27,6 @@ import { FILTER_OPTIONS } from '../../constants/forecastData';
 import { getForecastReportsData } from '../../services/forecastService';
 import { exportCSV, exportPDF } from '../../utils/exportUtils';
 import StatCard from '../../components/common/StatCard';
-import { useAppContext } from '../../context/AppContext';
 
 function ForecastReportsPage() {
   usePageTitle('Forecast Reports');
@@ -38,9 +37,6 @@ function ForecastReportsPage() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
 
-  // Tester control mode
-  const { demoMode, setDemoMode } = useAppContext();
-
   // Dropdown & Export UI State
   const [exportOpen, setExportOpen] = useState(false);
   const [toastMessage, setToastMessage] = useState(null);
@@ -48,7 +44,6 @@ function ForecastReportsPage() {
 
   // Fetch forecast data with loading/error handling
   const fetchForecastData = useCallback(async (range) => {
-    if (demoMode !== 'loaded') return;
     setLoading(true);
     setError(null);
     try {
@@ -60,34 +55,12 @@ function ForecastReportsPage() {
     } finally {
       setLoading(false);
     }
-  }, [demoMode]);
+  }, []);
 
-  // Load appropriate datasets based on chosen demo controls
+  // Load data when range changes
   useEffect(() => {
-    if (demoMode === 'loaded') {
-      fetchForecastData(selectedRange);
-    } else if (demoMode === 'loading') {
-      setForecastData(null);
-      setLoading(true);
-      setError(null);
-    } else if (demoMode === 'error') {
-      setForecastData(null);
-      setLoading(false);
-      setError('Unable to load forecast data. Please try again.');
-    } else if (demoMode === 'empty') {
-      setForecastData({
-        summary: {
-          predictedSales: '0 units',
-          expectedRevenue: '$0',
-          forecastGrowth: '0.0%',
-          predictionAccuracy: '0.0%',
-        },
-        items: []
-      });
-      setLoading(false);
-      setError(null);
-    }
-  }, [selectedRange, demoMode, fetchForecastData]);
+    fetchForecastData(selectedRange);
+  }, [selectedRange, fetchForecastData]);
 
   // Handle outside click for export dropdown menu
   useEffect(() => {
