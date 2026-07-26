@@ -13,7 +13,10 @@ const productsRoutes  = require("./routes/products.routes");
 const customersRoutes = require("./routes/customers.routes");
 const analyticsRoutes = require("./routes/analytics.routes");
 const invoicesRoutes  = require("./routes/invoices.routes");
-const aiRoutes        = require("./routes/ai.routes");
+const customerGroupsRoutes  = require("./routes/customerGroups.routes");
+const churnRoutes           = require("./routes/churn.routes");
+const recommendationsRoutes = require("./routes/recommendations.routes");
+const anomalyRoutes         = require("./routes/anomalyDetection.routes");
 
 const authenticate              = require("./middleware/authenticate");
 const authorize                 = require("./middleware/authorize");
@@ -55,10 +58,10 @@ app.use("/api/analytics", authenticate, authorize, apiLimiter, analyticsRoutes);
 app.use("/api/invoices",            authenticate, authorize, apiLimiter, invoicesRoutes);
 
 // ── AI Insight routes (protected) ─────────────────────────────────────────────
-app.use("/api/customer-groups", authenticate, authorize, apiLimiter,  aiLimiter, auditSuccessfulAction("AI Report Requested", "customer-groups"), aiRoutes);
-app.use("/api/churn", authenticate, authorize, apiLimiter,  aiLimiter, auditSuccessfulAction("AI Report Requested", "churn"), aiRoutes);
-app.use("/api/recommendations", authenticate, authorize, apiLimiter,  aiLimiter, auditSuccessfulAction("AI Report Requested", "recommendations"), aiRoutes);
-app.use("/api/anomaly-detection", authenticate, authorize, apiLimiter,  aiLimiter,auditSuccessfulAction("AI Report Requested", "anomaly-detection"), aiRoutes);
+app.use("/api/customer-groups", authenticate, authorize, apiLimiter,  aiLimiter, auditSuccessfulAction("AI Report Requested", "customer-groups"), customerGroupsRoutes);
+app.use("/api/churn", authenticate, authorize, apiLimiter,  aiLimiter, auditSuccessfulAction("AI Report Requested", "churn"), churnRoutes);
+app.use("/api/recommendations", authenticate, authorize, apiLimiter,  aiLimiter, auditSuccessfulAction("AI Report Requested", "recommendations"), recommendationsRoutes);
+app.use("/api/anomaly-detection", authenticate, authorize, apiLimiter,  aiLimiter,auditSuccessfulAction("AI Report Requested", "anomaly-detection"), anomalyRoutes);
 // ── Centralised error handler ─────────────────────────────────────── ──────────
 app.use((err, req, res, next) => {
     console.error(err);
