@@ -20,13 +20,12 @@ const forwardToAI = async (req, res, aiPath) => {
         res.status(response.status).json(response.data);
     } catch (error) {
         console.log("AI forward error:", error.response?.status, error.response?.data, error.message);
-        if (!error.response) {
-            return res.status(200).json({
-                success: true,
-                data:    [],
-                message: "AI service is currently unavailable. Showing empty results."
-            });
-        }
+       if (!error.response) {
+    return res.status(503).json({
+        success: false,
+        message: "AI service is currently unavailable."
+    });
+}
         const status = error.response.status || 500;
         res.status(status).json(error.response.data || { success: false, message: error.message });
     }

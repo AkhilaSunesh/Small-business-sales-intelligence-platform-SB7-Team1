@@ -23,10 +23,10 @@ const permissions = {
         payments:          ["GET", "POST"],
         revenue:           ["GET"],
         forecast:          ["GET"],
-        "customer-groups": ["GET"],
-        churn:             ["GET"],
-        recommendations:   ["GET"],
-        "anomaly-detection": ["GET"]
+       "customer-groups": ["GET", "POST"],
+        churn: ["GET", "POST"],
+        recommendations: ["GET", "POST"],
+       "anomaly-detection": ["GET", "POST"]
     },
     3: {                                                        // Sales Executive
         sales:             ["GET", "POST"],

@@ -23,12 +23,11 @@ const forwardToAI = async (req, res, aiPath) => {
         // AI service unavailable — return graceful empty response so the
         // frontend can render without crashing.
         if (!error.response) {
-            return res.status(200).json({
-                success: true,
-                data:    [],
-                message: "AI service is currently unavailable. Showing empty results."
-            });
-        }
+    return res.status(503).json({
+        success: false,
+        message: "AI service is currently unavailable."
+    });
+}
         const status = error.response.status || 500;
         res.status(status).json(error.response.data || { success: false, message: error.message });
     }
