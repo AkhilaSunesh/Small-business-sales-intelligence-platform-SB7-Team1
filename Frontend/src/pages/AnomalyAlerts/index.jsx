@@ -2,7 +2,6 @@ import { useState, useEffect, useMemo, useCallback } from 'react';
 import { usePageTitle } from '../../hooks/usePageTitle';
 import { FiSearch, FiAlertTriangle, FiAlertCircle, FiInfo, FiCheckCircle, FiCheckSquare, FiRefreshCw } from 'react-icons/fi';
 import Button from '../../components/ui/Button';
-import { mockAnomalyAlerts } from '../../constants/anomalyAlertsData';
 import alertService from '../../services/alertService';
 
 function AnomalyAlertsPage() {
@@ -14,12 +13,8 @@ function AnomalyAlertsPage() {
   const [alerts, setAlerts] = useState([]);
   const [searchTerm, setSearchTerm] = useState('');
 
-  // Tester control mode
-  const [demoMode, setDemoMode] = useState('loaded'); // 'loaded' | 'loading' | 'error' | 'empty'
-
   // Fetch live anomalies from API
   const fetchAnomalyAlerts = useCallback(async () => {
-    if (demoMode !== 'loaded') return;
     setIsLoading(true);
     setError(null);
     try {
@@ -30,32 +25,17 @@ function AnomalyAlertsPage() {
         throw new Error('Invalid anomalies response format.');
       }
     } catch (err) {
-      console.warn("Failed to load live anomalies, falling back to mock data:", err.message);
-      setAlerts(mockAnomalyAlerts);
-      setError(null);
+      console.error("Failed to load anomalies:", err.message);
+      setError(err?.message || 'Unable to load anomaly alerts. Please try again.');
     } finally {
       setIsLoading(false);
     }
-  }, [demoMode]);
+  }, []);
 
-  // Load appropriate datasets based on chosen demo controls
+  // Load appropriate datasets
   useEffect(() => {
-    if (demoMode === 'loaded') {
-      fetchAnomalyAlerts();
-    } else if (demoMode === 'loading') {
-      setAlerts([]);
-      setIsLoading(true);
-      setError(null);
-    } else if (demoMode === 'error') {
-      setAlerts([]);
-      setIsLoading(false);
-      setError("Unable to load data. Please try again.");
-    } else if (demoMode === 'empty') {
-      setAlerts([]);
-      setIsLoading(false);
-      setError(null);
-    }
-  }, [demoMode, fetchAnomalyAlerts]);
+    fetchAnomalyAlerts();
+  }, [fetchAnomalyAlerts]);
 
   // Filter alerts by search term (title or description)
   const filteredAlerts = useMemo(() => {
@@ -69,14 +49,7 @@ function AnomalyAlertsPage() {
   }, [alerts, searchTerm]);
 
   const handleRetryConnection = () => {
-    if (demoMode === 'loaded') {
-      fetchAnomalyAlerts();
-    } else {
-      setDemoMode('loading');
-      setTimeout(() => {
-        setDemoMode('loaded');
-      }, 1000);
-    }
+    fetchAnomalyAlerts();
   };
 
   return (

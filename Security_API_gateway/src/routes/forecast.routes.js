@@ -19,20 +19,13 @@ const forward = async (req, res, backendPath) => {
         res.status(response.status).json(response.data);
     } catch (error) {
         const status = error.response?.status || 500;
-        res.status(status).json(error.response?.data || { success: false, message: error.message });
+        res.status(status).json(
+            error.response?.data || { success: false, message: error.message }
+        );
     }
 };
 
-// GET /api/dashboard/summary
-router.get("/summary",       (req, res) => forward(req, res, "/dashboard/summary"));
-
-// GET /api/dashboard/total-revenue
-router.get("/total-revenue", (req, res) => forward(req, res, "/dashboard/total-revenue"));
-
-// GET /api/dashboard/top-products
-router.get("/top-products",  (req, res) => forward(req, res, "/dashboard/top-products"));
-
-// GET /api/dashboard/sales-trend?range=30d
-router.get("/sales-trend",   (req, res) => forward(req, res, "/dashboard/sales-trend"));
+// GET /api/forecast?days=30&lookback=90&window=7
+router.get("/", (req, res) => forward(req, res, "/forecast"));
 
 module.exports = router;

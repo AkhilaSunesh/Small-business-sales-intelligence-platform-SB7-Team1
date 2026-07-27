@@ -4,11 +4,6 @@ import { FiUsers, FiUserCheck, FiAward, FiPieChart, FiList, FiAlertTriangle, FiC
 import { ResponsiveContainer, PieChart, Pie, Cell, Tooltip, Legend } from 'recharts';
 import StatCard from '../../components/common/StatCard';
 import Button from '../../components/ui/Button';
-import {
-  customerSummaryStats,
-  customerDistributionData,
-  customerGroupList,
-} from '../../constants/customerInsightsData';
 import customerService from '../../services/customerService';
 
 function CustomerInsightsPage() {
@@ -21,12 +16,8 @@ function CustomerInsightsPage() {
   const [distributionData, setDistributionData] = useState([]);
   const [customers, setCustomers] = useState([]);
 
-  // Tester control mode
-  const [demoMode, setDemoMode] = useState('loaded'); // 'loaded' | 'loading' | 'error' | 'empty'
-
   // Fetch live segmentation from API
   const fetchCustomerSegmentation = useCallback(async () => {
-    if (demoMode !== 'loaded') return;
     setIsLoading(true);
     setError(null);
     try {
@@ -39,53 +30,22 @@ function CustomerInsightsPage() {
         throw new Error('Invalid segmentation data format.');
       }
     } catch (err) {
-      console.warn("Failed to load live segments, falling back to mock data:", err.message);
-      // Fallback to mock constants to keep page layouts testable and functional
-      setSummaryData(customerSummaryStats);
-      setDistributionData(customerDistributionData);
-      setCustomers(customerGroupList);
-      setError(null);
+      console.error("Failed to load customer segments:", err.message);
+      setError(err?.message || 'Unable to load customer insights data. Please try again.');
     } finally {
       setIsLoading(false);
     }
-  }, [demoMode]);
+  }, []);
 
-  // Load datasets based on chosen demo controls
+  // Load datasets
   useEffect(() => {
-    if (demoMode === 'loaded') {
-      fetchCustomerSegmentation();
-    } else if (demoMode === 'loading') {
-      setSummaryData(null);
-      setDistributionData([]);
-      setCustomers([]);
-      setIsLoading(true);
-      setError(null);
-    } else if (demoMode === 'error') {
-      setSummaryData(null);
-      setDistributionData([]);
-      setCustomers([]);
-      setIsLoading(false);
-      setError("Unable to load data. Please try again.");
-    } else if (demoMode === 'empty') {
-      setSummaryData({ loyalCount: 0, occasionalCount: 0, highValueCount: 0 });
-      setDistributionData([]);
-      setCustomers([]);
-      setIsLoading(false);
-      setError(null);
-    }
-  }, [demoMode, fetchCustomerSegmentation]);
+    fetchCustomerSegmentation();
+  }, [fetchCustomerSegmentation]);
 
   const hasData = Array.isArray(customers) && customers.length > 0;
 
   const handleRetryConnection = () => {
-    if (demoMode === 'loaded') {
-      fetchCustomerSegmentation();
-    } else {
-      setDemoMode('loading');
-      setTimeout(() => {
-        setDemoMode('loaded');
-      }, 1000);
-    }
+    fetchCustomerSegmentation();
   };
 
   return (

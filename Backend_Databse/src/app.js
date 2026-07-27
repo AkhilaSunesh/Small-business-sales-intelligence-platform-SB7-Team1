@@ -13,6 +13,7 @@ const productRoutes   = require("./routes/product.routes");
 const customerRoutes  = require("./routes/customer.routes");
 const analyticsRoutes = require("./routes/analytics.routes");
 const invoiceRoutes   = require("./routes/invoice.routes");
+const forecastRoutes  = require("./routes/forecast.routes");
 
 const app = express();
 
@@ -41,6 +42,7 @@ app.use("/api/products",   authenticate, productRoutes);
 app.use("/api/customers",  authenticate, customerRoutes);
 app.use("/api/analytics",  authenticate, analyticsRoutes);
 app.use("/api/invoices",   authenticate, invoiceRoutes);
+app.use("/api/forecast",   authenticate, forecastRoutes);
 
 // ── Centralised error handler ─────────────────────────────────────────────────
 app.use((err, req, res, next) => {

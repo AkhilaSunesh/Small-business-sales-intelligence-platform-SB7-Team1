@@ -15,7 +15,8 @@
     { "name": "Analytics", "description": "Revenue and top-product analytics" },
     { "name": "Products",  "description": "Product catalogue (read-only)" },
     { "name": "Customers", "description": "Customer list (read-only)" },
-    { "name": "Invoices",  "description": "Invoice management — create, view, pay, revenue summary" }
+    { "name": "Invoices",  "description": "Invoice management — create, view, pay, revenue summary" },
+    { "name": "Forecast",  "description": "Sales forecast based on historical transaction data" }
   ],
   "paths": {
     "/api/sales": {
@@ -379,6 +380,48 @@
           "500": { "$ref": "#/components/responses/ServerError" }
         }
       }
+    },
+
+    "/api/forecast": {
+      "get": {
+        "tags": ["Forecast"],
+        "summary": "Generate a sales forecast from historical transaction data",
+        "description": "Uses a 7-day simple moving average (SMA) over historical SalesTransaction records to project future daily revenue and transaction counts. No external ML library is required.",
+        "security": [{ "bearerAuth": [] }],
+        "parameters": [
+          {
+            "name": "days",
+            "in": "query",
+            "schema": { "type": "integer", "default": 30, "minimum": 1, "maximum": 365 },
+            "description": "Number of future days to forecast (default 30)"
+          },
+          {
+            "name": "lookback",
+            "in": "query",
+            "schema": { "type": "integer", "default": 90, "minimum": 7, "maximum": 365 },
+            "description": "Historical days to base the SMA on (default 90)"
+          },
+          {
+            "name": "window",
+            "in": "query",
+            "schema": { "type": "integer", "default": 7, "minimum": 2, "maximum": 30 },
+            "description": "SMA window size in days (default 7)"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Forecast data with historical series",
+            "content": {
+              "application/json": {
+                "schema": { "$ref": "#/components/schemas/ForecastResponse" }
+              }
+            }
+          },
+          "400": { "description": "Invalid query parameter value" },
+          "401": { "$ref": "#/components/responses/Unauthorized" },
+          "500": { "$ref": "#/components/responses/ServerError" }
+        }
+      }
     }
   },
   "components": {
@@ -596,6 +639,42 @@
               "totalRevenue":      { "type": "number", "description": "Sum of totalAmount from PAID and PARTIALLY_PAID invoices" },
               "outstandingAmount": { "type": "number", "description": "Sum of totalAmount from UNPAID and PARTIALLY_PAID invoices" },
               "dailyCollections":  { "type": "number", "description": "Sum of payments recorded today" }
+            }
+          }
+        }
+      },
+
+      "ForecastResponse": {
+        "type": "object",
+        "properties": {
+          "success":     { "type": "boolean" },
+          "period":      { "type": "integer", "description": "Number of forecast days requested" },
+          "lookback":    { "type": "integer", "description": "Historical days used" },
+          "smaWindow":   { "type": "integer", "description": "SMA window size in days" },
+          "generatedAt": { "type": "string", "format": "date-time" },
+          "forecast": {
+            "type": "array",
+            "description": "Future daily projections",
+            "items": {
+              "type": "object",
+              "properties": {
+                "date":                  { "type": "string", "format": "date", "example": "2026-08-01" },
+                "predictedSales":        { "type": "number", "example": 1234.56 },
+                "forecastRevenue":       { "type": "number", "example": 1234.56, "deprecated": true },
+                "forecastTransactions":  { "type": "integer", "example": 12 }
+              }
+            }
+          },
+          "historical": {
+            "type": "array",
+            "description": "Historical daily actuals used as the SMA seed",
+            "items": {
+              "type": "object",
+              "properties": {
+                "date":         { "type": "string", "format": "date" },
+                "revenue":      { "type": "number" },
+                "transactions": { "type": "integer" }
+              }
             }
           }
         }

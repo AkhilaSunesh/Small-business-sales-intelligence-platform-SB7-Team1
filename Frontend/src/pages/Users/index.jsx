@@ -17,7 +17,7 @@ import {
   FiX
 } from 'react-icons/fi';
 
-const INITIAL_MOCK_USERS = [
+const INITIAL_USERS = [
   { id: 'USR001', name: 'Alok Sharma', email: 'alok.sharma@example.com', role: 'Owner', status: 'Active', lastLogin: '2026-07-12 10:15 AM' },
   { id: 'USR002', name: 'Priya Patel', email: 'priya.patel@example.com', role: 'Store Manager', status: 'Active', lastLogin: '2026-07-12 09:30 AM' },
   { id: 'USR003', name: 'Rajesh Kumar', email: 'rajesh.kumar@example.com', role: 'Sales Executive', status: 'Active', lastLogin: '2026-07-11 05:45 PM' },
@@ -33,7 +33,7 @@ const INITIAL_MOCK_USERS = [
 function UsersPage() {
   usePageTitle('User Management');
 
-  const [users, setUsers] = useState(INITIAL_MOCK_USERS);
+  const [users, setUsers] = useState(INITIAL_USERS);
   const [searchTerm, setSearchTerm] = useState('');
   const [roleFilter, setRoleFilter] = useState('');
   const [statusFilter, setStatusFilter] = useState('');
@@ -348,8 +348,10 @@ function UsersPage() {
       {/* Users Table */}
       <section className="rounded-3xl border border-white/10 bg-slate-950/80 p-6 overflow-hidden">
         {users.length === 0 ? (
-          <div className="text-center py-12 text-slate-400">
-            Waiting for backend integration.
+          <div className="text-center py-12 space-y-3">
+            <FiUsers className="text-5xl text-slate-600 mx-auto" />
+            <h3 className="text-base font-semibold text-white">No registered dashboard users.</h3>
+            <p className="text-xs text-slate-500">Wait for directory syncing or check back later.</p>
           </div>
         ) : filteredAndSortedUsers.length === 0 ? (
           <div className="text-center py-12 text-slate-400">

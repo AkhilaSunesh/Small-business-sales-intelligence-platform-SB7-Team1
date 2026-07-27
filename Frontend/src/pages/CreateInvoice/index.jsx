@@ -1,6 +1,6 @@
 import { useState, useEffect, useRef } from 'react';
 import { usePageTitle } from '../../hooks/usePageTitle';
-import { FiPlus, FiTrash2, FiFileText, FiRefreshCw, FiX, FiCheck, FiPrinter } from 'react-icons/fi';
+import { FiPlus, FiTrash2, FiFileText, FiRefreshCw, FiX, FiCheck, FiPrinter, FiAlertTriangle } from 'react-icons/fi';
 import { useToast } from '../../components/common/Toast';
 import { useNavigate } from 'react-router-dom';
 import Button from '../../components/ui/Button';
@@ -9,23 +9,6 @@ import Button from '../../components/ui/Button';
 import customerService from '../../services/customerService';
 import productService from '../../services/productService';
 import invoiceService from '../../services/invoiceService';
-// Mock Fallback Datasets (used when API database is offline)
-const MOCK_CUSTOMERS = [
-  { id: 'CUST-101', name: 'John Doe', email: 'john.doe@gmail.com', phone: '+1-555-0199' },
-  { id: 'CUST-102', name: 'Jane Smith', email: 'jane.smith@yahoo.com', phone: '+1-555-0143' },
-  { id: 'CUST-103', name: 'ACME Corporation', email: 'billing@acme.com', phone: '+1-555-9821' },
-  { id: 'CUST-104', name: 'Bob Johnson', email: 'bob.j@outlook.com', phone: '+1-555-0112' },
-  { id: 'CUST-105', name: 'Alice Cooper', email: 'alice.c@gmail.com', phone: '+1-555-0187' },
-];
-
-const MOCK_PRODUCTS = [
-  { id: 'PROD-001', name: 'Premium Widget', price: 250, discount: 10, tax: 18 },
-  { id: 'PROD-002', name: 'Standard Gadget', price: 80, discount: 0, tax: 12 },
-  { id: 'PROD-003', name: 'Deluxe Pro Tool', price: 700, discount: 15, tax: 18 },
-  { id: 'PROD-004', name: 'Basic Kit', price: 60, discount: 2, tax: 5 },
-  { id: 'PROD-005', name: 'Smart Device', price: 800, discount: 20, tax: 18 },
-  { id: 'PROD-006', name: 'Industrial Grade', price: 2250, discount: 5, tax: 18 },
-];
 
 function CreateInvoicePage() {
   usePageTitle('Create Invoice');
@@ -45,6 +28,7 @@ function CreateInvoicePage() {
   const [products, setProducts] = useState([]);
   const [selectedCustomerId, setSelectedCustomerId] = useState('');
   const [loadingCatalogs, setLoadingCatalogs] = useState(false);
+  const [catalogError, setCatalogError] = useState(null);
 
   // Form States
   const [customerName, setCustomerName] = useState('');
@@ -77,6 +61,7 @@ function CreateInvoicePage() {
   useEffect(() => {
     const loadCatalogs = async () => {
       setLoadingCatalogs(true);
+      setCatalogError(null);
       try {
         const [custRes, prodRes] = await Promise.all([
           customerService.getCustomers(),
@@ -85,16 +70,21 @@ function CreateInvoicePage() {
         if (custRes && custRes.success && Array.isArray(custRes.data)) {
           setCustomers(custRes.data);
           setFilteredCusts(custRes.data);
+        } else {
+          setCustomers([]);
+          setFilteredCusts([]);
         }
         if (prodRes && prodRes.success && Array.isArray(prodRes.data)) {
           setProducts(prodRes.data);
+        } else {
+          setProducts([]);
         }
       } catch (err) {
-        console.warn("Failed to load catalog details, running in offline fallback mode:", err.message);
-        setCustomers(MOCK_CUSTOMERS);
-        setFilteredCusts(MOCK_CUSTOMERS);
-        setProducts(MOCK_PRODUCTS);
-        toast.show("Offline fallback mode: Loaded mock client and product catalogs.", "warning");
+        console.error("Failed to load catalog details:", err.message);
+        setCatalogError(err?.message || 'Failed to load client and product catalogs.');
+        setCustomers([]);
+        setFilteredCusts([]);
+        setProducts([]);
       } finally {
         setLoadingCatalogs(false);
       }
@@ -143,8 +133,8 @@ function CreateInvoicePage() {
     const prod = products.find((p) => p.id === prodId);
     if (prod) {
       setItemPrice(prod.price);
-      setItemDiscount(0); // backend applies discount rate on final total
-      setItemTax(18); // Default standard GST
+      setItemDiscount(0);
+      setItemTax(18);
     }
   };
 
@@ -184,7 +174,6 @@ function CreateInvoicePage() {
     };
 
     setInvoiceItems([...invoiceItems, newItem]);
-    // Reset picker states
     setSelectedProdId('');
     setItemQty(1);
     setItemPrice('');
@@ -203,7 +192,6 @@ function CreateInvoicePage() {
           if (field === 'unitPrice' && updatedValue < 0) return item;
           if (field === 'discountPercent' && (updatedValue < 0 || updatedValue > 100)) return item;
           if (field === 'taxPercent' && (updatedValue < 0 || updatedValue > 100)) return item;
-
           return { ...item, [field]: updatedValue };
         }
         return item;
@@ -261,7 +249,6 @@ function CreateInvoicePage() {
     setItemPrice('');
     setItemDiscount(0);
     setItemTax(18);
-
     const dateStr = new Date().toISOString().slice(0, 10).replace(/-/g, '');
     const rand = Math.floor(1000 + Math.random() * 9000);
     setInvoiceNumber(`INV-${dateStr}-${rand}`);
@@ -280,7 +267,6 @@ function CreateInvoicePage() {
     }
 
     try {
-      // Map line items to format required by create invoice backend API
       const lineItems = invoiceItems.map(item => ({
         productId: item.productId,
         productName: item.productName,
@@ -288,12 +274,11 @@ function CreateInvoicePage() {
         unitPrice: item.unitPrice
       }));
 
-      // Calculate rates from totals
       const discountRate = Number(invoiceItems[0]?.discountPercent || 0);
       const taxRate = Number(invoiceItems[0]?.taxPercent || 18);
 
       const dueDate = new Date(invoiceDate);
-      dueDate.setDate(dueDate.getDate() + 30); // 30 days default payment period
+      dueDate.setDate(dueDate.getDate() + 30);
 
       const res = await invoiceService.createInvoice({
         customerId: selectedCustomerId,
@@ -304,7 +289,6 @@ function CreateInvoicePage() {
       });
 
       if (res && res.success) {
-        // Record payment against the created invoice if user checked Paid or Partially Paid
         if (invoiceStatus === 'Paid' || invoiceStatus === 'Partially Paid') {
           const paidAmount = invoiceStatus === 'Paid' ? Number(grandTotal) : Number(grandTotal) / 2;
           await invoiceService.recordPayment(res.data.id, {
@@ -314,7 +298,6 @@ function CreateInvoicePage() {
             note: 'Manual invoice entry payment'
           });
         }
-
         toast.show(`Invoice ${res.data.invoiceNumber || invoiceNumber} created successfully on backend!`, 'success');
         handleResetForm();
         navigate('/invoices');
@@ -322,29 +305,42 @@ function CreateInvoicePage() {
         toast.show(res.message || 'Failed to create invoice.', 'error');
       }
     } catch (err) {
-      console.warn('[Invoice Saved Offline Simulation Fallback]:', err.message);
-      toast.show(`Invoice ${invoiceNumber} created successfully! (Offline simulation mode)`, 'success');
-      // Reset state and redirect
-      setCustomerName('');
-      setCustomerEmail('');
-      setCustomerPhone('');
-      setSelectedCustomerId('');
-      setInvoiceDate(new Date().toISOString().split('T')[0]);
-      setPaymentMethod('UPI');
-      setInvoiceStatus('Paid');
-      setNotes('');
-      setInvoiceItems([]);
-      setSelectedProdId('');
-      setItemQty(1);
-      setItemPrice('');
-      setItemDiscount(0);
-      setItemTax(18);
-      navigate('/invoices');
+      console.error('[Invoice Creation Failed]:', err.message);
+      toast.show(err?.response?.data?.message || err.message || 'Failed to create invoice. Please try again.', 'error');
     }
   };
 
   return (
-    <div className="space-y-6">
+    <div className="space-y-6 relative min-h-[500px]">
+      {loadingCatalogs && (
+        <div className="absolute inset-0 z-30 flex items-center justify-center rounded-[2rem] bg-slate-950/60 backdrop-blur-sm min-h-[500px]">
+          <div className="flex flex-col items-center gap-3">
+            <FiRefreshCw className="animate-spin text-4xl text-cyan-400" />
+            <p className="text-sm font-semibold text-slate-350">Loading client and product catalogs...</p>
+          </div>
+        </div>
+      )}
+
+      {catalogError && !loadingCatalogs && (
+        <div className="rounded-3xl border border-rose-500/10 bg-slate-950/80 p-8 backdrop-blur text-center space-y-4 max-w-md mx-auto my-8">
+          <div className="flex items-center justify-center w-14 h-14 rounded-full bg-rose-500/10 text-rose-400 mx-auto">
+            <FiAlertTriangle className="text-2xl shrink-0" />
+          </div>
+          <div className="space-y-2">
+            <h3 className="text-base font-bold text-white">Connection Error</h3>
+            <p className="text-xs text-slate-400 leading-relaxed">{catalogError}</p>
+          </div>
+          <div className="pt-2">
+            <Button
+              onClick={() => window.location.reload()}
+              className="bg-rose-500 text-white hover:bg-rose-400 text-xs font-bold gap-2 py-2.5 px-6 rounded-xl w-full"
+            >
+              <FiRefreshCw className="text-sm" /> Retry Connection
+            </Button>
+          </div>
+        </div>
+      )}
+
       {/* Top Title Section */}
       <section className="rounded-3xl border border-white/10 bg-slate-950/80 p-6 md:p-8 backdrop-blur flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
         <div>
@@ -488,11 +484,9 @@ function CreateInvoicePage() {
 
                       return (
                         <tr key={item.id} className="hover:bg-white/2 transition-colors group">
-                          {/* Product Name */}
                           <td className="py-3 pl-2 font-medium text-white max-w-xs truncate">
                             {item.productName}
                           </td>
-                          {/* Quantity */}
                           <td className="py-2 text-center">
                             <input
                               type="number"
@@ -502,7 +496,6 @@ function CreateInvoicePage() {
                               onChange={(e) => handleUpdateItemInline(item.id, 'quantity', e.target.value)}
                             />
                           </td>
-                          {/* Price */}
                           <td className="py-2 text-center">
                             <input
                               type="number"
@@ -513,7 +506,6 @@ function CreateInvoicePage() {
                               onChange={(e) => handleUpdateItemInline(item.id, 'unitPrice', e.target.value)}
                             />
                           </td>
-                          {/* Discount % */}
                           <td className="py-2 text-center">
                             <input
                               type="number"
@@ -524,7 +516,6 @@ function CreateInvoicePage() {
                               onChange={(e) => handleUpdateItemInline(item.id, 'discountPercent', e.target.value)}
                             />
                           </td>
-                          {/* Tax % */}
                           <td className="py-2 text-center">
                             <input
                               type="number"
@@ -535,11 +526,9 @@ function CreateInvoicePage() {
                               onChange={(e) => handleUpdateItemInline(item.id, 'taxPercent', e.target.value)}
                             />
                           </td>
-                          {/* Total */}
                           <td className="py-3 text-right pr-2 font-semibold text-white">
                             ${itemTotal.toFixed(2)}
                           </td>
-                          {/* Remove action */}
                           <td className="py-3 text-center">
                             <button
                               onClick={() => handleRemoveItem(item.id)}
@@ -565,7 +554,6 @@ function CreateInvoicePage() {
           <div className="rounded-3xl border border-white/10 bg-slate-950/80 p-6 backdrop-blur space-y-4">
             <h3 className="text-base font-semibold text-white border-b border-white/5 pb-3">Add Product</h3>
             <form onSubmit={handleAddItem} className="space-y-4">
-              {/* Product List Selector */}
               <div>
                 <label className="block text-xs font-semibold uppercase tracking-wider text-slate-400 mb-2">
                   Select Product
@@ -584,7 +572,6 @@ function CreateInvoicePage() {
                 </select>
               </div>
 
-              {/* Quantity */}
               <div>
                 <label className="block text-xs font-semibold uppercase tracking-wider text-slate-400 mb-2">
                   Quantity
@@ -598,7 +585,6 @@ function CreateInvoicePage() {
                 />
               </div>
 
-              {/* Unit Price */}
               <div>
                 <label className="block text-xs font-semibold uppercase tracking-wider text-slate-400 mb-2">
                   Unit Price ($)
@@ -615,7 +601,6 @@ function CreateInvoicePage() {
               </div>
 
               <div className="grid grid-cols-2 gap-4">
-                {/* Discount % */}
                 <div>
                   <label className="block text-xs font-semibold uppercase tracking-wider text-slate-400 mb-2">
                     Discount (%)
@@ -630,7 +615,6 @@ function CreateInvoicePage() {
                   />
                 </div>
 
-                {/* Tax % */}
                 <div>
                   <label className="block text-xs font-semibold uppercase tracking-wider text-slate-400 mb-2">
                     Tax / GST (%)
@@ -656,7 +640,6 @@ function CreateInvoicePage() {
           <div className="rounded-3xl border border-white/10 bg-slate-950/80 p-6 backdrop-blur space-y-5">
             <h3 className="text-base font-semibold text-white border-b border-white/5 pb-3">Payment details</h3>
 
-            {/* Payment Mode Selector */}
             <div>
               <label className="block text-xs font-semibold uppercase tracking-wider text-slate-400 mb-2">
                 Payment Method
@@ -679,7 +662,6 @@ function CreateInvoicePage() {
               </div>
             </div>
 
-            {/* Payment Status Selector */}
             <div>
               <label className="block text-xs font-semibold uppercase tracking-wider text-slate-400 mb-2">
                 Payment Status
@@ -706,7 +688,6 @@ function CreateInvoicePage() {
               </div>
             </div>
 
-            {/* Notes Field */}
             <div>
               <label className="block text-xs font-semibold uppercase tracking-wider text-slate-400 mb-2">
                 Internal Remarks / Notes
@@ -720,7 +701,6 @@ function CreateInvoicePage() {
               />
             </div>
 
-            {/* Invoice Financial Calculation Box */}
             <div className="rounded-2xl bg-white/5 p-4 border border-white/5 text-sm space-y-2.5">
               <div className="flex justify-between text-slate-400">
                 <span>Subtotal:</span>
@@ -740,7 +720,6 @@ function CreateInvoicePage() {
               </div>
             </div>
 
-            {/* Main Action Buttons */}
             <div className="flex flex-col gap-2">
               <Button onClick={handleSaveInvoice} className="w-full gap-2 text-slate-950 font-bold bg-cyan-400 hover:bg-cyan-300 py-3.5">
                 <FiCheck className="text-lg" /> Save & Issue Invoice
@@ -767,7 +746,6 @@ function CreateInvoicePage() {
       {showPreview && (
         <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-950/80 backdrop-blur-md">
           <div className="relative w-full max-w-3xl max-h-[90vh] overflow-y-auto rounded-3xl border border-white/15 bg-slate-900 p-6 sm:p-8 shadow-2xl text-slate-100 flex flex-col justify-between">
-            {/* Close Button */}
             <button
               onClick={() => setShowPreview(false)}
               className="absolute top-4 right-4 text-slate-400 hover:text-white bg-white/5 p-2 rounded-full transition-colors"
@@ -775,9 +753,7 @@ function CreateInvoicePage() {
               <FiX className="text-xl" />
             </button>
 
-            {/* Printable Receipt Content */}
             <div className="space-y-6 mt-2" id="printable-invoice">
-              {/* Header Info */}
               <div className="flex flex-col sm:flex-row justify-between border-b border-white/10 pb-6 gap-4">
                 <div>
                   <div className="flex items-center gap-2">
@@ -815,7 +791,6 @@ function CreateInvoicePage() {
                 </div>
               </div>
 
-              {/* Billed To / Pay Info */}
               <div className="grid gap-6 sm:grid-cols-2 text-xs">
                 <div>
                   <h4 className="text-slate-400 uppercase font-semibold tracking-wider mb-2">Billed To:</h4>
@@ -834,7 +809,6 @@ function CreateInvoicePage() {
                 </div>
               </div>
 
-              {/* Line Items Table */}
               <div className="border border-white/10 rounded-2xl overflow-hidden">
                 <table className="w-full text-left text-xs border-collapse">
                   <thead>
@@ -870,7 +844,6 @@ function CreateInvoicePage() {
                 </table>
               </div>
 
-              {/* Remarks and Financial totals block */}
               <div className="flex flex-col sm:flex-row justify-between items-start gap-4 text-xs">
                 <div className="max-w-sm text-slate-400 bg-white/2 rounded-xl p-3 border border-white/5">
                   <span className="font-semibold text-slate-300 uppercase tracking-wider block mb-1">Notes / Terms:</span>
@@ -897,15 +870,8 @@ function CreateInvoicePage() {
               </div>
             </div>
 
-            {/* Print & Close Drawer controls */}
             <div className="mt-8 flex justify-end gap-3 border-t border-white/10 pt-4">
-              <Button
-                variant="secondary"
-                onClick={() => {
-                  window.print();
-                }}
-                className="gap-2"
-              >
+              <Button variant="secondary" onClick={() => { window.print(); }} className="gap-2">
                 <FiPrinter /> Print Invoice
               </Button>
               <Button onClick={() => setShowPreview(false)}>
