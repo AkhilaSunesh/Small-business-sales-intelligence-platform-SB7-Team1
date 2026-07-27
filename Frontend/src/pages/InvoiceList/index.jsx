@@ -9,7 +9,6 @@ import {
 import Button from '../../components/ui/Button';
 
 // Data and Components
-import { MOCK_INVOICES_DATA } from './mockInvoices';
 import InvoiceSummaryCards from './components/InvoiceSummaryCards';
 import InvoiceFilters from './components/InvoiceFilters';
 import InvoiceTable from './components/InvoiceTable';
@@ -80,9 +79,6 @@ function InvoiceListPage() {
   const [editInvoice, setEditInvoice] = useState(null);
   const [deleteInvoice, setDeleteInvoice] = useState(null);
 
-  // Demo state toggle for testing Loading, Error, Empty list structures
-  const [demoMode, setDemoMode] = useState('loaded'); // 'loaded' | 'loading' | 'error' | 'empty'
-
   // Reset page number on search/filter update to avoid out-of-range pages
   useEffect(() => {
     setCurrentPage(1);
@@ -90,7 +86,6 @@ function InvoiceListPage() {
 
   // Fetch live invoices from backend API
   const fetchLiveInvoices = useCallback(async () => {
-    if (demoMode !== 'loaded') return;
     setLoading(true);
     setError(null);
     try {
@@ -120,65 +115,38 @@ function InvoiceListPage() {
         throw new Error('Invalid response schema.');
       }
     } catch (err) {
-      console.warn("Failed to retrieve invoice records, falling back to mock data:", err.message);
-      setInvoices(MOCK_INVOICES_DATA);
-      setPagination({
-        total: MOCK_INVOICES_DATA.length,
-        page: 1,
-        pageSize: 10,
-        totalPages: Math.ceil(MOCK_INVOICES_DATA.length / 10)
-      });
-      setError(null);
+      console.error("Failed to retrieve invoice records:", err.message);
+      setError(err?.message || 'Unable to load invoices. Please try again.');
     } finally {
       setLoading(false);
     }
-  }, [currentPage, rowsPerPage, searchTerm, statusFilter, sortConfig, demoMode]);
+  }, [currentPage, rowsPerPage, searchTerm, statusFilter, sortConfig]);
 
-  // Load appropriate state based on demo controls
+  // Load invoices
   useEffect(() => {
-    if (demoMode === 'loaded') {
-      fetchLiveInvoices();
-    } else if (demoMode === 'loading') {
-      setInvoices([]);
-      setLoading(true);
-      setError(null);
-    } else if (demoMode === 'error') {
-      setInvoices([]);
-      setLoading(false);
-      setError('Unable to load data. Please try again.');
-    } else if (demoMode === 'empty') {
-      setInvoices([]);
-      setLoading(false);
-      setError(null);
-    }
-  }, [demoMode, fetchLiveInvoices]);
+    fetchLiveInvoices();
+  }, [fetchLiveInvoices]);
 
   // Filter Logic: local filter (used for local mock/fallback data)
   const filteredInvoices = useMemo(() => {
-    if (demoMode !== 'loaded') return [];
-    
-    // If using mock fallback data, apply client-side filtering
-    if (invoices.length > rowsPerPage || searchTerm || statusFilter !== 'All' || methodFilter !== 'All' || dateFilter) {
-      return invoices.filter((inv) => {
-        const matchesSearch = searchTerm
-          ? inv.customer.toLowerCase().includes(searchTerm.toLowerCase()) ||
-            inv.id.toLowerCase().includes(searchTerm.toLowerCase())
-          : true;
-          
-        const matchesStatus = statusFilter === 'All' ? true : inv.status === statusFilter;
-        const matchesMethod = methodFilter === 'All' ? true : inv.method === methodFilter;
-        const matchesDate = dateFilter ? inv.date === dateFilter : true;
+    return invoices.filter((inv) => {
+      const matchesSearch = searchTerm
+        ? inv.customer.toLowerCase().includes(searchTerm.toLowerCase()) ||
+          inv.id.toLowerCase().includes(searchTerm.toLowerCase())
+        : true;
         
-        return matchesSearch && matchesStatus && matchesMethod && matchesDate;
-      });
-    }
-    return invoices;
-  }, [invoices, searchTerm, statusFilter, methodFilter, dateFilter, demoMode, rowsPerPage]);
+      const matchesStatus = statusFilter === 'All' ? true : inv.status === statusFilter;
+      const matchesMethod = methodFilter === 'All' ? true : inv.method === methodFilter;
+      const matchesDate = dateFilter ? inv.date === dateFilter : true;
+      
+      return matchesSearch && matchesStatus && matchesMethod && matchesDate;
+    });
+  }, [invoices, searchTerm, statusFilter, methodFilter, dateFilter]);
 
-  // Sorting Logic: local sort (only for client-side fallback)
+  // Sorting Logic: local sort
   const sortedInvoices = useMemo(() => {
     const sorted = [...filteredInvoices];
-    if (invoices.length <= rowsPerPage || !sortConfig.key) return sorted;
+    if (!sortConfig.key) return sorted;
     
     sorted.sort((a, b) => {
       let aVal = a[sortConfig.key];
@@ -195,18 +163,15 @@ function InvoiceListPage() {
       }
     });
     return sorted;
-  }, [filteredInvoices, sortConfig, invoices.length, rowsPerPage]);
+  }, [filteredInvoices, sortConfig]);
 
   // Pagination Splitting: local split
   const paginatedInvoices = useMemo(() => {
-    if (invoices.length > rowsPerPage) {
-      const startIndex = (currentPage - 1) * rowsPerPage;
-      return sortedInvoices.slice(startIndex, startIndex + rowsPerPage);
-    }
-    return sortedInvoices;
-  }, [sortedInvoices, currentPage, rowsPerPage, invoices.length]);
+    const startIndex = (currentPage - 1) * rowsPerPage;
+    return sortedInvoices.slice(startIndex, startIndex + rowsPerPage);
+  }, [sortedInvoices, currentPage, rowsPerPage]);
 
-  const totalPages = pagination?.totalPages || 1;
+  const totalPages = pagination?.totalPages || Math.ceil(sortedInvoices.length / rowsPerPage) || 1;
 
   // Sorting Toggler
   const handleSort = (key) => {
@@ -245,25 +210,6 @@ function InvoiceListPage() {
   };
 
   const handleDownload = (invoice) => {
-    /*
-      BACKEND INTEGRATION - DOWNLOAD INVOICE PDF:
-      ------------------------------------------
-      const downloadPDF = async () => {
-        try {
-          const response = await axios.get(`/api/invoices/${invoice.id}/pdf`, { responseType: 'blob' });
-          const blob = new Blob([response.data], { type: 'application/pdf' });
-          const link = document.createElement('a');
-          link.href = window.URL.createObjectURL(blob);
-          link.download = `invoice-${invoice.id}.pdf`;
-          link.click();
-          showToast("PDF document downloaded successfully.", "success");
-        } catch (error) {
-          showToast("PDF generation failed.", "error");
-        }
-      };
-      downloadPDF();
-    */
-
     showToast(`Downloading PDF document for ${invoice.id}...`, 'info');
     
     // Simulating file download link triggers
@@ -273,11 +219,6 @@ function InvoiceListPage() {
   };
 
   const handlePrint = (invoice) => {
-    /*
-      PRINT INVOICE SIMULATION:
-      ------------------------
-      Connects invoice data context to printer page style configuration.
-    */
     showToast(`Preparing printable layout for ${invoice.id}...`, 'info');
     
     // Simulate printing
@@ -295,16 +236,7 @@ function InvoiceListPage() {
   };
 
   const handleRetryConnection = () => {
-    if (demoMode === 'loaded') {
-      fetchLiveInvoices();
-    } else {
-      setDemoMode('loading');
-      showToast('Attempting to reconnect with API gateway...', 'info');
-      setTimeout(() => {
-        setDemoMode('loaded');
-        showToast('Backend gateway synchronization completed.', 'success');
-      }, 2000);
-    }
+    fetchLiveInvoices();
   };
 
   // Render Logic

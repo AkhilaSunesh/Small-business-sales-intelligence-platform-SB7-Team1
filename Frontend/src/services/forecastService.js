@@ -1,64 +1,81 @@
 import api from './api';
-import { FORECAST_DATA_BY_RANGE } from '../constants/forecastData';
 
 /**
- * Service function to fetch forecast analytics data.
- * Ready for future backend API integration.
- * 
+ * Service function to fetch forecast analytics data from the backend.
+ *
  * @param {string} range - Filter range ('7d', '30d', '6m', '1y')
  * @returns {Promise<Object>} Forecast data including summary cards and trend items
  */
 export async function getForecastReportsData(range = '6m') {
-  // Map range to forecast periods in days
   let periods = 30;
   if (range === '7d') periods = 7;
   else if (range === '30d') periods = 30;
   else if (range === '6m') periods = 180;
   else if (range === '1y') periods = 365;
 
-  try {
-    // Attempt to hit the Forecast API.
-    // In Render, uvicorn runs the Prophet model app, but it is not routed in gateway.
-    // Try hitting /api/analytics/forecast, /api/forecast or /forecast
-    const response = await api.post('/api/forecast', { periods });
-    if (response.data && Array.isArray(response.data)) {
-      // Map prophet records {ds: '2026-07-15', yhat: 1250.22} to frontend structure
-      const items = response.data.map(item => {
-        const date = new Date(item.ds);
-        const monthLabel = date.toLocaleString('default', { month: 'long', day: 'numeric' });
-        return {
-          month: monthLabel,
-          predictedSales: Math.round(item.yhat),
-          revenue: Math.round(item.yhat * 30), // assume avg product price of $30
-          growth: '+0.0%'
-        };
-      });
+  const response = await api.get('/api/forecast', {
+    params: {
+      days: periods,
+      lookback: 90,
+      window: 7,
+    },
+  });
 
-      // Recalculate summary metrics from items list
-      const totalSales = items.reduce((sum, i) => sum + i.predictedSales, 0);
-      const totalRevenue = items.reduce((sum, i) => sum + i.revenue, 0);
-      
-      return {
-        summary: {
-          predictedSales: `${totalSales.toLocaleString()} units`,
-          expectedRevenue: `$${totalRevenue.toLocaleString()}`,
-          forecastGrowth: `+${(Math.random() * 5 + 8).toFixed(1)}%`,
-          predictionAccuracy: '95.5%',
-        },
-        items: items
-      };
+  if (response.data && response.data.success && Array.isArray(response.data.forecast)) {
+    const forecastList = response.data.forecast;
+    const totalSales = forecastList.reduce((sum, item) => sum + Math.round(item.forecastTransactions || 0), 0);
+    const totalRevenue = forecastList.reduce((sum, item) => sum + Math.round(item.forecastRevenue || 0), 0);
+
+    let growthRate = 0;
+    if (forecastList.length > 1) {
+      const startVal = forecastList[0].forecastRevenue || 1;
+      const endVal = forecastList[forecastList.length - 1].forecastRevenue || 1;
+      growthRate = ((endVal - startVal) / startVal) * 100;
     }
-  } catch (error) {
-    console.warn("Forecast API failed, using cached mock dataset:", error.message);
+    if (isNaN(growthRate) || !isFinite(growthRate)) {
+      growthRate = 0;
+    }
+
+    return {
+      success: true,
+      period: response.data.period,
+      lookback: response.data.lookback,
+      smaWindow: response.data.smaWindow,
+      generatedAt: response.data.generatedAt,
+      summary: {
+        predictedSales: `${totalSales.toLocaleString()} units`,
+        expectedRevenue: `$${totalRevenue.toLocaleString()}`,
+        forecastGrowth: `${growthRate >= 0 ? '+' : ''}${growthRate.toFixed(1)}%`,
+        predictionAccuracy: '95.5%',
+      },
+      forecast: forecastList.map((item, idx, arr) => {
+        const dateObj = new Date(item.date + 'T00:00:00Z');
+        const monthLabel = dateObj.toLocaleDateString('default', { month: 'short', day: 'numeric', timeZone: 'UTC' });
+
+        let itemGrowth = '+0.0%';
+        if (idx > 0) {
+          const prev = arr[idx - 1];
+          if (prev.forecastTransactions > 0) {
+            const diff = ((item.forecastTransactions - prev.forecastTransactions) / prev.forecastTransactions) * 100;
+            itemGrowth = (diff >= 0 ? '+' : '') + diff.toFixed(1) + '%';
+          }
+        }
+
+        return {
+          date: item.date,
+          month: monthLabel,
+          predictedSales: Math.round(item.predictedSales),
+          forecastRevenue: Math.round(item.forecastRevenue),
+          forecastTransactions: Math.round(item.forecastTransactions),
+          revenue: Math.round(item.forecastRevenue),
+          growth: itemGrowth,
+        };
+      }),
+      historical: response.data.historical || [],
+    };
   }
 
-  // Fallback to static mock constants
-  return new Promise((resolve) => {
-    setTimeout(() => {
-      const data = FORECAST_DATA_BY_RANGE[range] || FORECAST_DATA_BY_RANGE['6m'];
-      resolve(data);
-    }, 150);
-  });
+  throw new Error(response?.data?.message || 'Forecast data could not be loaded.');
 }
 
 export default {

@@ -1,5 +1,10 @@
 import api from './api';
 
+export async function getDashboardSummary() {
+  const res = await api.get('/api/dashboard/summary');
+  return res.data;
+}
+
 export async function getTotalRevenue() {
   const res = await api.get('/api/dashboard/total-revenue');
   return res.data;
@@ -15,4 +20,4 @@ export async function getTopProducts() {
   return res.data;
 }
 
-export default { getTotalRevenue, getSalesTrend, getTopProducts };
+export default { getDashboardSummary, getTotalRevenue, getSalesTrend, getTopProducts };

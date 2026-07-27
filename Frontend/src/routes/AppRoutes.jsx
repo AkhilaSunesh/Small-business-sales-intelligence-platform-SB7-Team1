@@ -1,7 +1,6 @@
 import { Navigate, Route, Routes } from 'react-router-dom';
 import AppLayout from '../layouts/DashboardLayout';
 import LoginPage from '../pages/Login';
-import LoginDuplicatePage from '../pages/LoginDuplicate';
 import SignupPage from '../pages/Signup';
 import DashboardPage from '../pages/Dashboard';
 import UploadPage from '../pages/Upload';
@@ -24,7 +23,6 @@ function AppRoutes() {
       <Route path="/" element={<Navigate to="/login" replace />} />
       <Route path="/login" element={<LoginPage />} />
       <Route path="/signup" element={<SignupPage />} />
-      <Route path="/login-duplicate" element={<LoginDuplicatePage />} />
       <Route
         element={
           <ProtectedRoute>

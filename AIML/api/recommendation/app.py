@@ -4,7 +4,7 @@ import pandas as pd
 app = Flask(__name__)
 
 # Load recommendation data
-recommendations = pd.read_csv("../data/product_recommendations.csv")
+recommendations = pd.read_csv("../../data/product_recommendations.csv")
 
 
 @app.route("/")

@@ -3,22 +3,22 @@ import pandas as pd
 
 app = Flask(__name__)
 
-# Load churn data
-customer_churn = pd.read_csv("../data/customer_churn.csv")
+# Load anomaly detection data
+anomaly_data = pd.read_csv("../../data/anomaly_detection.csv")
 
 
 @app.route("/")
 def home():
     return jsonify({
-        "message": "Customer Churn Prediction API is Running"
+        "message": "Anomaly Detection API is Running"
     })
 
 
 @app.route("/customer/<int:customer_id>")
-def predict_churn(customer_id):
+def detect_anomaly(customer_id):
 
-    customer = customer_churn[
-        customer_churn["CustomerID"] == customer_id
+    customer = anomaly_data[
+        anomaly_data["CustomerID"] == customer_id
     ]
 
     if customer.empty:
@@ -30,7 +30,8 @@ def predict_churn(customer_id):
 
     return jsonify({
         "CustomerID": int(result["CustomerID"]),
-        "ChurnRisk": result["ChurnRisk"]
+        "Anomaly": result["Anomaly"],
+        "TotalAmount": float(result["TotalAmount"])
     })
 
 

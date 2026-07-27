@@ -5,6 +5,7 @@ import { useAppContext } from '../../context/AppContext';
 import Button from '../../components/ui/Button';
 import Input from '../../components/ui/Input';
 import { FiRefreshCw } from 'react-icons/fi';
+import { loginUser } from '../../services/authService';
 
 function LoginPage() {
   const navigate = useNavigate();
@@ -12,6 +13,7 @@ function LoginPage() {
   const [form, setForm] = useState({ email: '', password: '', role: '', captchaInput: '' });
   const [captcha, setCaptcha] = useState('');
   const [error, setError] = useState('');
+  const [isLoading, setIsLoading] = useState(false);
   usePageTitle('Login');
 
   const generateCaptcha = useCallback(() => {
@@ -32,13 +34,34 @@ function LoginPage() {
     setForm((prev) => ({ ...prev, [name]: value }));
   };
 
-  const handleSubmit = (event) => {
+  const handleAutoFill = (selectedRole) => {
+    // Map frontend role labels to the seeded backend email accounts
+    const emailMap = {
+      Admin:           'admin@marketmind.dev',
+      Owner:           'owner@marketmind.dev',
+      'Store Manager': 'manager@marketmind.dev',
+      'Sales Executive': 'sales@marketmind.dev',
+    };
+    const defaultEmail = emailMap[selectedRole] ?? 'admin@marketmind.dev';
+    setForm({
+      email:        defaultEmail,
+      password:     'Password1!',
+      role:         selectedRole,
+      captchaInput: captcha,
+    });
+    setError('');
+  };
+
+  const handleSubmit = async (event) => {
     event.preventDefault();
+    setError('');
+
     if (!form.email || !form.password || !form.role) {
       setError('Please provide an email, password, and role.');
       return;
     }
 
+    // ── CAPTCHA validation (unchanged) ────────────────────────────────────────
     if (form.captchaInput !== captcha) {
       setError('Invalid CAPTCHA code. Please try again.');
       setForm((prev) => ({ ...prev, captchaInput: '' }));
@@ -46,8 +69,29 @@ function LoginPage() {
       return;
     }
 
-    login({ email: form.email, role: form.role });
-    navigate('/dashboard');
+    // ── Backend authentication ────────────────────────────────────────────────
+    setIsLoading(true);
+    try {
+      const data = await loginUser(form.email, form.password);
+
+      // Store the JWT so api.js interceptor picks it up for all future requests
+      localStorage.setItem('authToken', data.accessToken);
+      if (data.refreshToken) {
+        localStorage.setItem('refreshToken', data.refreshToken);
+      }
+
+      // Update AppContext with email and the role the user selected on the form
+      // (the form role maps frontend labels; the JWT carries the backend roleId)
+      login({ email: form.email, role: form.role });
+
+      navigate('/dashboard');
+    } catch (err) {
+      setError(err.message);
+      setForm((prev) => ({ ...prev, captchaInput: '' }));
+      generateCaptcha();
+    } finally {
+      setIsLoading(false);
+    }
   };
 
   return (
@@ -112,13 +156,15 @@ function LoginPage() {
               </select>
             </div>
 
-            {/* Captcha Verification */}
+            {/* Captcha Verification — unchanged */}
             <div className="space-y-2">
               <label className="block text-sm font-medium text-slate-200">
                 Security Verification
               </label>
               <div className="flex gap-3 items-center">
-                <div 
+                <div
+                  role="img"
+                  aria-label={`CAPTCHA verification code: ${captcha}`}
                   className="flex-1 flex items-center justify-center select-none rounded-2xl border border-white/10 py-3 text-lg font-bold tracking-widest text-cyan-300 bg-gradient-to-r from-slate-900 via-slate-800 to-slate-900 border-dashed"
                   style={{
                     textShadow: '2px 2px 4px rgba(0, 0, 0, 0.6), -1px -1px 0 rgba(255, 255, 255, 0.1)',
@@ -133,6 +179,7 @@ function LoginPage() {
                   onClick={generateCaptcha}
                   className="p-3.5 rounded-2xl border border-white/10 bg-white/5 text-slate-350 hover:text-white hover:bg-white/10 transition"
                   title="Refresh CAPTCHA"
+                  aria-label="Refresh CAPTCHA"
                 >
                   <FiRefreshCw className="animate-spin-once" />
                 </button>
@@ -144,14 +191,36 @@ function LoginPage() {
                 onChange={handleChange}
                 placeholder="Enter the code shown above"
                 autoComplete="off"
+                aria-label="CAPTCHA Input Code"
               />
             </div>
 
-            {error ? <p className="text-sm text-rose-450">{error}</p> : null}
+            {error ? <p className="text-sm text-rose-455">{error}</p> : null}
 
-            <Button type="submit" className="w-full">
-              Continue to dashboard
+            <Button type="submit" className="w-full" disabled={isLoading}>
+              {isLoading ? 'Signing in…' : 'Continue to dashboard'}
             </Button>
+
+            {/* Quick Demo Autofill Credentials */}
+            <div className="pt-4 mt-4 border-t border-white/5 space-y-2">
+              <p className="text-xs text-slate-400 text-center font-medium">Quick Demo Autofill Credentials:</p>
+              <div className="flex gap-2 justify-center">
+                <button
+                  type="button"
+                  onClick={() => handleAutoFill('Admin')}
+                  className="px-2.5 py-1 text-[11px] rounded-full border border-white/10 bg-white/5 text-slate-300 hover:bg-cyan-400/10 hover:text-cyan-300 transition"
+                >
+                  Admin Role
+                </button>
+                <button
+                  type="button"
+                  onClick={() => handleAutoFill('Store Manager')}
+                  className="px-2.5 py-1 text-[11px] rounded-full border border-white/10 bg-white/5 text-slate-300 hover:bg-cyan-400/10 hover:text-cyan-300 transition"
+                >
+                  Store Manager
+                </button>
+              </div>
+            </div>
 
             <div className="text-center text-sm text-slate-400 mt-4">
               Don&apos;t have an account?{' '}

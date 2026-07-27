@@ -81,11 +81,13 @@ function SettingsPage() {
   return (
     <div className="space-y-6">
       {/* Page Header */}
-      <section className="rounded-3xl border border-white/10 bg-slate-950/80 p-8">
-        <h1 className="text-3xl font-semibold text-white">{t('settings')}</h1>
-        <p className="mt-2 text-sm text-slate-400">
-          {t('manageProfile')}
-        </p>
+      <section className="rounded-3xl border border-white/10 bg-slate-950/80 p-8 flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
+        <div>
+          <h1 className="text-3xl font-semibold text-white">{t('settings')}</h1>
+          <p className="mt-2 text-sm text-slate-400">
+            {t('manageProfile')}
+          </p>
+        </div>
       </section>
 
       {/* User Profile Section */}

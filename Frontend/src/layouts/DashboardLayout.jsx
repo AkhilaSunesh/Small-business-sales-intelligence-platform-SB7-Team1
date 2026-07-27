@@ -8,14 +8,14 @@ import { useAppContext } from '../context/AppContext';
 // The `collapsed` state controls whether the sidebar shows labels.
 function DashboardLayout() {
   const [collapsed, setCollapsed] = useState(false);
-  const { user, isAuthenticated } = useAppContext();
+  const { user } = useAppContext();
 
   const toggle = () => setCollapsed((c) => !c);
 
   return (
     <div className="min-h-screen flex">
       <Sidebar collapsed={collapsed} />
-      <div className="flex min-h-screen flex-1 flex-col pl-0">
+      <div className="flex min-h-screen flex-1 flex-col pl-0 pb-16 xl:pb-0">
         <Navbar onToggle={toggle} />
         <main className="flex-1 px-4 py-6 sm:px-6 lg:px-8 lg:py-8">
           <div className="mx-auto w-full max-w-7xl">
