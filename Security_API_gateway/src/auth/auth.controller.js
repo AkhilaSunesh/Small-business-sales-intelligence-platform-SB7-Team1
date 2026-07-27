@@ -42,7 +42,7 @@ function respondServerError(res, error) {
 
 exports.register = async (req, res) => {
     try {
-        const { name, email, password, roleId } = req.body;
+        const { name, email, password } = req.body;
 
         const existingUser = await prisma.user.findUnique({
             where: { email }
@@ -62,7 +62,7 @@ exports.register = async (req, res) => {
                 name,
                 email,
                 password: hashedPassword,
-                roleId: Number(roleId)
+                roleId: 3
             }
         });
 

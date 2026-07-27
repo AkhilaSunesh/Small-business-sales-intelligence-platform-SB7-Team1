@@ -30,6 +30,17 @@ const SECRET = "testsecret";
 const validToken   = (roleId = 1) => jwt.sign({ id: "u1", roleId }, SECRET, { expiresIn: "1h" });
 const expiredToken = (roleId = 1) =>
     jwt.sign({ id: "u1", roleId, exp: Math.floor(Date.now() / 1000) - 60 }, SECRET);
+const validInvoice = {
+    customerId: "11111111-1111-4111-8111-111111111111",
+    lineItems: [
+        {
+            productId: "22222222-2222-4222-8222-222222222222",
+            quantity: 1,
+            unitPrice: 10
+        }
+    ],
+    dueDate: "2027-12-31"
+};
 
 beforeEach(() => {
     axios.mockResolvedValue({ status: 200, data: { success: true } });
@@ -53,7 +64,7 @@ describe("Invoice routes — authentication", () => {
         const res = await request(app)
             .post("/api/invoices")
             .set("Authorization", "Bearer not.a.real.token")
-            .send({ customerId: "c1", items: [{ productId: "p1", quantity: 1, price: 10 }], totalAmount: 10 });
+            .send(validInvoice);
         expect(res.statusCode).toBe(401);
     });
 });
@@ -64,8 +75,8 @@ describe("Invoice routes — RBAC", () => {
         const res = await request(app)
             .post("/api/invoices")
             .set("Authorization", `Bearer ${validToken(3)}`)
-            .send({ customerId: "c1", items: [{ productId: "p1", quantity: 1, price: 10 }], totalAmount: 10 });
-        expect(res.statusCode).not.toBe(403);
+            .send(validInvoice);
+        expect(res.statusCode).toBe(200);
     });
 
     test("Sales Executive (role 3) is BLOCKED from viewing revenue-only routes they don't own", async () => {
@@ -122,7 +133,16 @@ describe("Invoice validation under authenticated requests", () => {
         const res = await request(app)
             .post("/api/invoices")
             .set("Authorization", `Bearer ${validToken(1)}`)
-            .send({ customerId: "c1", items: [{ productId: "p1", quantity: 1, price: -50 }], totalAmount: -50 });
+           .send({
+    customerId: "11111111-1111-4111-8111-111111111111",
+    lineItems: [
+        {
+            productId: "22222222-2222-4222-8222-222222222222",
+            quantity: 1,
+            unitPrice: -50
+        }
+    ]
+});
         expect(res.statusCode).toBe(400);
     });
 
@@ -130,7 +150,15 @@ describe("Invoice validation under authenticated requests", () => {
         const res = await request(app)
             .post("/api/invoices")
             .set("Authorization", `Bearer ${validToken(1)}`)
-            .send({ items: [{ productId: "p1", quantity: 1, price: 10 }], totalAmount: 10 });
+            .send({
+    lineItems: [
+        {
+            productId: "22222222-2222-4222-8222-222222222222",
+            quantity: 1,
+            unitPrice: 10
+        }
+    ]
+});
         expect(res.statusCode).toBe(400);
     });
 });
