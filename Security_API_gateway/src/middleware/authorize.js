@@ -10,95 +10,123 @@ const getResource = (req) => {
     return parts[0].toLowerCase();
 };
 
+// ─── Permission matrix ────────────────────────────────────────────────────────
+// Role 1: Business Owner   — full access (wildcard)
+// Role 2: Store Manager    — inventory, products, all dashboard, analytics, AI
+// Role 3: Sales Executive  — sales, customers, invoices, basic dashboard, AI insights
+// Role 4: System Admin     — full access (wildcard)
 const permissions = {
-    1: { "*": ["GET", "POST", "PUT", "DELETE", "PATCH"] },    // Business Owner — full access
-    2: {                                                        // Store Manager
+
+    1: { "*": ["GET", "POST", "PUT", "DELETE", "PATCH"] },
+
+    2: {
+        // Core backend resources
         inventory:            ["GET", "POST", "PUT", "PATCH"],
         products:             ["GET", "POST", "PUT", "PATCH"],
-        dashboard:            ["GET"],
-        analytics:            ["GET"],
         customers:            ["GET"],
         sales:                ["GET"],
         invoices:             ["GET", "POST", "PATCH"],
         payments:             ["GET", "POST"],
-        revenue:              ["GET"],
-        forecast:             ["GET"],
-        "customer-groups":    ["GET"],
+
+        // Dashboard sub-resources
+        dashboard:            ["GET"],
         "total-revenue":      ["GET"],
         "top-products":       ["GET"],
         "sales-trend":        ["GET"],
-        churn:                ["GET"],
-        recommendations:      ["GET"],
-        "anomaly-detection":  ["GET"]
+
+        // Analytics & reporting
+        analytics:            ["GET"],
+        revenue:              ["GET"],
+
+        // AI insight services
+        forecast:             ["GET"],
+        "customer-groups":    ["GET", "POST"],
+        churn:                ["GET", "POST"],
+        recommendations:      ["GET", "POST"],
+        "anomaly-detection":  ["GET", "POST"]
     },
-    3: {                                                        // Sales Executive
+
+    3: {
+        // Core backend resources
         sales:           ["GET", "POST"],
         customers:       ["GET"],
         products:        ["GET"],
         invoices:        ["GET", "POST"],
         payments:        ["POST"],
-        revenue:         ["GET"],
+
+        // Dashboard sub-resources
         dashboard:       ["GET"],
         "total-revenue": ["GET"],
         "top-products":  ["GET"],
         "sales-trend":   ["GET"],
-        forecast:        ["GET"]
+
+        // Analytics & reporting
+        analytics:       ["GET"],
+        revenue:         ["GET"],
+
+        // AI insight services (read-only for Sales Executive)
+        forecast:             ["GET"],
+        "customer-groups":    ["GET"],
+        churn:                ["GET"],
+        recommendations:      ["GET"],
+        "anomaly-detection":  ["GET"]
     },
-    4: { "*": ["GET", "POST", "PUT", "DELETE", "PATCH"] }      // System Administrator — full access
+
+    4: { "*": ["GET", "POST", "PUT", "DELETE", "PATCH"] }
 };
 
 const authorize = (req, res, next) => {
     const user = req.user;
     if (!user || !user.roleId) {
         logEvent("warn", "Unauthorized Access", {
-            userId: user ? user.id : "anonymous",
-            ip: req.ip || req.headers["x-forwarded-for"],
+            userId:   user ? user.id : "anonymous",
+            ip:       req.ip || req.headers["x-forwarded-for"],
             endpoint: req.originalUrl,
-            status: 403,
-            reason: "Missing role or unauthorized user"
+            status:   403,
+            reason:   "Missing role or unauthorized user"
         });
-
         return res.status(403).json({
             success: false,
             message: "Forbidden: Access denied."
         });
     }
 
-    const roleId = Number(user.roleId);
+    const roleId   = Number(user.roleId);
     const resource = getResource(req);
-    const method = req.method;
+    const method   = req.method;
 
     const userRules = permissions[roleId];
     if (!userRules) {
         logEvent("warn", "Unauthorized Access", {
-            userId: user.id,
-            ip: req.ip || req.headers["x-forwarded-for"],
+            userId:   user.id,
+            ip:       req.ip || req.headers["x-forwarded-for"],
             endpoint: req.originalUrl,
-            status: 403,
-            reason: "Role has no permissions assigned"
+            status:   403,
+            reason:   "Role has no permissions assigned"
         });
-
         return res.status(403).json({
             success: false,
             message: "Forbidden: No permissions assigned to this role."
         });
     }
 
+    // Wildcard — role has full access
     if (userRules["*"] && userRules["*"].includes(method)) {
         return next();
     }
 
+    // Resource-level check
     const allowedMethods = userRules[resource];
     if (allowedMethods && allowedMethods.includes(method)) {
         return next();
     }
 
     logEvent("warn", "Unauthorized Access", {
-        userId: user.id,
-        ip: req.ip || req.headers["x-forwarded-for"],
+        userId:   user.id,
+        ip:       req.ip || req.headers["x-forwarded-for"],
         endpoint: req.originalUrl,
-        status: 403,
-        reason: `Role ${roleId} does not have permission to ${method} ${resource}`
+        status:   403,
+        reason:   `Role ${roleId} does not have permission to ${method} ${resource}`
     });
 
     return res.status(403).json({
