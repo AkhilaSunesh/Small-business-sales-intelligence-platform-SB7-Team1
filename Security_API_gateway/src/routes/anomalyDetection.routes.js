@@ -30,17 +30,7 @@ const forward = async (req, res, path) => {
         console.log(`[anomalyDetection] ← ${response.status} from ${target}`);
         res.status(response.status).json(response.data);
     } catch (error) {
-        console.log("AI forward error:", error.response?.status, error.response?.data, error.message);
         if (!error.response) {
-<<<<<<< HEAD
-    return res.status(503).json({
-        success: false,
-        message: "AI service is currently unavailable."
-    });
-}
-        const status = error.response.status || 500;
-        res.status(status).json(error.response.data || { success: false, message: error.message });
-=======
             console.warn(`[anomalyDetection] Service unavailable: ${target} — ${error.message}`);
             return res.status(503).json({
                 success: false,
@@ -52,7 +42,6 @@ const forward = async (req, res, path) => {
         res.status(error.response.status).json(
             error.response.data || { success: false, message: error.message }
         );
->>>>>>> b3e45e3 (Fix API gateway routing, RBAC permissions, AI service ports, dashboard endpoints, and error handling)
     }
 };
 
