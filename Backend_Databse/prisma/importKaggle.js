@@ -116,50 +116,81 @@ async function main() {
     console.log(`  ✔ Unique products in CSV:  ${productCodeSet.size}`);
 
     // ── STEP 4: Insert customers (skip if already exist) ─────────────────────
-    let customersInserted = 0;
+    console.log("  ⌛ Checking existing customers...");
+    const existingCustomers = await prisma.customer.findMany({ select: { customerCode: true } });
+    const existingCustomerCodes = new Set(existingCustomers.map(c => c.customerCode));
+
+    const customersToInsert = [];
     for (const [customerCode] of customerCodeSet) {
-        const existing = await prisma.customer.findUnique({ where: { customerCode } });
-        if (existing) continue;
-        await prisma.customer.create({
-            data: {
-                customerCode,
-                name:    `Customer ${customerCode}`,
-                email:   `customer.${customerCode.toLowerCase()}@kaggle.dataset`,
-                phone:   null,
-                address: null
-            }
+        if (existingCustomerCodes.has(customerCode)) continue;
+        customersToInsert.push({
+            customerCode,
+            name:    `Customer ${customerCode}`,
+            email:   `customer.${customerCode.toLowerCase()}@kaggle.dataset`,
+            phone:   null,
+            address: null
         });
-        customersInserted++;
     }
-    console.log(`  ✔ Customers inserted: ${customersInserted} (skipped ${customerCodeSet.size - customersInserted} existing)`);
+
+    let customersInserted = customersToInsert.length;
+    if (customersToInsert.length > 0) {
+        console.log(`  ⌛ Inserting ${customersToInsert.length} new customers...`);
+        const chunkSize = 10000;
+        for (let i = 0; i < customersToInsert.length; i += chunkSize) {
+            const chunk = customersToInsert.slice(i, i + chunkSize);
+            await prisma.customer.createMany({
+                data: chunk,
+                skipDuplicates: true
+            });
+        }
+    }
+    console.log(`  ✔ Customers import completed.`);
 
     // ── STEP 5: Insert products (skip if already exist) ───────────────────────
-    let productsInserted = 0;
+    console.log("  ⌛ Checking existing products...");
+    const existingProducts = await prisma.product.findMany({ select: { productCode: true } });
+    const existingProductCodes = new Set(existingProducts.map(p => p.productCode));
+
+    const productsToInsert = [];
     for (const [productCode, row] of productCodeSet) {
-        const existing = await prisma.product.findUnique({ where: { productCode } });
-        if (existing) continue;
-        await prisma.product.create({
-            data: {
-                productCode,
-                name:     `Product ${productCode}`,
-                category: row.ProductCategory || "Uncategorised",
-                price:    Number(row.Price) || 0
-            }
+        if (existingProductCodes.has(productCode)) continue;
+        productsToInsert.push({
+            productCode,
+            name:     `Product ${productCode}`,
+            category: row.ProductCategory || "Uncategorised",
+            price:    Number(row.Price) || 0
         });
-        productsInserted++;
     }
-    console.log(`  ✔ Products inserted: ${productsInserted} (skipped ${productCodeSet.size - productsInserted} existing)`);
+
+    let productsInserted = productsToInsert.length;
+    if (productsToInsert.length > 0) {
+        await prisma.product.createMany({
+            data: productsToInsert,
+            skipDuplicates: true
+        });
+    }
+    console.log(`  ✔ Products import completed.`);
 
     // ── STEP 6: Create inventory for any product missing a record ─────────────
     const allProducts = await prisma.product.findMany({ select: { id: true, productCode: true } });
-    let inventoryInserted = 0;
+    const existingInventory = await prisma.inventory.findMany({ select: { productId: true } });
+    const existingInventoryIds = new Set(existingInventory.map(inv => inv.productId));
+
+    const inventoriesToInsert = [];
     for (const product of allProducts) {
-        const exists = await prisma.inventory.findUnique({ where: { productId: product.id } });
-        if (exists) continue;
-        await prisma.inventory.create({
-            data: { productId: product.id, quantity: 100000, lowStockThreshold: 10 }
+        if (existingInventoryIds.has(product.id)) continue;
+        inventoriesToInsert.push({
+            productId: product.id,
+            quantity: 100000,
+            lowStockThreshold: 10
         });
-        inventoryInserted++;
+    }
+    let inventoryInserted = inventoriesToInsert.length;
+    if (inventoriesToInsert.length > 0) {
+        await prisma.inventory.createMany({
+            data: inventoriesToInsert,
+            skipDuplicates: true
+        });
     }
     console.log(`  ✔ Inventory records created: ${inventoryInserted}`);
 
@@ -170,9 +201,21 @@ async function main() {
     const productMap  = new Map(products.map(p  => [p.productCode,  p.id]));
 
     // ── STEP 7: Insert sales transactions + invoices + payments ───────────────
-    let salesInserted    = 0;
-    let invoicesInserted = 0;
-    let skipped          = 0;
+    console.log("  ⌛ Preparing sales, invoices, and payments in memory...");
+    const salesToInsert = [];
+    const invoicesToInsert = [];
+    const paymentsToInsert = [];
+
+    const { v4: uuidv4 } = require("uuid");
+
+    // Check which KGL transactions already exist
+    const existingSales = await prisma.salesTransaction.findMany({
+        where: { invoiceNo: { startsWith: "KGL-" } },
+        select: { invoiceNo: true }
+    });
+    const existingInvoiceNos = new Set(existingSales.map(s => s.invoiceNo));
+
+    let skipped = 0;
 
     for (let i = 0; i < rows.length; i++) {
         const row = rows[i];
@@ -186,14 +229,10 @@ async function main() {
         const invoiceNo = `KGL-${String(i + 1).padStart(8, "0")}`;
 
         // Skip if this transaction was already imported
-        const existingSale = await prisma.salesTransaction.findUnique({ where: { invoiceNo } });
-        if (existingSale) { skipped++; continue; }
+        if (existingInvoiceNos.has(invoiceNo)) { skipped++; continue; }
 
         const qty         = Number(row.Quantity)   || 0;
         const unitPrice   = Number(row.Price)       || 0;
-        // Use the Kaggle TotalAmount column (already post-discount) for the
-        // SalesTransaction record so dashboard revenue is accurate.
-        // Fall back to qty × price only if the column is missing/zero.
         const kaggleTotalAmount = Number(row.TotalAmount) || 0;
         const totalAmount = kaggleTotalAmount > 0 ? kaggleTotalAmount : qty * unitPrice;
         const txDate      = row.TransactionDate ? new Date(row.TransactionDate) : new Date();
@@ -215,71 +254,93 @@ async function main() {
 
         const paymentMethod = mapPaymentMethod(row.PaymentMethod);
 
-        // Wrap sale + invoice + payment in one atomic transaction
-        await prisma.$transaction(async (tx) => {
-            // Create sale
-            const sale = await tx.salesTransaction.create({
-                data: {
-                    invoiceNo,
-                    customerId,
-                    productId,
-                    userId:          systemUser.id,
-                    quantity:        qty,
-                    totalAmount,
-                    transactionDate: txDate
-                }
-            });
+        const saleId = uuidv4();
+        const invoiceId = uuidv4();
 
-            // Create invoice linked to the sale
-            const invoice = await tx.invoice.create({
-                data: {
-                    invoiceNumber,
-                    customerId,
-                    salesTransactionId: sale.id,
-                    subtotal,
-                    taxRate:       GST_RATE,
-                    taxAmount,
-                    discountRate:   discountPct,
-                    discountAmount: discountAmt,
-                    totalAmount:    invoiceTotal,
-                    // Paid if payment method is known; otherwise unpaid
-                    status:         paymentMethod !== "OTHER" ? "PAID" : "UNPAID",
-                    dueDate,
-                    createdById: systemUser.id,
-                    lineItems: [{
-                        productId,
-                        productName: `Product ${row.ProductID}`,
-                        quantity:    qty,
-                        unitPrice,
-                        lineTotal:   subtotal
-                    }]
-                }
-            });
-
-            // Create payment record for paid invoices
-            if (invoice.status === "PAID") {
-                await tx.payment.create({
-                    data: {
-                        invoiceId:   invoice.id,
-                        amount:      invoiceTotal,
-                        method:      paymentMethod,
-                        reference:   invoiceNo,
-                        paidAt:      txDate,
-                        recordedById: systemUser.id
-                    }
-                });
-            }
+        salesToInsert.push({
+            id:              saleId,
+            invoiceNo,
+            customerId,
+            productId,
+            userId:          systemUser.id,
+            quantity:        qty,
+            totalAmount,
+            transactionDate: txDate
         });
 
-        salesInserted++;
-        invoicesInserted++;
-        if ((salesInserted % 500) === 0) {
-            console.log(`    … ${salesInserted} rows processed`);
+        invoicesToInsert.push({
+            id:                 invoiceId,
+            invoiceNumber,
+            customerId,
+            salesTransactionId: saleId,
+            subtotal,
+            taxRate:            GST_RATE,
+            taxAmount,
+            discountRate:       discountPct,
+            discountAmount:     discountAmt,
+            totalAmount:        invoiceTotal,
+            status:             paymentMethod !== "OTHER" ? "PAID" : "UNPAID",
+            dueDate,
+            createdById:        systemUser.id,
+            lineItems:          [{
+                productId,
+                productName: `Product ${row.ProductID}`,
+                quantity:    qty,
+                unitPrice,
+                lineTotal:   subtotal
+            }]
+        });
+
+        if (paymentMethod !== "OTHER") {
+            paymentsToInsert.push({
+                id:           uuidv4(),
+                invoiceId,
+                amount:       invoiceTotal,
+                method:       paymentMethod,
+                reference:    invoiceNo,
+                paidAt:       txDate,
+                recordedById: systemUser.id
+            });
         }
     }
 
-    console.log(`\n  ✔ Sales transactions inserted: ${salesInserted}`);
-    console.log(`  ✔ Invoices inserted:           ${invoicesInserted}`);
+    if (salesToInsert.length > 0) {
+        console.log(`  ⌛ Bulk inserting ${salesToInsert.length} sales transactions, Invoices, and Payments...`);
+        const bulkChunkSize = 5000;
+
+        // Insert sales
+        for (let i = 0; i < salesToInsert.length; i += bulkChunkSize) {
+            const chunk = salesToInsert.slice(i, i + bulkChunkSize);
+            await prisma.salesTransaction.createMany({
+                data: chunk,
+                skipDuplicates: true
+            });
+            console.log(`    … sales: ${Math.min(i + bulkChunkSize, salesToInsert.length)} / ${salesToInsert.length} inserted`);
+        }
+
+        // Insert invoices
+        for (let i = 0; i < invoicesToInsert.length; i += bulkChunkSize) {
+            const chunk = invoicesToInsert.slice(i, i + bulkChunkSize);
+            await prisma.invoice.createMany({
+                data: chunk,
+                skipDuplicates: true
+            });
+            console.log(`    … invoices: ${Math.min(i + bulkChunkSize, invoicesToInsert.length)} / ${invoicesToInsert.length} inserted`);
+        }
+
+        // Insert payments
+        for (let i = 0; i < paymentsToInsert.length; i += bulkChunkSize) {
+            const chunk = paymentsToInsert.slice(i, i + bulkChunkSize);
+            await prisma.payment.createMany({
+                data: chunk,
+                skipDuplicates: true
+            });
+            console.log(`    … payments: ${Math.min(i + bulkChunkSize, paymentsToInsert.length)} / ${paymentsToInsert.length} inserted`);
+        }
+    }
+
+    console.log(`\n  ✔ Sales transactions inserted: ${salesToInsert.length}`);
+    console.log(`  ✔ Invoices inserted:           ${invoicesToInsert.length}`);
     console.log(`  ✔ Rows skipped (duplicates or missing FKs): ${skipped}`);
     console.log("\n✅ Kaggle dataset import complete.");
     console.log("   All APIs (dashboard, analytics, inventory, invoices) now serve Kaggle data.");
