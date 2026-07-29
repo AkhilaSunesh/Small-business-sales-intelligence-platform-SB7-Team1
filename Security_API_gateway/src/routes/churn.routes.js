@@ -1,38 +1,60 @@
+/**
+ * churn.routes.js
+ * Proxies /api/churn → Churn Prediction service (port 5011)
+ */
+
 const express = require("express");
 const axios   = require("axios");
 const router  = express.Router();
 
-const AI_API_URL = process.env.AI_API_URL || "http://localhost:5001";
+const SERVICE_URL =
+    process.env.CHURN_PREDICTION_URL ||
+    process.env.AI_API_URL           ||
+    "http://localhost:5011";
 
-const forwardToAI = async (req, res, aiPath) => {
+const forward = async (req, res, path) => {
+    const target = `${SERVICE_URL}${path}`;
+    console.log(`[churn] ${req.method} ${req.originalUrl} → ${target}`);
     try {
         const response = await axios({
             method:  req.method,
-            url:     `${AI_API_URL}${aiPath}`,
+            url:     target,
             params:  req.query,
             data:    req.body,
             headers: {
                 Authorization:  req.headers.authorization || "",
                 "Content-Type": req.headers["content-type"] || "application/json"
             },
-            timeout: 10000
+            timeout: 15000
         });
+        console.log(`[churn] ← ${response.status} from ${target}`);
         res.status(response.status).json(response.data);
     } catch (error) {
+<<<<<<< HEAD
         console.log("AI forward error:", error.response?.status, error.response?.data, error.message);
        if (!error.response) {
            return res.status(503).json({
                success: false,
                message: "AI service is currently unavailable."
            });
+=======
+        if (!error.response) {
+            console.warn(`[churn] Service unavailable: ${target} — ${error.message}`);
+            return res.status(503).json({
+                success: false,
+                message: "Churn Prediction service is currently unavailable.",
+                service: target
+            });
+>>>>>>> b3e45e3 (Fix API gateway routing, RBAC permissions, AI service ports, dashboard endpoints, and error handling)
         }
-        const status = error.response.status || 500;
-        res.status(status).json(error.response.data || { success: false, message: error.message });
+        console.error(`[churn] ← ${error.response.status} from ${target}`);
+        res.status(error.response.status).json(
+            error.response.data || { success: false, message: error.message }
+        );
     }
 };
 
-// Mounted at /api/churn
-router.get("/",       (req, res) => forwardToAI(req, res, "/churn"));
-router.post("/check", (req, res) => forwardToAI(req, res, "/churn/check"));
+router.get("/",       (req, res) => forward(req, res, "/churn"));
+router.post("/check", (req, res) => forward(req, res, "/churn/check"));
 
 module.exports = router;
