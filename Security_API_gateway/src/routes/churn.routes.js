@@ -30,14 +30,6 @@ const forward = async (req, res, path) => {
         console.log(`[churn] ← ${response.status} from ${target}`);
         res.status(response.status).json(response.data);
     } catch (error) {
-<<<<<<< HEAD
-        console.log("AI forward error:", error.response?.status, error.response?.data, error.message);
-       if (!error.response) {
-           return res.status(503).json({
-               success: false,
-               message: "AI service is currently unavailable."
-           });
-=======
         if (!error.response) {
             console.warn(`[churn] Service unavailable: ${target} — ${error.message}`);
             return res.status(503).json({
@@ -45,7 +37,6 @@ const forward = async (req, res, path) => {
                 message: "Churn Prediction service is currently unavailable.",
                 service: target
             });
->>>>>>> b3e45e3 (Fix API gateway routing, RBAC permissions, AI service ports, dashboard endpoints, and error handling)
         }
         console.error(`[churn] ← ${error.response.status} from ${target}`);
         res.status(error.response.status).json(
