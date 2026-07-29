@@ -387,11 +387,16 @@ describe("GET /api/forecast", () => {
         expect(res.statusCode).toBe(401);
     });
 
-    test("Role 3 (Sales Executive) is forbidden from forecast", async () => {
+    test("Role 3 (Sales Executive) can access forecast", async () => {
+        // Role 3 has forecast permission — passes RBAC, gets proxied
+        axios.mockResolvedValueOnce({
+            status: 200,
+            data: { success: true, period: 30, forecast: [], historical: [] }
+        });
         const res = await request(app)
             .get("/api/forecast")
             .set("Authorization", `Bearer ${validToken(3)}`);
-        expect(res.statusCode).toBe(403);
+        expect([200, 503]).toContain(res.statusCode);
     });
 
     test("Role 2 (Store Manager) can access forecast", async () => {

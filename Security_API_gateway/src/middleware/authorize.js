@@ -13,6 +13,7 @@ const getResource = (req) => {
 const permissions = {
     1: { "*": ["GET", "POST", "PUT", "DELETE", "PATCH"] },    // Business Owner — full access
     2: {                                                        // Store Manager
+<<<<<<< HEAD
         inventory:         ["GET", "POST", "PUT", "PATCH"],
         products:          ["GET", "POST", "PUT", "PATCH"],
         dashboard:         ["GET"],
@@ -27,14 +28,38 @@ const permissions = {
         churn: ["GET", "POST"],
         recommendations: ["GET", "POST"],
        "anomaly-detection": ["GET", "POST"]
+=======
+        inventory:            ["GET", "POST", "PUT", "PATCH"],
+        products:             ["GET", "POST", "PUT", "PATCH"],
+        dashboard:            ["GET"],
+        analytics:            ["GET"],
+        customers:            ["GET"],
+        sales:                ["GET"],
+        invoices:             ["GET", "POST", "PATCH"],
+        payments:             ["GET", "POST"],
+        revenue:              ["GET"],
+        forecast:             ["GET"],
+        "customer-groups":    ["GET"],
+        "total-revenue":      ["GET"],
+        "top-products":       ["GET"],
+        "sales-trend":        ["GET"],
+        churn:                ["GET"],
+        recommendations:      ["GET"],
+        "anomaly-detection":  ["GET"]
+>>>>>>> b3e45e3 (Fix API gateway routing, RBAC permissions, AI service ports, dashboard endpoints, and error handling)
     },
     3: {                                                        // Sales Executive
-        sales:             ["GET", "POST"],
-        customers:         ["GET"],
-        products:          ["GET"],
-        invoices:          ["GET", "POST"],
-        payments:          ["POST"],
-        revenue:           ["GET"]
+        sales:           ["GET", "POST"],
+        customers:       ["GET"],
+        products:        ["GET"],
+        invoices:        ["GET", "POST"],
+        payments:        ["POST"],
+        revenue:         ["GET"],
+        dashboard:       ["GET"],
+        "total-revenue": ["GET"],
+        "top-products":  ["GET"],
+        "sales-trend":   ["GET"],
+        forecast:        ["GET"]
     },
     4: { "*": ["GET", "POST", "PUT", "DELETE", "PATCH"] }      // System Administrator — full access
 };
