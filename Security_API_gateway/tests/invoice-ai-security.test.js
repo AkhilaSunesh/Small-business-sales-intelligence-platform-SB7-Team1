@@ -99,11 +99,13 @@ describe("AI report routes — RBAC", () => {
     ];
 
     aiRoutes.forEach((route) => {
-        test(`Sales Executive (role 3) is BLOCKED from ${route}`, async () => {
+        test(`Sales Executive (role 3) CAN read ${route} (GET is allowed per SRS)`, async () => {
+            // Per SRS, Sales Executives have read access to AI insight routes
             const res = await request(app)
                 .get(route)
                 .set("Authorization", `Bearer ${validToken(3)}`);
-            expect(res.statusCode).toBe(403);
+            // Should pass RBAC (200 or 503 if AI service is offline — never 403)
+            expect(res.statusCode).not.toBe(403);
         });
 
         test(`Store Manager (role 2) CAN access ${route}`, async () => {
