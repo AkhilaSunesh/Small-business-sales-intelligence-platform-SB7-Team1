@@ -1,12 +1,14 @@
-import { FiMenu } from 'react-icons/fi';
+import { FiMenu, FiBell } from 'react-icons/fi';
 import { useLocation } from 'react-router-dom';
 import { getPageMeta } from '../../constants/navigation';
 import { useAppContext } from '../../context/AppContext';
+import { useNotifications } from '../../context/NotificationContext';
 import { useTranslation } from 'react-i18next';
 import PropTypes from 'prop-types';
 
 const pathMap = {
   '/dashboard': { titleKey: 'dashboard', descKey: 'dashboardDesc' },
+  '/business-overview': { titleKey: 'business overview', descKey: 'businessOverviewDesc' },
   '/create-invoice': { titleKey: 'create invoice', descKey: 'createInvoiceDesc' },
   '/invoices': { titleKey: 'invoice list', descKey: 'invoiceListDesc' },
   '/customer-insights': { titleKey: 'customer insights', descKey: 'customerInsightsDesc' },
@@ -24,6 +26,7 @@ function Navbar({ onToggle }) {
   const location = useLocation();
   const meta = getPageMeta(location.pathname);
   const { user, logout } = useAppContext();
+  const { unreadCount, setIsDrawerOpen } = useNotifications();
   const { t } = useTranslation();
 
   const keys = pathMap[location.pathname] || { titleKey: '', descKey: '' };
@@ -57,30 +60,47 @@ function Navbar({ onToggle }) {
         </div>
 
         {user ? (
-          /* Professional Top Right Profile Card */
-          <div className="hidden items-center gap-3 rounded-2xl border border-white/10 bg-white/5 px-4 py-3 text-slate-200 md:flex backdrop-blur-sm">
-            <div className="text-right">
-              <p className="text-[10px] uppercase tracking-[0.16em] text-slate-400 font-semibold">Logged in as</p>
-              <p className="text-sm font-semibold text-white mt-0.5">{user.displayName}</p>
-              <p className="text-[10px] uppercase tracking-[0.16em] text-cyan-300/85 font-bold mt-0.5">
-                {user.role === 'Owner'
-                  ? 'Business Owner'
-                  : user.role === 'Store Manager'
-                  ? 'Store Manager'
-                  : user.role === 'Sales Executive'
-                  ? 'Sales Executive'
-                  : user.role === 'Admin'
-                  ? 'Admin'
-                  : user.role}
-              </p>
-            </div>
+          <div className="flex items-center gap-3">
+            {/* Notification Bell Button */}
             <button
               type="button"
-              onClick={logout}
-              className="rounded-xl border border-white/5 bg-white/5 px-3 py-2 text-xs text-cyan-200 transition hover:bg-white/10 cursor-pointer font-semibold"
+              onClick={() => setIsDrawerOpen(true)}
+              className="relative inline-flex h-11 w-11 items-center justify-center rounded-2xl border border-white/10 bg-white/5 text-slate-200 hover:bg-white/10 hover:text-white transition cursor-pointer"
+              aria-label="View notifications"
             >
-              {t('logout')}
+              <FiBell className="text-lg" />
+              {unreadCount > 0 && (
+                <span className="absolute -top-1 -right-1 flex h-5 w-5 items-center justify-center rounded-full bg-cyan-400 text-[10px] font-bold text-slate-950 ring-2 ring-slate-950 animate-pulse">
+                  {unreadCount}
+                </span>
+              )}
             </button>
+
+            {/* Professional Top Right Profile Card */}
+            <div className="hidden items-center gap-3 rounded-2xl border border-white/10 bg-white/5 px-4 py-3 text-slate-200 md:flex backdrop-blur-sm">
+              <div className="text-right">
+                <p className="text-[10px] uppercase tracking-[0.16em] text-slate-400 font-semibold">Logged in as</p>
+                <p className="text-sm font-semibold text-white mt-0.5">{user.displayName}</p>
+                <p className="text-[10px] uppercase tracking-[0.16em] text-cyan-300/85 font-bold mt-0.5">
+                  {user.role === 'Owner'
+                    ? 'Business Owner'
+                    : user.role === 'Store Manager'
+                    ? 'Store Manager'
+                    : user.role === 'Sales Executive'
+                    ? 'Sales Executive'
+                    : user.role === 'Admin'
+                    ? 'Admin'
+                    : user.role}
+                </p>
+              </div>
+              <button
+                type="button"
+                onClick={logout}
+                className="rounded-xl border border-white/5 bg-white/5 px-3 py-2 text-xs text-cyan-200 transition hover:bg-white/10 cursor-pointer font-semibold"
+              >
+                {t('logout')}
+              </button>
+            </div>
           </div>
         ) : null}
       </div>
