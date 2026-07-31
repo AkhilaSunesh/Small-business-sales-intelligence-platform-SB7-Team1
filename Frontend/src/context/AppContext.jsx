@@ -14,6 +14,7 @@ export const USER_ROLES = [
 export const ROLE_NAV = {
   Owner: [
     { label: 'Dashboard', path: '/dashboard', icon: 'dashboard' },
+    { label: 'Business Overview', path: '/business-overview', icon: 'businessOverview' },
     { label: 'Create Invoice', path: '/create-invoice', icon: 'createInvoice' },
     { label: 'Invoice List', path: '/invoices', icon: 'invoiceList' },
     { label: 'Customer Insights', path: '/customer-insights', icon: 'customerInsights' },
@@ -44,6 +45,7 @@ export const ROLE_NAV = {
   ],
   Admin: [
     { label: 'Dashboard', path: '/dashboard', icon: 'dashboard' },
+    { label: 'Business Overview', path: '/business-overview', icon: 'businessOverview' },
     { label: 'Settings', path: '/settings', icon: 'settings' },
     { label: 'User Management', path: '/users', icon: 'users' },
   ],

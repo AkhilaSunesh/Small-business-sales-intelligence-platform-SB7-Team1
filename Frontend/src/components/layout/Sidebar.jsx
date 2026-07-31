@@ -14,6 +14,7 @@ import {
   FiZap,
   FiAlertTriangle,
   FiTrendingUp,
+  FiBriefcase,
 } from 'react-icons/fi';
 import { useAppContext } from '../../context/AppContext';
 import { useTranslation } from 'react-i18next';
@@ -33,6 +34,7 @@ const iconMap = {
   recommendations: FiZap,
   anomalyAlerts: FiAlertTriangle,
   forecastReports: FiTrendingUp,
+  businessOverview: FiBriefcase,
 };
 
 function Sidebar({ collapsed = false }) {

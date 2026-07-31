@@ -3,6 +3,7 @@ import AppLayout from '../layouts/DashboardLayout';
 import LoginPage from '../pages/Login';
 import SignupPage from '../pages/Signup';
 import DashboardPage from '../pages/Dashboard';
+import BusinessOverviewPage from '../pages/BusinessOverview';
 import UploadPage from '../pages/Upload';
 import InventoryPage from '../pages/Inventory';
 import ReportsPage from '../pages/Reports';
@@ -16,6 +17,7 @@ import AnomalyAlertsPage from '../pages/AnomalyAlerts';
 import ForecastReportsPage from '../pages/ForecastReports';
 import NotFoundPage from '../pages/NotFound';
 import ProtectedRoute from '../components/common/ProtectedRoute';
+import RoleGuard from '../components/common/RoleGuard';
 
 function AppRoutes() {
   return (
@@ -31,6 +33,14 @@ function AppRoutes() {
         }
       >
         <Route path="/dashboard" element={<DashboardPage />} />
+        <Route
+          path="/business-overview"
+          element={
+            <RoleGuard allowedRoles={['Admin', 'Owner']}>
+              <BusinessOverviewPage />
+            </RoleGuard>
+          }
+        />
         <Route path="/create-invoice" element={<CreateInvoicePage />} />
         <Route path="/invoices" element={<InvoiceListPage />} />
         <Route path="/customer-insights" element={<CustomerInsightsPage />} />
