@@ -6,9 +6,10 @@
 // Mock the prisma singleton BEFORE requiring the controller
 jest.mock("../config/prisma", () => ({
     inventory: {
-        findMany: jest.fn(),
-        update:   jest.fn(),
-        deleteMany: jest.fn()
+        findMany:   jest.fn(),
+        update:     jest.fn(),
+        deleteMany: jest.fn(),
+        count:      jest.fn().mockResolvedValue(0)
     },
     product: {
         findUnique: jest.fn()

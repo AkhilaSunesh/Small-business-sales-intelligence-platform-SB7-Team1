@@ -38,6 +38,10 @@ const permissions = {
         analytics:            ["GET"],
         revenue:              ["GET"],
 
+        // Milestone 3 additions
+        notifications:        ["GET"],
+        "audit-summary":      ["GET"],
+
         // AI insight services
         forecast:             ["GET"],
         "customer-groups":    ["GET", "POST"],
@@ -63,6 +67,9 @@ const permissions = {
         // Analytics & reporting
         analytics:       ["GET"],
         revenue:         ["GET"],
+
+        // Milestone 3 — Sales Exec can view notifications
+        notifications:   ["GET"],
 
         // AI insight services (read-only for Sales Executive)
         forecast:             ["GET"],

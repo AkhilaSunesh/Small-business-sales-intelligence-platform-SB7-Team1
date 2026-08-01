@@ -21,6 +21,9 @@ router.post("/", validateCreateInvoice, invoiceController.createInvoice);
 // POST /api/invoices/overdue/check   — mark past-due UNPAID/PARTIALLY_PAID → OVERDUE
 router.post("/overdue/check", invoiceController.checkOverdueInvoices);
 
+// PATCH /api/invoices/bulk            — bulk status update (Milestone 3)
+router.patch("/bulk", require("../controllers/bulk.controller").bulkUpdateInvoices);
+
 // POST /api/invoices/:id/payments    — record a payment against an invoice (Joi validated)
 router.post("/:id/payments", validateRecordPayment, invoiceController.recordPayment);
 

@@ -18,4 +18,7 @@ router.put("/update", validateUpdate, controller.updateStock);
 // DELETE /api/inventory/delete — remove inventory record
 router.delete("/delete", validateDelete, controller.deleteInventory);
 
+// PATCH /api/inventory/bulk   — bulk quantity update (Milestone 3)
+router.patch("/bulk", require("../controllers/bulk.controller").bulkUpdateInventory);
+
 module.exports = router;
