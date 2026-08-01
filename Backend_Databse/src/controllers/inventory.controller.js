@@ -1,27 +1,61 @@
 const prisma = require("../config/prisma");
 
 // ─── GET /api/inventory ───────────────────────────────────────────────────────
+// Supports: ?page, ?limit, ?sort=quantity|product.name, ?order=asc|desc
+// Backward-compatible: callers that don't send pagination get page 1, limit 20.
+// The legacy response shape (success, inventory, summary) is preserved so
+// existing frontend/test consumers are not broken.
 exports.getInventory = async (req, res) => {
   try {
-    const inventory = await prisma.inventory.findMany({
-      include: { product: true },
-      orderBy: { product: { name: "asc" } }
-    });
+    // ── Pagination ──────────────────────────────────────────────────────────
+    const page  = Math.max(1, parseInt(req.query.page,  10) || 1);
+    const limit = Math.min(100, Math.max(1, parseInt(req.query.limit, 10) || 20));
+    const skip  = (page - 1) * limit;
 
-    // Annotate each record with a lowStock flag
-    const annotated = inventory.map((item) => ({
+    // ── Sorting ─────────────────────────────────────────────────────────────
+    const allowedSort = { quantity: true, "product.name": true };
+    const sortParam   = req.query.sort || "product.name";
+    const sortOrder   = req.query.order === "desc" ? "desc" : "asc";
+
+    let orderBy;
+    if (sortParam === "quantity") {
+      orderBy = { quantity: sortOrder };
+    } else {
+      orderBy = { product: { name: sortOrder } };
+    }
+
+    // ── Query ────────────────────────────────────────────────────────────────
+    const [total, inventory] = await Promise.all([
+      prisma.inventory.count(),
+      prisma.inventory.findMany({
+        include: { product: true },
+        orderBy,
+        skip,
+        take: limit
+      })
+    ]);
+
+    // Annotate with lowStock flag
+    const annotated    = inventory.map((item) => ({
       ...item,
       lowStock: item.quantity <= item.lowStockThreshold
     }));
-
     const lowStockCount = annotated.filter((i) => i.lowStock).length;
 
     return res.status(200).json({
       success: true,
-      inventory: annotated,
-      summary: { total: annotated.length, lowStockCount }
+      inventory: annotated,           // preserved for backward compatibility
+      data:      annotated,           // new field for frontend consistency
+      summary: { total: annotated.length, lowStockCount },
+      pagination: {
+        total,
+        page,
+        limit,
+        totalPages: Math.ceil(total / limit)
+      }
     });
   } catch (error) {
+    console.error("[inventory.controller] getInventory:", error);
     return res.status(500).json({ success: false, message: error.message });
   }
 };

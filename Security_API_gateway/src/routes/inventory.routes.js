@@ -3,6 +3,7 @@ const axios   = require("axios");
 const { logEvent }                          = require("../middleware/auditLogger");
 const { inventoryLimiter }                  = require("../middleware/rateLimiter");
 const { validateAdd, validateUpdate, validateDelete } = require("../validations/inventory.validation");
+const { validateBulkInventory } = require("../validations/notification.validation");
 const router  = express.Router();
 
 const BACKEND_API_URL = process.env.BACKEND_API_URL || "http://localhost:5000/api";
@@ -87,5 +88,9 @@ router.delete("/delete", inventoryLimiter, validateDelete, async (req, res) => {
     });
     await forwardRequest(req, res, "/inventory/delete");
 });
+
+// ─── PATCH /api/inventory/bulk — bulk quantity update (Milestone 3) ──────────
+router.patch("/bulk", validateBulkInventory,
+    (req, res) => forwardRequest(req, res, "/inventory/bulk"));
 
 module.exports = router;

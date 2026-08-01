@@ -6,19 +6,33 @@ const swaggerDocument = require("../swagger.json");
 
 const authenticate = require("./middleware/authenticate");
 
-const salesRoutes     = require("./routes/sales.routes");
-const inventoryRoutes = require("./routes/inventory.routes");
-const dashboardRoutes = require("./routes/dashboard.routes");
-const productRoutes   = require("./routes/product.routes");
-const customerRoutes  = require("./routes/customer.routes");
-const analyticsRoutes = require("./routes/analytics.routes");
-const invoiceRoutes   = require("./routes/invoice.routes");
-const forecastRoutes  = require("./routes/forecast.routes");
+const salesRoutes        = require("./routes/sales.routes");
+const inventoryRoutes    = require("./routes/inventory.routes");
+const dashboardRoutes    = require("./routes/dashboard.routes");
+const productRoutes      = require("./routes/product.routes");
+const customerRoutes     = require("./routes/customer.routes");
+const analyticsRoutes    = require("./routes/analytics.routes");
+const invoiceRoutes      = require("./routes/invoice.routes");
+const forecastRoutes     = require("./routes/forecast.routes");
+const notificationRoutes = require("./routes/notification.routes");
 
 const app = express();
 
 app.use(cors());
 app.use(express.json());
+
+// ── JSON parse-error handler — returns 400 instead of 500 for malformed JSON ─
+app.use((err, req, res, next) => {
+    if (err.type === "entity.parse.failed") {
+        return res.status(400).json({
+            success: false,
+            message: "Invalid JSON in request body",
+            errors:  [err.message]
+        });
+    }
+    next(err);
+});
+
 app.use(morgan("dev"));
 
 // ── Health check ─────────────────────────────────────────────────────────────
@@ -41,8 +55,9 @@ app.use("/api/dashboard",  authenticate, dashboardRoutes);
 app.use("/api/products",   authenticate, productRoutes);
 app.use("/api/customers",  authenticate, customerRoutes);
 app.use("/api/analytics",  authenticate, analyticsRoutes);
-app.use("/api/invoices",   authenticate, invoiceRoutes);
-app.use("/api/forecast",   authenticate, forecastRoutes);
+app.use("/api/invoices",       authenticate, invoiceRoutes);
+app.use("/api/forecast",       authenticate, forecastRoutes);
+app.use("/api/notifications",  authenticate, notificationRoutes);
 
 // ── Centralised error handler ─────────────────────────────────────────────────
 app.use((err, req, res, next) => {

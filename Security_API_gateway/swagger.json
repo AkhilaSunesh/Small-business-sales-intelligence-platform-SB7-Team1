@@ -9,14 +9,17 @@
     { "url": "http://localhost:7000", "description": "Local Security API Gateway" }
   ],
   "tags": [
-    { "name": "Auth",      "description": "Register, login, refresh, logout, current-user" },
-    { "name": "Inventory", "description": "Stock management (proxied to backend)" },
-    { "name": "Sales",     "description": "Sales transactions and CSV upload (proxied to backend)" },
-    { "name": "Dashboard", "description": "KPI summary (proxied to backend)" },
-    { "name": "Analytics", "description": "Revenue and top-product analytics (proxied to backend)" },
-    { "name": "Forecast",  "description": "Sales forecast from historical data (proxied to backend)" },
-    { "name": "Products",  "description": "Product catalogue (proxied to backend)" },
-    { "name": "Customers", "description": "Customer list (proxied to backend)" }
+    { "name": "Auth",          "description": "Register, login, refresh, logout, current-user" },
+    { "name": "Inventory",     "description": "Stock management (proxied to backend)" },
+    { "name": "Sales",         "description": "Sales transactions and CSV upload (proxied to backend)" },
+    { "name": "Dashboard",     "description": "KPI summary (proxied to backend)" },
+    { "name": "Analytics",     "description": "Revenue and top-product analytics (proxied to backend)" },
+    { "name": "Forecast",      "description": "Sales forecast from historical data (proxied to backend)" },
+    { "name": "Products",      "description": "Product catalogue (proxied to backend)" },
+    { "name": "Customers",     "description": "Customer list (proxied to backend)" },
+    { "name": "Notifications", "description": "Low-stock and overdue-invoice alerts — Milestone 3" },
+    { "name": "AuditSummary",  "description": "Security audit log summary — Milestone 3" },
+    { "name": "AI",            "description": "AI insight services — customer segmentation, churn, recommendations, anomaly detection" }
   ],
   "paths": {
     "/api/auth/register": {
@@ -374,9 +377,221 @@
         "summary": "Health Check",
         "tags": ["Health"],
         "responses": {
-          "200": {
-            "description": "Security API is healthy"
+          "200": { "description": "Security API is healthy" }
+        }
+      }
+    },
+
+    "/api/notifications": {
+      "get": {
+        "tags": ["Notifications"],
+        "summary": "Get combined low-stock and overdue-invoice alerts",
+        "description": "Returns paginated notifications from existing Inventory and Invoice data. Supports ?type=LOW_STOCK|OVERDUE_INVOICE filter.",
+        "security": [{ "bearerAuth": [] }],
+        "parameters": [
+          { "name": "page",  "in": "query", "schema": { "type": "integer", "default": 1 } },
+          { "name": "limit", "in": "query", "schema": { "type": "integer", "default": 20, "maximum": 100 } },
+          { "name": "type",  "in": "query", "schema": { "type": "string", "enum": ["LOW_STOCK", "OVERDUE_INVOICE"] }, "description": "Filter by notification type (optional)" }
+        ],
+        "responses": {
+          "200": { "description": "Notification list with summary and pagination" },
+          "400": { "$ref": "#/components/responses/ValidationError" },
+          "401": { "$ref": "#/components/responses/Unauthorized" },
+          "403": { "$ref": "#/components/responses/Forbidden" }
+        }
+      }
+    },
+    "/api/notifications/counts": {
+      "get": {
+        "tags": ["Notifications"],
+        "summary": "Get notification badge counts",
+        "description": "Lightweight endpoint returning only counts for header badge display.",
+        "security": [{ "bearerAuth": [] }],
+        "responses": {
+          "200": { "description": "Counts: total, lowStock, overdueInvoices, critical" },
+          "401": { "$ref": "#/components/responses/Unauthorized" },
+          "403": { "$ref": "#/components/responses/Forbidden" }
+        }
+      }
+    },
+    "/api/notifications/low-stock": {
+      "get": {
+        "tags": ["Notifications"],
+        "summary": "Low-stock alerts only",
+        "security": [{ "bearerAuth": [] }],
+        "parameters": [
+          { "name": "page",  "in": "query", "schema": { "type": "integer", "default": 1 } },
+          { "name": "limit", "in": "query", "schema": { "type": "integer", "default": 20 } }
+        ],
+        "responses": {
+          "200": { "description": "Low-stock inventory alerts" },
+          "401": { "$ref": "#/components/responses/Unauthorized" },
+          "403": { "$ref": "#/components/responses/Forbidden" }
+        }
+      }
+    },
+    "/api/notifications/overdue-invoices": {
+      "get": {
+        "tags": ["Notifications"],
+        "summary": "Overdue invoice alerts only",
+        "security": [{ "bearerAuth": [] }],
+        "parameters": [
+          { "name": "page",  "in": "query", "schema": { "type": "integer", "default": 1 } },
+          { "name": "limit", "in": "query", "schema": { "type": "integer", "default": 20 } }
+        ],
+        "responses": {
+          "200": { "description": "Overdue invoice alerts" },
+          "401": { "$ref": "#/components/responses/Unauthorized" },
+          "403": { "$ref": "#/components/responses/Forbidden" }
+        }
+      }
+    },
+    "/api/audit-summary": {
+      "get": {
+        "tags": ["AuditSummary"],
+        "summary": "Security audit log summary",
+        "description": "Reads logs/audit.log and returns event counts per type and per user, plus recent log entries. Access: Roles 1, 2, 4 only.",
+        "security": [{ "bearerAuth": [] }],
+        "parameters": [
+          { "name": "limit", "in": "query", "schema": { "type": "integer", "default": 50, "maximum": 500 }, "description": "Number of recent entries to return" }
+        ],
+        "responses": {
+          "200": { "description": "Audit summary with eventCounts, userCounts, recentEntries, dateRange" },
+          "401": { "$ref": "#/components/responses/Unauthorized" },
+          "403": { "$ref": "#/components/responses/Forbidden" }
+        }
+      }
+    },
+    "/api/invoices/bulk": {
+      "patch": {
+        "tags": ["Invoices"],
+        "summary": "Bulk update invoice status — Milestone 3",
+        "description": "Mark multiple invoices as PAID, UNPAID, CANCELLED, etc. in a single request. Max 100 IDs.",
+        "security": [{ "bearerAuth": [] }],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "required": ["ids", "status"],
+                "properties": {
+                  "ids":    { "type": "array", "items": { "type": "string", "format": "uuid" }, "minItems": 1, "maxItems": 100 },
+                  "status": { "type": "string", "enum": ["PAID","UNPAID","PARTIALLY_PAID","OVERDUE","CANCELLED"] }
+                }
+              }
+            }
           }
+        },
+        "responses": {
+          "200": { "description": "Number of invoices updated" },
+          "400": { "$ref": "#/components/responses/ValidationError" },
+          "401": { "$ref": "#/components/responses/Unauthorized" },
+          "403": { "$ref": "#/components/responses/Forbidden" },
+          "404": { "description": "One or more invoice IDs not found" }
+        }
+      }
+    },
+    "/api/inventory/bulk": {
+      "patch": {
+        "tags": ["Inventory"],
+        "summary": "Bulk update inventory quantities — Milestone 3",
+        "description": "Set stock levels for multiple products in a single request. Max 100 updates.",
+        "security": [{ "bearerAuth": [] }],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "required": ["updates"],
+                "properties": {
+                  "updates": {
+                    "type": "array",
+                    "minItems": 1, "maxItems": 100,
+                    "items": {
+                      "type": "object",
+                      "required": ["productCode", "quantity"],
+                      "properties": {
+                        "productCode": { "type": "string" },
+                        "quantity":    { "type": "integer", "minimum": 0 }
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": { "description": "Number of inventory records updated" },
+          "400": { "$ref": "#/components/responses/ValidationError" },
+          "401": { "$ref": "#/components/responses/Unauthorized" },
+          "403": { "$ref": "#/components/responses/Forbidden" },
+          "404": { "description": "One or more product codes not found" }
+        }
+      }
+    },
+
+    "/api/customer-groups": {
+      "get": {
+        "tags": ["AI"],
+        "summary": "Customer segmentation — group all customers",
+        "description": "Proxied to the Customer Segmentation AI service (port 5010). Returns customer groups. Returns 503 if the AI service is offline.",
+        "security": [{ "bearerAuth": [] }],
+        "responses": {
+          "200": { "description": "Customer group data" },
+          "401": { "$ref": "#/components/responses/Unauthorized" },
+          "403": { "$ref": "#/components/responses/Forbidden" },
+          "503": { "description": "AI service unavailable" }
+        }
+      }
+    },
+    "/api/churn": {
+      "get": {
+        "tags": ["AI"],
+        "summary": "Churn risk summary",
+        "description": "Proxied to the Churn Prediction AI service (port 5011). Returns churn risk distribution. Returns 503 if the AI service is offline.",
+        "security": [{ "bearerAuth": [] }],
+        "responses": {
+          "200": { "description": "Churn risk data" },
+          "401": { "$ref": "#/components/responses/Unauthorized" },
+          "403": { "$ref": "#/components/responses/Forbidden" },
+          "503": { "description": "AI service unavailable" }
+        }
+      }
+    },
+    "/api/recommendations": {
+      "get": {
+        "tags": ["AI"],
+        "summary": "Product recommendations",
+        "description": "Proxied to the Recommendations AI service (port 5012). Returns product recommendations. Returns 503 if the AI service is offline.",
+        "security": [{ "bearerAuth": [] }],
+        "parameters": [
+          { "name": "productId", "in": "query", "schema": { "type": "string" }, "description": "Optional product ID to get recommendations for" }
+        ],
+        "responses": {
+          "200": { "description": "Recommendation data" },
+          "401": { "$ref": "#/components/responses/Unauthorized" },
+          "403": { "$ref": "#/components/responses/Forbidden" },
+          "503": { "description": "AI service unavailable" }
+        }
+      }
+    },
+    "/api/anomaly-detection": {
+      "get": {
+        "tags": ["AI"],
+        "summary": "Anomaly detection results",
+        "description": "Proxied to the Anomaly Detection AI service (port 5013). Returns detected anomalous transactions. Returns 503 if the AI service is offline.",
+        "security": [{ "bearerAuth": [] }],
+        "parameters": [
+          { "name": "limit", "in": "query", "schema": { "type": "integer", "default": 20 }, "description": "Maximum anomalies to return" }
+        ],
+        "responses": {
+          "200": { "description": "Anomaly detection data" },
+          "401": { "$ref": "#/components/responses/Unauthorized" },
+          "403": { "$ref": "#/components/responses/Forbidden" },
+          "503": { "description": "AI service unavailable" }
         }
       }
     }

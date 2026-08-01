@@ -1,6 +1,7 @@
 const express = require("express");
 const axios   = require("axios");
 const { validateCreateInvoice, validateRecordPayment } = require("../validations/invoice.validation");
+const { validateBulkInvoice } = require("../validations/notification.validation");
 const router  = express.Router();
 const { auditSuccessfulAction } = require("../middleware/auditLogger");
 
@@ -39,6 +40,11 @@ router.post("/",validateCreateInvoice,auditSuccessfulAction("Invoice Created", "
 
 // POST /api/invoices/overdue/check — check overdue
 router.post("/overdue/check", (req, res) => forward(req, res, "/invoices/overdue/check"));
+
+// PATCH /api/invoices/bulk — bulk status update (Milestone 3, Joi validated)
+router.patch("/bulk", validateBulkInvoice,
+    auditSuccessfulAction("Bulk Invoice Update", "bulk-update"),
+    (req, res) => forward(req, res, "/invoices/bulk"));
 
 // POST /api/invoices/:id/payments — record payment
 router.post("/:id/payments",validateRecordPayment,auditSuccessfulAction("Invoice Payment Updated", "record-payment"),(req, res) => forward(req, res, `/invoices/${req.params.id}/payments`));
