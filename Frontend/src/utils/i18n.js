@@ -74,12 +74,14 @@ const resources = {
       'recommendations': 'Recommendations',
       'anomaly alerts': 'Anomaly Alerts',
       'forecast reports': 'Forecast Reports',
+      'forecast vs actual': 'Forecast vs Actual',
       createInvoiceDesc: 'Create customer invoices and calculate billing automatically.',
       invoiceListDesc: 'View, search, filter, and manage customer invoices.',
       customerInsightsDesc: 'Analyze customer behavior, retention, and lifetime value.',
       recommendationsDesc: 'AI-powered product and business recommendations.',
       anomalyAlertsDesc: 'Detect unusual sales patterns and business anomalies.',
       forecastReportsDesc: 'Predict future sales trends using AI forecasting.',
+      forecastVsActualDesc: 'Compare AI predicted sales with actual recorded sales.',
       settingsDesc: 'Manage account preferences, security, notifications, and application settings.'
     }
   },
@@ -155,12 +157,14 @@ const resources = {
       'recommendations': 'अनुशंसाएँ',
       'anomaly alerts': 'विसंगति अलर्ट',
       'forecast reports': 'पूर्वानुमान रिपोर्ट',
+      'forecast vs actual': 'पूर्वानुमान बनाम वास्तविक',
       createInvoiceDesc: 'ग्राहक इनवॉइस बनाएं और बिलिंग की गणना स्वचालित रूप से करें।',
       invoiceListDesc: 'ग्राहक इनवॉइस देखें, खोजें, फ़िल्टर करें और प्रबंधित करें।',
       customerInsightsDesc: 'ग्राहक व्यवहार, प्रतिधारण और जीवनकाल मूल्य का विश्लेषण करें।',
       recommendationsDesc: 'एआई-संचालित उत्पाद और व्यावसायिक अनुशंसाएँ।',
       anomalyAlertsDesc: 'अअसामान्य बिक्री पैटर्न और व्यावसायिक विसंगतियों का पता लगाएं।',
       forecastReportsDesc: 'एआई पूर्वानुमान का उपयोग करके भविष्य की बिक्री प्रवृत्तियों की भविष्यवाणी करें।',
+      forecastVsActualDesc: 'पूर्वानुमानित बिक्री और वास्तविक बिक्री की आपस में तुलना करें।',
       settingsDesc: 'खाता प्राथमिकताएं, सुरक्षा, सूचनाएं और एप्लिकेशन सेटिंग्स प्रबंधित करें।'
     }
   },
@@ -236,12 +240,14 @@ const resources = {
       'recommendations': 'பரிந்துரைகள்',
       'anomaly alerts': 'அசாதாரண எச்சரிக்கைகள்',
       'forecast reports': 'முன்கணிப்பு அறிக்கைகள்',
+      'forecast vs actual': 'முன்கணிப்பு மற்றும் உண்மை',
       createInvoiceDesc: 'வாடிக்கையாளர் இன்வாய்ஸ்களை உருவாக்கி பில்லிங்கை தானாகவே கணக்கிடுங்கள்.',
       invoiceListDesc: 'வாடிக்கையாளர் இன்வாய்ஸ்களைப் பார்க்கவும், தேடவும், வடிகட்டவும் மற்றும் நிர்வகிக்கவும்.',
       customerInsightsDesc: 'வாடிக்கையாளர் நடத்தை, தக்கவைப்பு மற்றும் வாழ்நாள் மதிப்பை பகுப்பாய்வு செய்யுங்கள்.',
       recommendationsDesc: 'ஏஐ-இயங்கும் தயாரிப்பு மற்றும் வணிக பரிந்துரைகள்.',
       anomalyAlertsDesc: 'அசாதாரண விற்பனை முறைகள் மற்றும் வணிக முரண்பாடுகளைக் கண்டறியவும்.',
       forecastReportsDesc: 'ஏஐ முன்கணிப்பைப் பயன்படுத்தி எதிர்கால விற்பனைப் போக்குகளைக் கணிக்கவும்.',
+      forecastVsActualDesc: 'முன்னறிவிக்கப்பட்ட விற்பனையை உண்மையான விற்பனையுடன் ஒப்பிடுங்கள்.',
       settingsDesc: 'கணக்கு விருப்பத்தேர்வுகள், பாதுகாப்பு, அறிவிப்புகள் மற்றும் பயன்பாட்டு அமைப்புகளை நிர்வகிக்கவும்.'
     }
   }

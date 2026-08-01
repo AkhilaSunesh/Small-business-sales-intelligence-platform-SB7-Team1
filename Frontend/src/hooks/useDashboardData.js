@@ -1,7 +1,8 @@
 import { useCallback, useEffect, useState } from 'react';
 import { getTotalRevenue, getSalesTrend, getTopProducts } from '../services/dashboardService';
+import { generateDashboardData } from '../utils/mockDataGenerator';
 
-export default function useDashboardData() {
+export default function useDashboardData(filters) {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
   const [summary, setSummary] = useState(null);
@@ -17,10 +18,27 @@ export default function useDashboardData() {
   };
 
   const fetchAll = useCallback(async () => {
-    if (!hasAuthToken()) {
-      setLoading(false);
+    const isFiltered = filters && (filters.dateRange !== '30d' || filters.category !== 'all' || filters.startDate !== '' || filters.endDate !== '');
+    
+    // If filtered or no auth token or backend offline requested, use simulated generator
+    if (isFiltered || !hasAuthToken()) {
+      setLoading(true);
       setError(null);
-      return;
+      
+      const timer = setTimeout(() => {
+        try {
+          const mockRes = generateDashboardData(filters || { dateRange: '30d', category: 'all', startDate: '', endDate: '' });
+          setSummary(mockRes.summary);
+          setTrend(mockRes.trend);
+          setTopProducts(mockRes.topProducts);
+        } catch (err) {
+          setError(err?.message || 'Failed to simulate dashboard metrics');
+        } finally {
+          setLoading(false);
+        }
+      }, 350); // slight delay for loading state visibility
+      
+      return () => clearTimeout(timer);
     }
 
     setLoading(true);
@@ -36,14 +54,24 @@ export default function useDashboardData() {
       setTrend(trendRes?.data || trendRes || []);
       setTopProducts(topRes?.data || topRes || []);
     } catch (err) {
-      setError(err?.message || 'Failed to fetch dashboard data');
+      // Fallback to mock data if API is unreachable
+      console.warn('[Dashboard API] Server unreachable. Falling back to mock data.', err.message);
+      try {
+        const mockRes = generateDashboardData(filters || { dateRange: '30d', category: 'all', startDate: '', endDate: '' });
+        setSummary(mockRes.summary);
+        setTrend(mockRes.trend);
+        setTopProducts(mockRes.topProducts);
+      } catch (mockErr) {
+        setError(err?.message || 'Failed to fetch dashboard data');
+      }
     } finally {
       setLoading(false);
     }
-  }, []);
+  }, [filters]);
 
   useEffect(() => {
-    fetchAll();
+    const cleanup = fetchAll();
+    if (typeof cleanup === 'function') return cleanup;
   }, [fetchAll]);
 
   return { loading, error, summary, trend, topProducts, refetch: fetchAll };

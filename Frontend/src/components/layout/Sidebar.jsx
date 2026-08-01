@@ -34,6 +34,7 @@ const iconMap = {
   recommendations: FiZap,
   anomalyAlerts: FiAlertTriangle,
   forecastReports: FiTrendingUp,
+  forecastVsActual: FiTrendingUp,
   businessOverview: FiBriefcase,
 };
 

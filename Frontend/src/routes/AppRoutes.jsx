@@ -15,6 +15,7 @@ import CustomerInsightsPage from '../pages/CustomerInsights';
 import RecommendationsPage from '../pages/Recommendations';
 import AnomalyAlertsPage from '../pages/AnomalyAlerts';
 import ForecastReportsPage from '../pages/ForecastReports';
+import ForecastVsActualPage from '../pages/ForecastVsActual';
 import NotFoundPage from '../pages/NotFound';
 import ProtectedRoute from '../components/common/ProtectedRoute';
 import RoleGuard from '../components/common/RoleGuard';
@@ -47,6 +48,14 @@ function AppRoutes() {
         <Route path="/recommendations" element={<RecommendationsPage />} />
         <Route path="/anomalies" element={<AnomalyAlertsPage />} />
         <Route path="/forecasts" element={<ForecastReportsPage />} />
+        <Route
+          path="/forecast-vs-actual"
+          element={
+            <RoleGuard allowedRoles={['Owner', 'Store Manager']}>
+              <ForecastVsActualPage />
+            </RoleGuard>
+          }
+        />
         <Route path="/upload" element={<UploadPage />} />
         <Route path="/inventory" element={<InventoryPage />} />
         <Route path="/reports" element={<ReportsPage />} />

@@ -47,6 +47,7 @@ function InvoiceFilters({
           <select
             value={statusFilter}
             onChange={(e) => setStatusFilter(e.target.value)}
+            aria-label="Filter Status"
             className="w-full appearance-none rounded-xl border border-white/10 bg-white/5 px-4 py-3 text-xs text-slate-300 outline-none transition focus:border-cyan-400/50 cursor-pointer"
           >
             <option value="" disabled className="bg-slate-900 text-slate-500">Payment Status</option>
@@ -63,6 +64,7 @@ function InvoiceFilters({
           <select
             value={methodFilter}
             onChange={(e) => setMethodFilter(e.target.value)}
+            aria-label="Filter Method"
             className="w-full appearance-none rounded-xl border border-white/10 bg-white/5 px-4 py-3 text-xs text-slate-300 outline-none transition focus:border-cyan-400/50 cursor-pointer"
           >
             <option value="" disabled className="bg-slate-900 text-slate-500">Payment Method</option>

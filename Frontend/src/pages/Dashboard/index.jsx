@@ -1,3 +1,4 @@
+import { useState } from 'react';
 import { usePageTitle } from '../../hooks/usePageTitle';
 import StatCard from '../../components/common/StatCard';
 import SalesTrendChart from '../../components/ui/SalesTrendChart';
@@ -6,14 +7,47 @@ import useDashboardData from '../../hooks/useDashboardData';
 import { FiAlertTriangle, FiRefreshCw, FiInbox } from 'react-icons/fi';
 import Button from '../../components/ui/Button';
 
+import DashboardFilters from '../../components/ui/DashboardFilters';
+import DrillDownModal from '../../components/ui/DrillDownModal';
+
 function DashboardPage() {
   usePageTitle('Dashboard');
-  const { loading, error, summary, trend, topProducts, refetch } = useDashboardData();
+
+  // Filter state
+  const [filters, setFilters] = useState({
+    dateRange: '30d',
+    category: 'all',
+    startDate: '',
+    endDate: '',
+  });
+
+  // Drill-down Modal State
+  const [modalOpen, setModalOpen] = useState(false);
+  const [modalTitle, setModalTitle] = useState('');
+  const [modalType, setModalType] = useState('general');
+  const [modalId, setModalId] = useState('');
+
+  const { loading, error, summary, trend, topProducts, refetch } = useDashboardData(filters);
 
   const stats = summary || {};
-
   const salesData = trend && trend.length > 0 ? trend : [];
   const products = topProducts && topProducts.length > 0 ? topProducts : [];
+
+  const handleOpenDrillDown = (type, id, title) => {
+    setModalType(type);
+    setModalId(id);
+    setModalTitle(title);
+    setModalOpen(true);
+  };
+
+  const handleResetFilters = () => {
+    setFilters({
+      dateRange: '30d',
+      category: 'all',
+      startDate: '',
+      endDate: '',
+    });
+  };
 
   return (
     <div className="space-y-6">
@@ -29,6 +63,13 @@ function DashboardPage() {
           </Button>
         )}
       </section>
+
+      {/* Filters Toolbar */}
+      <DashboardFilters
+        filters={filters}
+        onChange={setFilters}
+        onReset={handleResetFilters}
+      />
 
       {/* CORE DISPLAY ROUTING */}
       {error ? (
@@ -56,12 +97,22 @@ function DashboardPage() {
         <section className="grid gap-6 lg:grid-cols-3">
           <div className="lg:col-span-2 space-y-6">
             <div className="grid gap-6 sm:grid-cols-2">
-              <StatCard label="Total Revenue" value={stats.totalRevenue} helper="+6.2% vs last month" loading={loading} />
-              <StatCard label="Total Orders" value={stats.totalOrders} helper="+2.1% vs last month" accent="emerald" loading={loading} />
+              <div
+                onClick={() => handleOpenDrillDown('kpi', 'Total Revenue', 'Revenue Transactions')}
+                className="cursor-pointer transition hover:scale-[1.01]"
+              >
+                <StatCard label="Total Revenue" value={stats.totalRevenue} helper="Aggregated store earnings" loading={loading} />
+              </div>
+              <div
+                onClick={() => handleOpenDrillDown('kpi', 'Total Orders', 'Order Logs')}
+                className="cursor-pointer transition hover:scale-[1.01]"
+              >
+                <StatCard label="Total Orders" value={stats.totalOrders} helper="Orders volume processed" accent="emerald" loading={loading} />
+              </div>
             </div>
 
             <div className="rounded-3xl border border-white/10 bg-slate-950/80 p-6">
-              <h3 className="text-sm text-slate-350 font-medium mb-4">Daily Sales (last 30 days)</h3>
+              <h3 className="text-sm text-slate-350 font-medium mb-4">Sales Trend</h3>
               {loading ? (
                 <div className="h-56 animate-pulse rounded-2xl bg-white/5" />
               ) : salesData.length === 0 ? (
@@ -70,15 +121,31 @@ function DashboardPage() {
                   <p className="text-xs">No sales transaction records found.</p>
                 </div>
               ) : (
-                <SalesTrendChart data={salesData} loading={loading} />
+                <SalesTrendChart
+                  data={salesData}
+                  loading={loading}
+                  onElementClick={(dateVal) =>
+                    handleOpenDrillDown('date', dateVal, `Daily Sales - ${dateVal}`)
+                  }
+                />
               )}
             </div>
           </div>
 
           <aside className="space-y-6">
             <div className="grid gap-4">
-              <StatCard label="Avg Order Value" value={stats.avgOrderValue} helper="Based on last 30 days" accent="amber" loading={loading} />
-              <StatCard label="Active Products" value={stats.activeProducts} helper="Products in catalog" loading={loading} />
+              <div
+                onClick={() => handleOpenDrillDown('kpi', 'Average Order Value', 'Average Basket Value Logs')}
+                className="cursor-pointer transition hover:scale-[1.01]"
+              >
+                <StatCard label="Avg Order Value" value={stats.avgOrderValue} helper="Computed average transaction" accent="amber" loading={loading} />
+              </div>
+              <div
+                onClick={() => handleOpenDrillDown('kpi', 'Active Products', 'Catalog Items List')}
+                className="cursor-pointer transition hover:scale-[1.01]"
+              >
+                <StatCard label="Active Products" value={stats.activeProducts} helper="Products currently active" loading={loading} />
+              </div>
             </div>
 
             <div className="rounded-3xl border border-white/10 bg-slate-950/80 p-6">
@@ -91,12 +158,28 @@ function DashboardPage() {
                   <p className="text-xs">No active product listings.</p>
                 </div>
               ) : (
-                <TopProductsChart data={products} loading={loading} />
+                <TopProductsChart
+                  data={products}
+                  loading={loading}
+                  onElementClick={(productVal) =>
+                    handleOpenDrillDown('product', productVal, `Product Sales details - ${productVal}`)
+                  }
+                />
               )}
             </div>
           </aside>
         </section>
       )}
+
+      {/* Drill-down Modal */}
+      <DrillDownModal
+        isOpen={modalOpen}
+        onClose={() => setModalOpen(false)}
+        title={modalTitle}
+        drillDownType={modalType}
+        drillDownId={modalId}
+        filters={filters}
+      />
     </div>
   );
 }
