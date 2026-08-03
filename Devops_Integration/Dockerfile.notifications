@@ -1,6 +1,6 @@
 FROM node:18-alpine
 WORKDIR /app
-COPY ./Notifications_Service/package*.json ./
+COPY ./Devops_Integration/Notifications_Service/package*.json ./
 RUN npm install
-COPY ./Notifications_Service .
+COPY ./Devops_Integration/Notifications_Service .
 CMD ["npm", "start"]
