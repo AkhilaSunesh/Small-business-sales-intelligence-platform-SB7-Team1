@@ -120,6 +120,20 @@ services:
       postgres:
         condition: service_healthy
 
+  # Notifications Service
+  notifications-service:
+    build:
+      context: ../
+      dockerfile: Devops_Integration/Dockerfile.notifications
+    container_name: mmind-notifications
+    restart: always
+    environment:
+      PORT: ${NOTIFICATIONS_SERVICE_PORT:-5007}
+    ports:
+      - "${NOTIFICATIONS_SERVICE_PORT:-5007}:5007"
+    networks:
+      - mmind-network
+
   # AI Random Forest
   ai-random-forest:
     build:

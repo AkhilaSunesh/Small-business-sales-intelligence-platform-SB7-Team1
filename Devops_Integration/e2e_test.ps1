@@ -3,6 +3,20 @@
 Write-Host "Waiting for services to be ready..."
 Start-Sleep -Seconds 15 # Wait for containers to start up fully
 
+Write-Host "Testing Database Health..."
+try {
+    $dbCheck = docker exec mmind-postgres pg_isready -U postgres -d marketmind_db
+    if ($LASTEXITCODE -eq 0) {
+        Write-Host "✅ Database is UP"
+    } else {
+        Write-Host "❌ Database is DOWN"
+        exit 1
+    }
+} catch {
+    Write-Host "❌ Database is DOWN ($($_.Exception.Message))"
+    exit 1
+}
+
 Write-Host "Testing Backend Health..."
 try {
     $backendResponse = Invoke-WebRequest -Uri "http://localhost:5000/" -Method Get -UseBasicParsing -ErrorAction Stop
@@ -56,6 +70,20 @@ try {
     }
 } catch {
     Write-Host "❌ Frontend is DOWN ($($_.Exception.Message))"
+    exit 1
+}
+
+Write-Host "Testing Notifications Service Health..."
+try {
+    $notificationsResponse = Invoke-WebRequest -Uri "http://localhost:5007/" -Method Get -UseBasicParsing -ErrorAction Stop
+    if ($notificationsResponse.StatusCode -eq 200) {
+        Write-Host "✅ Notifications Service is UP"
+    } else {
+        Write-Host "❌ Notifications Service is DOWN (HTTP $($notificationsResponse.StatusCode))"
+        exit 1
+    }
+} catch {
+    Write-Host "❌ Notifications Service is DOWN ($($_.Exception.Message))"
     exit 1
 }
 

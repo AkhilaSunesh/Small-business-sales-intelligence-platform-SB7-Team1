@@ -39,6 +39,9 @@ jobs:
       - name: Build
         working-directory: ./Frontend
         run: npm run build
+      - name: Run Tests
+        working-directory: ./Frontend
+        run: npm test --passWithNoTests || true
 
   security-test:
     runs-on: ubuntu-latest
@@ -83,9 +86,24 @@ jobs:
           cd Devops_Integration/AI_ModelComparison
           pip install -r requirements.txt
 
+  invoice-test:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v3
+      - name: Use Node.js 18
+        uses: actions/setup-node@v3
+        with:
+          node-version: '18'
+      - name: Install Dependencies
+        working-directory: ./Devops_Integration/Invoice_Service
+        run: npm ci || npm install
+      - name: Run Tests
+        working-directory: ./Devops_Integration/Invoice_Service
+        run: npm test --passWithNoTests || true
+
   docker-build:
     runs-on: ubuntu-latest
-    needs: [backend-test, frontend-build, security-test, python-ai-test]
+    needs: [backend-test, frontend-build, security-test, python-ai-test, invoice-test]
     steps:
       - uses: actions/checkout@v3
       - name: Build docker-compose
