@@ -78,7 +78,20 @@ export async function getForecastReportsData(range = '6m') {
   throw new Error(response?.data?.message || 'Forecast data could not be loaded.');
 }
 
+export async function getRawForecastData(days, lookback, window = 7) {
+  const response = await api.get('/api/forecast', {
+    params: {
+      days,
+      lookback,
+      window,
+    },
+  });
+  return response.data;
+}
+
 export default {
   getForecastReportsData,
+  getRawForecastData,
 };
+
 

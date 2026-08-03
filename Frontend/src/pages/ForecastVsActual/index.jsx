@@ -29,6 +29,16 @@ import DashboardFilters from '../../components/ui/DashboardFilters';
 import DrillDownModal from '../../components/ui/DrillDownModal';
 import StatCard from '../../components/common/StatCard';
 import { generateForecastVsActualData } from '../../utils/mockDataGenerator';
+import forecastService from '../../services/forecastService';
+
+const CATEGORY_PROFILES = {
+  all: { valMult: 1.0, volMult: 1.0, avgPrice: 35 },
+  Electronics: { valMult: 0.45, volMult: 0.15, avgPrice: 120 },
+  Grocery: { valMult: 0.20, volMult: 0.55, avgPrice: 12 },
+  Fashion: { valMult: 0.22, volMult: 0.18, avgPrice: 55 },
+  Stationery: { valMult: 0.08, volMult: 0.35, avgPrice: 8 },
+  Others: { valMult: 0.05, volMult: 0.12, avgPrice: 22 }
+};
 
 export default function ForecastVsActualPage() {
   usePageTitle('Forecast vs Actual');
@@ -54,19 +64,145 @@ export default function ForecastVsActualPage() {
   const [modalId, setModalId] = useState('');
 
   // Fetch / Generate data when filters change with simulated network latency
-  const loadData = useCallback(() => {
+  const loadData = useCallback(async () => {
     setLoading(true);
-    const timer = setTimeout(() => {
-      if (emptyState) {
+    setErrorState(false);
+
+    if (emptyState) {
+      setData({ summary: {}, items: [] });
+      setLoading(false);
+      return;
+    }
+
+    try {
+      // 1. Calculate lookback window & days points
+      let lookback = 90;
+      let pointsCount = 30;
+      if (filters.dateRange === '7d') {
+        lookback = 30;
+        pointsCount = 7;
+      } else if (filters.dateRange === '30d') {
+        lookback = 90;
+        pointsCount = 30;
+      } else if (filters.dateRange === '3m') {
+        lookback = 120;
+        pointsCount = 90;
+      } else if (filters.dateRange === '6m') {
+        lookback = 200;
+        pointsCount = 180;
+      } else if (filters.dateRange === '1y') {
+        lookback = 365;
+        pointsCount = 300;
+      } else if (filters.dateRange === 'custom' && filters.startDate && filters.endDate) {
+        const s = new Date(filters.startDate);
+        const e = new Date(filters.endDate);
+        const diffDays = Math.max(1, Math.ceil((e - s) / (1000 * 60 * 60 * 24)));
+        pointsCount = diffDays;
+        lookback = Math.min(365, diffDays + 15);
+      }
+
+      // 2. Fetch live data
+      const res = await forecastService.getRawForecastData(30, lookback, 7);
+      const historical = res.historical || [];
+
+      if (historical.length === 0) {
         setData({ summary: {}, items: [] });
-      } else {
+        setLoading(false);
+        return;
+      }
+
+      // 3. Process historical data with category multiplier and client-side SMA forecast
+      const profile = CATEGORY_PROFILES[filters.category] || CATEGORY_PROFILES.all;
+      const valMult = profile.valMult;
+      const volMult = profile.volMult;
+      const windowSize = 7;
+
+      const items = [];
+      const n = historical.length;
+      let startIdx = Math.max(windowSize, n - pointsCount);
+
+      for (let i = startIdx; i < n; i++) {
+        // Actual values
+        const actualRevenue = Math.round((historical[i].revenue || 0) * valMult);
+        const actualSales = Math.round((historical[i].transactions || 0) * volMult) || 1;
+
+        // Forecast values (7-day SMA of preceding windowSize days)
+        const windowSlice = historical.slice(i - windowSize, i);
+        const sumRevenue = windowSlice.reduce((sum, item) => sum + (item.revenue || 0), 0);
+        const sumTransactions = windowSlice.reduce((sum, item) => sum + (item.transactions || 0), 0);
+        
+        const forecastRevenue = Math.round((sumRevenue / windowSize) * valMult);
+        const forecastSales = Math.round((sumTransactions / windowSize) * volMult) || 1;
+
+        const diffRev = actualRevenue - forecastRevenue;
+        const diffSales = actualSales - forecastSales;
+
+        const diffPct = Math.abs(diffRev) / (forecastRevenue || 1);
+        const accuracy = Math.max(50, 100 - (diffPct * 100));
+
+        const dateObj = new Date(historical[i].date + 'T00:00:00Z');
+        const label = dateObj.toLocaleDateString('en-US', { month: 'short', day: 'numeric', timeZone: 'UTC' });
+
+        items.push({
+          date: label,
+          rawDate: historical[i].date,
+          forecastRevenue,
+          actualRevenue,
+          forecastSales,
+          actualSales,
+          differenceRevenue: diffRev,
+          differenceSales: diffSales,
+          accuracyPct: accuracy,
+        });
+      }
+
+      // 4. Calculate summaries
+      let totalForecastRev = 0;
+      let totalActualRev = 0;
+      let totalForecastVol = 0;
+      let totalActualVol = 0;
+
+      for (const item of items) {
+        totalForecastRev += item.forecastRevenue;
+        totalActualRev += item.actualRevenue;
+        totalForecastVol += item.forecastSales;
+        totalActualVol += item.actualSales;
+      }
+
+      const accuracyPct = totalForecastRev > 0 
+        ? Math.max(50, 100 - (Math.abs(totalActualRev - totalForecastRev) / totalForecastRev * 100)) 
+        : 95.5;
+
+      const growthRate = items.length > 1 
+        ? ((items[items.length - 1].actualRevenue - items[0].actualRevenue) / (items[0].actualRevenue || 1)) * 100 
+        : 5.5;
+
+      const summary = {
+        totalForecastRevenue: `$${totalForecastRev.toLocaleString()}`,
+        totalActualRevenue: `$${totalActualRev.toLocaleString()}`,
+        forecastAccuracy: `${accuracyPct.toFixed(1)}%`,
+        revenueDifference: `${totalActualRev >= totalForecastRev ? '+' : ''}${(totalActualRev - totalForecastRev).toLocaleString()}`,
+        salesDifference: `${totalActualVol >= totalForecastVol ? '+' : ''}${(totalActualVol - totalForecastVol).toLocaleString()} units`,
+        growthPercent: `${growthRate >= 0 ? '+' : ''}${growthRate.toFixed(1)}%`,
+        rawRevenueDiff: totalActualRev - totalForecastRev,
+        rawSalesDiff: totalActualVol - totalForecastVol,
+      };
+
+      setData({ summary, items });
+    } catch (err) {
+      console.error('Failed to load live forecast vs actual telemetry:', err);
+      setErrorState(true);
+      
+      // Fallback to local mock generator
+      try {
         const result = generateForecastVsActualData(filters);
         setData(result);
+      } catch (mockErr) {
+        // ignore
       }
+    } finally {
       setLoading(false);
-    }, 450); // subtle delay for smooth UX transition
-
-    return () => clearTimeout(timer);
+    }
   }, [filters, emptyState]);
 
   useEffect(() => {
