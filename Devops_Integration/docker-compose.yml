@@ -184,7 +184,7 @@ services:
       context: ../
       dockerfile: Devops_Integration/Dockerfile.frontend
       args:
-        VITE_API_BASE_URL: ${VITE_API_BASE_URL:-http://localhost:5000}
+        VITE_API_BASE_URL: ${VITE_API_BASE_URL:-http://localhost:6000}
     container_name: mmind-frontend
     restart: always
     ports:
