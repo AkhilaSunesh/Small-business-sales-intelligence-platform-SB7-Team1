@@ -1,5 +1,6 @@
 import { createContext, useContext, useState, useEffect, useCallback, useMemo } from 'react';
 import { useAppContext } from './AppContext';
+import notificationService from '../services/notificationService';
 
 const NotificationContext = createContext(null);
 
@@ -43,20 +44,85 @@ export function NotificationProvider({ children }) {
   const [isDrawerOpen, setIsDrawerOpen] = useState(false);
 
   // Initialize notifications based on user role
-  const loadNotificationsForRole = useCallback((role) => {
+  const loadNotificationsForRole = useCallback(async (role) => {
     setLoading(true);
     setError(null);
+    try {
+      const res = await notificationService.getNotifications({ page: 1, limit: 100 });
+      const liveItems = (res && res.data) || [];
 
-    // Simulate database/API delay
-    const timer = setTimeout(() => {
-      const roleKey = role || 'Owner';
-      const items = MOCK_NOTIFICATIONS[roleKey] || [];
-      // Deep copy to allow mutation in memory
-      setNotifications(items.map(item => ({ ...item })));
+      // Map live items from backend to UI format
+      const mappedLiveItems = liveItems.map((item, idx) => {
+        const isLowStock = item.type === 'LOW_STOCK';
+        const priority = item.severity === 'CRITICAL' ? 'critical' : 'high';
+        const category = isLowStock ? 'inventory' : 'invoice';
+        const id = isLowStock 
+          ? `live-stock-${item.productId || idx}` 
+          : `live-invoice-${item.invoiceId || idx}`;
+
+        return {
+          id,
+          title: isLowStock ? `Low Stock: ${item.productName}` : `Overdue Invoice: ${item.invoiceNumber}`,
+          description: item.message,
+          time: isLowStock ? 'Recent' : `${item.daysOverdue} days overdue`,
+          priority,
+          category,
+          read: false,
+        };
+      });
+
+      // Filter live items based on user role
+      let roleKey = role || 'Owner';
+      let filteredLive = mappedLiveItems;
+      if (roleKey === 'Store Manager') {
+        filteredLive = mappedLiveItems.filter(item => item.category === 'inventory');
+      } else if (roleKey === 'Sales Executive') {
+        filteredLive = mappedLiveItems.filter(item => item.category === 'invoice');
+      }
+
+      // Get static items for this role that are NOT inventory/invoice (to support System, Revenue, AI_recommendation, Customer alerts)
+      const staticItems = MOCK_NOTIFICATIONS[roleKey] || [];
+      const filteredStatic = staticItems.filter(
+        item => item.category !== 'inventory' && item.category !== 'invoice'
+      );
+
+      // Merge live items first, then static items
+      const merged = [...filteredLive, ...filteredStatic];
+
+      // Retrieve read and deleted state from localStorage
+      const storedRead = JSON.parse(localStorage.getItem('marketmind:read-notifications') || '[]');
+      const storedDeleted = JSON.parse(localStorage.getItem('marketmind:deleted-notifications') || '[]');
+
+      // Apply read status and filter out deleted notifications
+      const finalNotifications = merged
+        .map(item => ({
+          ...item,
+          read: storedRead.includes(item.id) ? true : item.read,
+        }))
+        .filter(item => !storedDeleted.includes(item.id));
+
+      setNotifications(finalNotifications);
+    } catch (err) {
+      console.error('Failed to load live notifications:', err);
+      setError(err.message || 'Failed to sync notification stream. Remote endpoint refused gateway connection.');
+      
+      // Fallback to static mock notifications if API fails
+      let roleKey = role || 'Owner';
+      const staticItems = MOCK_NOTIFICATIONS[roleKey] || [];
+      const storedRead = JSON.parse(localStorage.getItem('marketmind:read-notifications') || '[]');
+      const storedDeleted = JSON.parse(localStorage.getItem('marketmind:deleted-notifications') || '[]');
+
+      const finalNotifications = staticItems
+        .map(item => ({
+          ...item,
+          read: storedRead.includes(item.id) ? true : item.read,
+        }))
+        .filter(item => !storedDeleted.includes(item.id));
+
+      setNotifications(finalNotifications);
+    } finally {
       setLoading(false);
-    }, 500);
-
-    return () => clearTimeout(timer);
+    }
   }, []);
 
   // Sync on login/role change
@@ -78,18 +144,60 @@ export function NotificationProvider({ children }) {
     setNotifications(prev =>
       prev.map(n => (n.id === id ? { ...n, read: true } : n))
     );
+    try {
+      const storedRead = JSON.parse(localStorage.getItem('marketmind:read-notifications') || '[]');
+      if (!storedRead.includes(id)) {
+        storedRead.push(id);
+        localStorage.setItem('marketmind:read-notifications', JSON.stringify(storedRead));
+      }
+    } catch (e) {
+      console.error(e);
+    }
   }, []);
 
   const markAllAsRead = useCallback(() => {
-    setNotifications(prev => prev.map(n => ({ ...n, read: true })));
+    setNotifications(prev => {
+      try {
+        const ids = prev.map(n => n.id);
+        const storedRead = JSON.parse(localStorage.getItem('marketmind:read-notifications') || '[]');
+        ids.forEach(id => {
+          if (!storedRead.includes(id)) storedRead.push(id);
+        });
+        localStorage.setItem('marketmind:read-notifications', JSON.stringify(storedRead));
+      } catch (e) {
+        console.error(e);
+      }
+      return prev.map(n => ({ ...n, read: true }));
+    });
   }, []);
 
   const deleteNotification = useCallback((id) => {
     setNotifications(prev => prev.filter(n => n.id !== id));
+    try {
+      const storedDeleted = JSON.parse(localStorage.getItem('marketmind:deleted-notifications') || '[]');
+      if (!storedDeleted.includes(id)) {
+        storedDeleted.push(id);
+        localStorage.setItem('marketmind:deleted-notifications', JSON.stringify(storedDeleted));
+      }
+    } catch (e) {
+      console.error(e);
+    }
   }, []);
 
   const clearAll = useCallback(() => {
-    setNotifications([]);
+    setNotifications(prev => {
+      try {
+        const ids = prev.map(n => n.id);
+        const storedDeleted = JSON.parse(localStorage.getItem('marketmind:deleted-notifications') || '[]');
+        ids.forEach(id => {
+          if (!storedDeleted.includes(id)) storedDeleted.push(id);
+        });
+        localStorage.setItem('marketmind:deleted-notifications', JSON.stringify(storedDeleted));
+      } catch (e) {
+        console.error(e);
+      }
+      return [];
+    });
   }, []);
 
   // Force-trigger error state for UI demonstration

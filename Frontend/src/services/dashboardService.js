@@ -20,4 +20,10 @@ export async function getTopProducts() {
   return res.data;
 }
 
-export default { getDashboardSummary, getTotalRevenue, getSalesTrend, getTopProducts };
+export async function getAuditSummary(limit = 5) {
+  const res = await api.get(`/api/audit-summary?limit=${limit}`);
+  return res.data;
+}
+
+export default { getDashboardSummary, getTotalRevenue, getSalesTrend, getTopProducts, getAuditSummary };
+
