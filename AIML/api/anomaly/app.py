@@ -32,6 +32,13 @@ def home():
     })
 
 
+@app.route("/health")
+def health():
+    return jsonify({
+        "status": "UP"
+    }), 200
+
+
 # ── Gateway-compatible endpoint: GET /anomaly-detection ──────────────────────
 # Called by Security_API_gateway at /api/anomaly-detection
 @app.route("/anomaly-detection", methods=["GET"])
@@ -101,4 +108,9 @@ def detect_anomaly(customer_id):
 
 
 if __name__ == "__main__":
-    app.run(debug=True, port=5013)
+    app.run(
+        host="0.0.0.0",
+        port=5013,
+        debug=False,
+        threaded=True
+    )
