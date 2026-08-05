@@ -32,6 +32,13 @@ def home():
     })
 
 
+@app.route("/health")
+def health():
+    return jsonify({
+        "status": "UP"
+    }), 200
+
+
 # ── Gateway-compatible endpoint: GET /recommendations ────────────────────────
 # Called by Security_API_gateway at /api/recommendations
 @app.route("/recommendations", methods=["GET"])
@@ -88,4 +95,9 @@ def recommend(product_id):
 
 
 if __name__ == "__main__":
-    app.run(debug=True, port=5012)
+    app.run(
+        host="0.0.0.0",
+        port=5012,
+        debug=False,
+        threaded=True
+    )
