@@ -32,6 +32,13 @@ def home():
     })
 
 
+@app.route("/health")
+def health():
+    return jsonify({
+        "status": "UP"
+    }), 200
+
+
 # ── Gateway-compatible endpoint: GET /churn ───────────────────────────────────
 # Called by Security_API_gateway at /api/churn
 @app.route("/churn", methods=["GET"])
@@ -106,4 +113,9 @@ def predict_churn(customer_id):
 
 
 if __name__ == "__main__":
-    app.run(debug=True, port=5011)
+    app.run(
+        host="0.0.0.0",
+        port=5011,
+        debug=False,
+        threaded=True
+    )
