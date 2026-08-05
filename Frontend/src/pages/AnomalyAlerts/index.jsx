@@ -20,7 +20,51 @@ function AnomalyAlertsPage() {
     try {
       const res = await alertService.getAnomalyAlerts();
       if (res && res.success && Array.isArray(res.data)) {
-        setAlerts(res.data);
+        // Map backend transaction-level anomaly data to UI-friendly alerts
+        const mappedAlerts = res.data.map((item, idx) => {
+          const isAnomaly = String(item.Anomaly).toLowerCase() === 'anomaly' || 
+                            String(item.Anomaly).toLowerCase() === 'true' || 
+                            String(item.Anomaly) === '1' ||
+                            String(item.Anomaly).toLowerCase() === 'yes';
+          
+          const totalAmt = Number(item.TotalAmount || 0);
+          
+          // Classify severity based on the total transaction amount
+          let severity = 'Info';
+          if (isAnomaly) {
+            severity = totalAmt > 300 ? 'Critical' : 'Warning';
+          }
+          
+          // Create human-readable title and description
+          const title = `Unusual transaction for Customer #${item.CustomerID || 'Unknown'}`;
+          const description = `Suspicious activity detected in ${item.ProductCategory || 'general category'} at ${item.StoreLocation || 'store'}. Quantity: ${item.Quantity || 0}, total amount: $${totalAmt.toFixed(2)} (anomaly status: ${item.Anomaly || 'flagged'}).`;
+          
+          // Format date cleanly
+          let formattedDate = 'N/A';
+          if (item.TransactionDate) {
+            try {
+              const dateObj = new Date(item.TransactionDate);
+              if (!isNaN(dateObj.getTime())) {
+                formattedDate = dateObj.toISOString().split('T')[0];
+              } else {
+                formattedDate = String(item.TransactionDate).split(' ')[0] || item.TransactionDate;
+              }
+            } catch (e) {
+              formattedDate = item.TransactionDate;
+            }
+          }
+
+          return {
+            id: item.CustomerID ? `${item.CustomerID}-${idx}` : `alert-${idx}`,
+            title,
+            description,
+            severity,
+            date: formattedDate,
+            category: item.ProductCategory || 'Anomaly',
+            ...item
+          };
+        });
+        setAlerts(mappedAlerts);
       } else {
         throw new Error('Invalid anomalies response format.');
       }
@@ -37,14 +81,14 @@ function AnomalyAlertsPage() {
     fetchAnomalyAlerts();
   }, [fetchAnomalyAlerts]);
 
-  // Filter alerts by search term (title or description)
+  // Filter alerts by search term (title or description) with safe validation
   const filteredAlerts = useMemo(() => {
     if (!searchTerm.trim()) return alerts;
     const term = searchTerm.toLowerCase();
     return alerts.filter(
       (alert) =>
-        alert.title.toLowerCase().includes(term) ||
-        alert.description.toLowerCase().includes(term)
+        (alert.title && alert.title.toLowerCase().includes(term)) ||
+        (alert.description && alert.description.toLowerCase().includes(term))
     );
   }, [alerts, searchTerm]);
 
