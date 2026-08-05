@@ -6,13 +6,31 @@ const { validateKaggleColumns, validateKaggleRow } = require("../utils/csvValida
 const invoiceService = require("../services/invoice.service");
 
 // ─── GET /api/sales ───────────────────────────────────────────────────────────
-// Query params: page, pageSize, customerId, productId, startDate, endDate
+// Query params:
+//   page, limit (alias: pageSize), sort, order
+//   customerId, productId, startDate, endDate, status, category
 exports.getSales = async (req, res) => {
     try {
-        const page     = Math.max(1, parseInt(req.query.page)     || 1);
-        const pageSize = Math.min(100, Math.max(1, parseInt(req.query.pageSize) || 20));
-        const skip     = (page - 1) * pageSize;
+        // ── Pagination ────────────────────────────────────────────────────────
+        const page  = Math.max(1, parseInt(req.query.page, 10) || 1);
+        // Accept both ?limit= and ?pageSize= for backward compatibility
+        const limit = Math.min(100, Math.max(1,
+            parseInt(req.query.limit,    10) ||
+            parseInt(req.query.pageSize, 10) ||
+            20
+        ));
+        const skip = (page - 1) * limit;
 
+        // ── Sorting ───────────────────────────────────────────────────────────
+        const allowedSortFields = {
+            transactionDate: true,
+            totalAmount:     true,
+            quantity:        true
+        };
+        const sortBy    = allowedSortFields[req.query.sort] ? req.query.sort : "transactionDate";
+        const sortOrder = req.query.order === "asc" ? "asc" : "desc";
+
+        // ── Filtering ─────────────────────────────────────────────────────────
         const where = {};
         if (req.query.customerId) where.customerId = req.query.customerId;
         if (req.query.productId)  where.productId  = req.query.productId;
@@ -21,26 +39,49 @@ exports.getSales = async (req, res) => {
             if (req.query.startDate) where.transactionDate.gte = new Date(req.query.startDate);
             if (req.query.endDate)   where.transactionDate.lte = new Date(req.query.endDate);
         }
+        // Filter by product category (join-based — apply via include filter)
+        const productFilter = {};
+        if (req.query.category) {
+            productFilter.category = { contains: req.query.category, mode: "insensitive" };
+        }
+
+        // ── Query ─────────────────────────────────────────────────────────────
+        const includeBlock = {
+            customer: { select: { id: true, name: true, customerCode: true } },
+            product:  {
+                select: { id: true, name: true, productCode: true, category: true },
+                // Apply category filter at include level if provided
+                ...(req.query.category ? { where: productFilter } : {})
+            },
+            user:     { select: { id: true, name: true, email: true } }
+        };
 
         const [total, sales] = await Promise.all([
             prisma.salesTransaction.count({ where }),
             prisma.salesTransaction.findMany({
                 where,
                 skip,
-                take: pageSize,
-                orderBy: { transactionDate: "desc" },
-                include: {
-                    customer: { select: { id: true, name: true, customerCode: true } },
-                    product:  { select: { id: true, name: true, productCode: true, category: true } },
-                    user:     { select: { id: true, name: true, email: true } }
-                }
+                take:    limit,
+                orderBy: { [sortBy]: sortOrder },
+                include: includeBlock
             })
         ]);
 
+        // If category filter was applied, filter in-memory (Prisma include-where
+        // only filters the included records, not the parent rows)
+        const filteredSales = req.query.category
+            ? sales.filter(s => s.product !== null)
+            : sales;
+
         return res.status(200).json({
             success: true,
-            data: sales,
-            pagination: { total, page, pageSize, totalPages: Math.ceil(total / pageSize) }
+            data: filteredSales,
+            pagination: {
+                total,
+                page,
+                limit,
+                totalPages: Math.ceil(total / limit)
+            }
         });
     } catch (error) {
         console.error(error);

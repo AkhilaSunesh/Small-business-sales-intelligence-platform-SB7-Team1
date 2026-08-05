@@ -10,11 +10,17 @@ const Joi = require("joi");
 // ─── GET /api/sales query params ──────────────────────────────────────────────
 const salesQuerySchema = Joi.object({
     page:       Joi.number().integer().min(1).default(1),
-    pageSize:   Joi.number().integer().min(1).max(100).default(20),
+    // Accept both ?limit= and ?pageSize= — frontend may use either
+    limit:      Joi.number().integer().min(1).max(100).default(20),
+    pageSize:   Joi.number().integer().min(1).max(100).optional(),
+    sort:       Joi.string().valid("transactionDate", "totalAmount", "quantity").optional(),
+    order:      Joi.string().valid("asc", "desc").optional(),
     customerId: Joi.string().uuid().optional(),
     productId:  Joi.string().uuid().optional(),
     startDate:  Joi.date().iso().optional(),
-    endDate:    Joi.date().iso().min(Joi.ref("startDate")).optional()
+    endDate:    Joi.date().iso().optional(),
+    status:     Joi.string().optional(),
+    category:   Joi.string().optional()
 }).options({ allowUnknown: false });
 
 const validateSalesQuery = (req, res, next) => {

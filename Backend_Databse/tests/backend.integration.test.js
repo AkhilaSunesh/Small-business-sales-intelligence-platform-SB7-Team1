@@ -164,6 +164,23 @@ describe("GET /api/sales", () => {
         expect(res.body.pagination).toHaveProperty("total");
         expect(res.body.pagination).toHaveProperty("totalPages");
     });
+
+    test("accepts ?limit= as alias for ?pageSize=", async () => {
+        const res = await request(app)
+            .get("/api/sales?page=1&limit=20")
+            .set("Authorization", `Bearer ${makeToken()}`);
+        expect(res.statusCode).toBe(200);
+        expect(res.body.success).toBe(true);
+        expect(res.body.pagination).toHaveProperty("limit");
+        expect(res.body.pagination.limit).toBe(20);
+    });
+
+    test("accepts sort and order params", async () => {
+        const res = await request(app)
+            .get("/api/sales?sort=totalAmount&order=asc")
+            .set("Authorization", `Bearer ${makeToken()}`);
+        expect(res.statusCode).toBe(200);
+    });
 });
 
 describe("GET /api/sales/:id — not found", () => {
