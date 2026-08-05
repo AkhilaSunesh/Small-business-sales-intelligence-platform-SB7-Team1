@@ -23,7 +23,7 @@ const authenticate = (req, res, next) => {
     try {
        const decoded = jwt.verify(token, process.env.JWT_SECRET);
 
-if (!decoded.id) {
+if (!decoded.id || !decoded.roleId) {
     logEvent("warn", "Unauthorized Access", {
         userId: "anonymous",
         ip: req.ip || req.headers["x-forwarded-for"],
