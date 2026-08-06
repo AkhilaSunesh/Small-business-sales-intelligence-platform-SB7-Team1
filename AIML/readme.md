@@ -286,3 +286,58 @@ Returns:
 **Module:** Artificial Intelligence & Machine Learning
 
 **Status:** Milestone 2 Completed
+
+---
+
+# Milestone 3
+
+## Day 1 – AI Enhancement Planning
+
+Milestone 3 Day 1 focused on reviewing the existing AI modules developed in Milestone 1 and Milestone 2 and preparing the implementation plan for the upcoming enhancements.
+
+### Activities Completed
+
+- Reviewed the baseline Sales Forecasting implementation.
+- Reviewed the existing Customer Segmentation module.
+- Reviewed the existing Customer Churn Prediction module.
+- Reviewed the existing Product Recommendation module.
+- Reviewed the existing Anomaly Detection module.
+- Prepared enhancement plans for all five AI components.
+- Confirmed reuse of the existing Retail Transaction Dataset for all future improvements.
+- Confirmed that no new dataset will be collected or introduced during Milestone 3.
+
+### Existing AI Modules Reviewed
+
+| Module | Current Implementation |
+|---------|------------------------|
+| Sales Forecasting | Facebook Prophet (Baseline) |
+| Customer Segmentation | K-Means Clustering |
+| Churn Prediction | Rule-Based Customer Inactivity |
+| Product Recommendation | Purchase Frequency Based Recommendation |
+| Anomaly Detection | Statistical 3σ Rule |
+
+### Planned Milestone 3 Enhancements
+
+- Improve forecasting model performance while maintaining compatibility with the existing API.
+- Improve customer segmentation accuracy using the existing dataset.
+- Refine churn prediction to improve identification of at-risk customers.
+- Enhance product recommendation quality using the existing transaction data.
+- Improve anomaly detection accuracy while preserving the current integration.
+
+### Dataset Confirmation
+
+- Existing Retail Transaction Dataset will continue to be used.
+- Existing preprocessing pipeline will be reused.
+- No additional dataset collection is planned for Milestone 3.
+
+### Day 1 Status
+
+✅ Existing AI modules reviewed
+
+✅ Milestone 3 enhancement plan prepared
+
+✅ Dataset reuse confirmed
+
+✅ Day 1 planning completed
+
+---
