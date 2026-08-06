@@ -333,11 +333,29 @@ Milestone 3 Day 1 focused on reviewing the existing AI modules developed in Mile
 ### Day 1 Status
 
 ✅ Existing AI modules reviewed
-
 ✅ Milestone 3 enhancement plan prepared
-
 ✅ Dataset reuse confirmed
-
 ✅ Day 1 planning completed
 
----
+## Day 2 – Improved Sales Forecasting
+
+Implemented an improved sales forecasting model using **Random Forest Regressor** on the existing historical sales dataset while preserving the baseline Prophet model for future comparison.
+
+### Achievements
+
+- Trained Random Forest forecasting model
+- Reused existing preprocessed dataset
+- Model evaluated using MAE and RMSE
+- Saved model as `improved_sales_forecast.pkl`
+
+### Performance
+
+| Metric | Value |
+|---------|------:|
+| MAE | 1.53 |
+| RMSE | 5.91 |
+
+### Status
+
+✅ Improved forecasting model trained
+✅ Model saved successfully
