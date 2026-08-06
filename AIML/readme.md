@@ -359,3 +359,19 @@ Implemented an improved sales forecasting model using **Random Forest Regressor*
 
 ✅ Improved forecasting model trained
 ✅ Model saved successfully
+
+## Day 3 – Forecast Model Comparison
+
+Compared the baseline Prophet model with the improved Random Forest model using the same dataset and evaluation metrics.
+
+| Model | MAE | RMSE |
+|------|----:|-----:|
+| Prophet | 807.52 | 944.37 |
+| Random Forest | 1.53 | 5.91 |
+
+**Status**
+
+✅ Model comparison completed
+✅ Random Forest selected as the preferred forecasting model
+
+---
