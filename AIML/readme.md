@@ -364,10 +364,10 @@ Implemented an improved sales forecasting model using **Random Forest Regressor*
 
 Compared the baseline Prophet model with the improved Random Forest model using the same dataset and evaluation metrics.
 
-| Model | MAE | RMSE |
+| Model | MAE | RMSE | R2 SCORE |
 |------|----:|-----:|
-| Prophet | 807.52 | 944.37 |
-| Random Forest | 1.53 | 5.91 |
+| Prophet | 807.52 | 944.37 ||
+| Random Forest | 1.53 | 5.91 |0.9992|
 
 **Status**
 
