@@ -395,5 +395,36 @@ Compared the baseline Prophet model with the improved Random Forest model using 
 - Davies-Bouldin Index: **0.9238**
 
 ### Output
-
 - `improved_customer_segmentation.csv`
+
+
+### Day 7 – Recommendation Engine Improvement
+
+The Milestone 2 recommendation engine used a popularity-based approach, recommending products based on their overall purchase frequency.
+
+For Milestone 3, the recommendation logic was improved using customer-level co-purchase behavior. Products purchased by the same customer were grouped into product pairs, and the frequency of each pair was calculated.
+
+#### Improvement
+
+- Baseline: Global product popularity
+- Improved: Customer-level co-purchase frequency
+- Co-purchase support was calculated for product associations.
+- The same products were tested using both recommendation approaches.
+- No new dataset was introduced; the existing seeded dataset was reused.
+
+#### Validation Results
+
+| Metric | Milestone 2 Baseline | Milestone 3 Improved |
+|---|---:|---:|
+| Average Top-1 Co-Purchase | 591.5 | 633.0 |
+| Relative Improvement | - | 7.02% |
+
+The improved recommendation engine increased the average co-purchase strength of the top-ranked recommendation from **591.5 to 633.0**, representing a **7.02% improvement**.
+
+Because the dataset contains only four products and does not contain ground-truth recommendation labels, conventional classification metrics such as accuracy, precision, recall, and F1-score were not used. Co-purchase frequency and support were used as the validation measures instead.
+
+#### Output Files
+
+- `11_Improved_Product_Recommendation.ipynb`
+- `improved_product_recommendations.csv`
+- `improved_product_recommendations.pkl`
