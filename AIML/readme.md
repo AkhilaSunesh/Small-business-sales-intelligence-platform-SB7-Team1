@@ -375,3 +375,25 @@ Compared the baseline Prophet model with the improved Random Forest model using 
 ✅ Random Forest selected as the preferred forecasting model
 
 ---
+
+## Milestone 3 - Day 5 (Customer Segmentation Improvement)
+
+### Improvements over Milestone 2
+
+| Milestone 2 | Milestone 3 |
+|--------------|-------------|
+| Used only Total Spent, Quantity Purchased and Purchase Frequency for customer segmentation. | Added Average Order Value, Average Quantity Per Transaction and Recency for richer customer profiling. |
+| Performed K-Means clustering without validating cluster quality. | Evaluated clustering using Silhouette Score, Calinski-Harabasz Score and Davies-Bouldin Index. |
+| No justification for the selected number of clusters. | Used the Elbow Method to validate the choice of 3 clusters. |
+| Generated only the baseline customer segmentation dataset. | Generated an improved customer segmentation dataset while preserving the original Milestone 2 output. |
+
+### Model Evaluation
+
+- Number of Clusters: **3**
+- Silhouette Score: **0.3976**
+- Calinski-Harabasz Score: **59461.03**
+- Davies-Bouldin Index: **0.9238**
+
+### Output
+
+- `improved_customer_segmentation.csv`
