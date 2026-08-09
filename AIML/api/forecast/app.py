@@ -1,5 +1,5 @@
 """
-Sales Forecast API  (FastAPI + Prophet)
+Sales Forecast API
 Port: 5014
 Gateway route: GET /api/forecast → http://localhost:5014/forecast
 
@@ -16,7 +16,7 @@ import pandas as pd
 
 app = FastAPI(
     title="MarketMind AI — Sales Forecast API",
-    description="Baseline Sales Forecasting with Prophet",
+    description="Improved sales forecasting using the latest trained model",
     version="1.0"
 )
 
@@ -29,11 +29,11 @@ app.add_middleware(
 
 # ── Model loading ─────────────────────────────────────────────────────────────
 _BASE  = os.path.dirname(os.path.abspath(__file__))
-_MODEL = os.path.join(_BASE, "..", "..", "models", "prophet_sales_forecast.pkl")
+_MODEL = os.path.join(_BASE, "..", "..", "models", "improved_sales_forecast.pkl")
 
 try:
     model = joblib.load(_MODEL)
-    print(f"[forecast] Prophet model loaded from {_MODEL}")
+    print(f"[forecast] Improved sales forecast model loaded from {_MODEL}")
     _MODEL_LOADED = True
 except Exception as e:
     print(f"[forecast] WARNING: could not load model — {e}")
@@ -65,26 +65,42 @@ def forecast_get(
             "period": days
         }
 
-    future   = model.make_future_dataframe(periods=days, freq="D")
+    future = model.make_future_dataframe(periods=days, freq="D")
     forecast = model.predict(future)
-    result   = forecast[["ds", "yhat", "yhat_lower", "yhat_upper"]].tail(days)
+    result = forecast[["ds", "yhat", "yhat_lower", "yhat_upper"]].tail(days)
 
-    # Convert Timestamps to ISO strings for JSON serialisation
     records = []
     for _, row in result.iterrows():
+        yhat = float(row["yhat"])
+        lower = float(row["yhat_lower"])
+        upper = float(row["yhat_upper"])
+        width = max(0.0, upper - lower)
+        base = max(abs(yhat), 1.0)
+        confidence = round(max(25.0, min(99.0, 100.0 - (width / base) * 100.0)), 1)
+
         records.append({
-            "date":           row["ds"].strftime("%Y-%m-%d"),
-            "forecastRevenue": round(float(row["yhat"]), 2),
-            "lowerBound":     round(float(row["yhat_lower"]), 2),
-            "upperBound":     round(float(row["yhat_upper"]), 2)
+            "date": row["ds"].strftime("%Y-%m-%d"),
+            "forecastRevenue": round(yhat, 2),
+            "lowerBound": round(lower, 2),
+            "upperBound": round(upper, 2),
+            "confidence": confidence
         })
 
-    return {
-        "success":     True,
-        "period":      days,
+    average_confidence = (
+        round(float(sum(item["confidence"] for item in records) / len(records)), 1)
+        if records else None
+    )
+
+    response = {
+        "success": True,
+        "period": days,
         "generatedAt": pd.Timestamp.now().isoformat(),
-        "forecast":    records
+        "forecast": records
     }
+    if average_confidence is not None:
+        response["confidence"] = average_confidence
+
+    return response
 
 
 # ── Original POST /forecast (kept for backward compatibility) ─────────────────
