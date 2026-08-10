@@ -18,13 +18,10 @@ export default function useDashboardData(filters) {
   };
 
   const fetchAll = useCallback(async () => {
-    const isFiltered = filters && (filters.dateRange !== '30d' || filters.category !== 'all' || filters.startDate !== '' || filters.endDate !== '');
-    
-    // If filtered or no auth token or backend offline requested, use simulated generator
-    if (isFiltered || !hasAuthToken()) {
+    // If no auth token, we can't fetch from API
+    if (!hasAuthToken()) {
       setLoading(true);
       setError(null);
-      
       const timer = setTimeout(() => {
         try {
           const mockRes = generateDashboardData(filters || { dateRange: '30d', category: 'all', startDate: '', endDate: '' });
@@ -36,8 +33,7 @@ export default function useDashboardData(filters) {
         } finally {
           setLoading(false);
         }
-      }, 350); // slight delay for loading state visibility
-      
+      }, 350);
       return () => clearTimeout(timer);
     }
 
@@ -45,12 +41,12 @@ export default function useDashboardData(filters) {
     setError(null);
     try {
       const [sumRes, trendRes, topRes] = await Promise.all([
-        getTotalRevenue(),
-        getSalesTrend('30d'),
-        getTopProducts(),
+        getDashboardSummary(filters),
+        getSalesTrend(filters),
+        getTopProducts(filters),
       ]);
 
-      setSummary(sumRes || null);
+      setSummary(sumRes?.data || sumRes || null);
       setTrend(trendRes?.data || trendRes || []);
       setTopProducts(topRes?.data || topRes || []);
     } catch (err) {

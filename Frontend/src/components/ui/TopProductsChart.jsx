@@ -22,7 +22,7 @@ export default function TopProductsChart({ data, loading = false, onElementClick
         >
           <CartesianGrid strokeDasharray="3 3" stroke="#0f1724" />
           <XAxis type="number" tick={{ fill: '#94a3b8' }} />
-          <YAxis dataKey="product" type="category" tick={{ fill: '#94a3b8' }} />
+          <YAxis dataKey="product" type="category" tick={{ fill: '#94a3b8' }} width={140} />
           <Tooltip />
           <Bar dataKey="revenue" fill="#06b6d4" />
         </BarChart>

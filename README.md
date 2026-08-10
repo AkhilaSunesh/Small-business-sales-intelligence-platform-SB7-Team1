@@ -1,44 +1,56 @@
-﻿# Small-business-sales-intelligence-platform-SB7-Team1
+# MarketMind AI - Small Business Sales Intelligence Platform
 
 MarketMind AI is an AI-powered sales intelligence platform designed to help small businesses, retail stores, supermarkets, and startups make better business decisions using data and Artificial Intelligence.
 
-## Setup Instructions
+## 🚀 Quick Start Guide (Executing on your device)
 
-1. Clone the repository.
-2. Copy the environment example file:
-   - cp Devops_Integration/.env.example .env
-3. Edit the environment file and update the values for your local or deployment environment.
-4. Run the Docker Compose stack:
-   - docker compose -f Devops_Integration/docker-compose.yml up --build
-5. Access the services:
-   - Frontend: http://localhost:3000
-   - Backend: http://localhost:5000
-   - Security Gateway: http://localhost:6000
-   - AI Service: http://localhost:5001
+Follow these instructions to run the entire stack (Frontend, Backend, AI Microservices, Gateway, and Database) on your local machine using Docker.
 
-## Commands Reference
+### Prerequisites
+- **Docker** and **Docker Compose** must be installed and running on your system.
+- Git (to clone the repository)
 
-- docker compose -f Devops_Integration/docker-compose.yml up
-- docker compose -f Devops_Integration/docker-compose.yml up --build
-- docker compose -f Devops_Integration/docker-compose.yml down
-- docker compose -f Devops_Integration/docker-compose.yml logs -f
-- docker compose -f Devops_Integration/docker-compose.yml ps
+### Step-by-Step Execution
 
-## Logging Setup
+1. **Clone the repository:**
+   ```bash
+   git clone <repository-url>
+   cd Small-business-sales-intelligence-platform-SB7-Team1
+   ```
 
-- Logging configuration lives in infra/logging.
-- Backend request logging is enabled in the Node.js backend services.
-- Log files are written to logs/backend.log, logs/auth.log, and logs/ai.log.
-- The logs directory is ignored by Git and includes a placeholder file.
+2. **Set up Environment Variables:**
+   A `.env.example` file is provided in the `Devops_Integration` folder. If needed, copy it to `.env`:
+   ```bash
+   cp Devops_Integration/.env.example .env
+   ```
+   *(By default, the docker-compose setup provides fallback values for everything, so this is optional for a quick start).*
 
-## Git Workflow
+3. **Launch the Application Stack:**
+   Run the following command from the root of the project to build and start all containers in detached mode:
+   ```bash
+   docker compose -f Devops_Integration/docker-compose.yml up -d --build
+   ```
 
-1. Create a feature branch from main:
-   - git checkout main
-   - git pull origin main
-   - git checkout -b feature/your-name/task
-2. Commit your changes:
-   - git add .
-   - git commit -m "Describe the change"
-3. Push the branch and open a pull request:
-   - git push -u origin feature/your-name/task
+4. **Access the Application:**
+   Once the containers are up and running, you can access the different services via your browser:
+   - **Frontend UI:** [http://localhost:3000](http://localhost:3000)
+   - **Security API Gateway:** [http://localhost:7000](http://localhost:7000)
+   - **Core Backend API:** [http://localhost:5000](http://localhost:5000)
+
+### Useful Docker Commands
+
+- **View live logs of all services:**
+  ```bash
+  docker compose -f Devops_Integration/docker-compose.yml logs -f
+  ```
+- **Stop all services:**
+  ```bash
+  docker compose -f Devops_Integration/docker-compose.yml down
+  ```
+- **Check status of containers:**
+  ```bash
+  docker compose -f Devops_Integration/docker-compose.yml ps
+  ```
+
+---
+*Note: The frontend supports hot-reloading if you run it outside Docker (`npm run dev` in the `Frontend` folder).*

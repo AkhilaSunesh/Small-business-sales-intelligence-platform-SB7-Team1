@@ -101,13 +101,24 @@ function DashboardPage() {
                 onClick={() => handleOpenDrillDown('kpi', 'Total Revenue', 'Revenue Transactions')}
                 className="cursor-pointer transition hover:scale-[1.01]"
               >
-                <StatCard label="Total Revenue" value={stats.totalRevenue} helper="Aggregated store earnings" loading={loading} />
+                <StatCard 
+                  label="Total Revenue" 
+                  value={stats.totalRevenue !== undefined ? `$${Number(stats.totalRevenue).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}` : '$0.00'} 
+                  helper="Aggregated store earnings" 
+                  loading={loading} 
+                />
               </div>
               <div
                 onClick={() => handleOpenDrillDown('kpi', 'Total Orders', 'Order Logs')}
                 className="cursor-pointer transition hover:scale-[1.01]"
               >
-                <StatCard label="Total Orders" value={stats.totalOrders} helper="Orders volume processed" accent="emerald" loading={loading} />
+                <StatCard 
+                  label="Total Orders" 
+                  value={stats.totalOrders !== undefined ? Number(stats.totalOrders).toLocaleString() : '0'} 
+                  helper="Orders volume processed" 
+                  accent="emerald" 
+                  loading={loading} 
+                />
               </div>
             </div>
 

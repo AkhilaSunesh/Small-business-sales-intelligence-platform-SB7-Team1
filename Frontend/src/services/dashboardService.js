@@ -1,7 +1,17 @@
 import api from './api';
 
-export async function getDashboardSummary() {
-  const res = await api.get('/api/dashboard/summary');
+function buildQuery(filters = {}) {
+  const params = new URLSearchParams();
+  if (filters.dateRange) params.append('range', filters.dateRange);
+  if (filters.category && filters.category !== 'all') params.append('category', filters.category);
+  if (filters.startDate) params.append('startDate', filters.startDate);
+  if (filters.endDate) params.append('endDate', filters.endDate);
+  return params.toString();
+}
+
+export async function getDashboardSummary(filters) {
+  const qs = buildQuery(filters);
+  const res = await api.get(`/api/dashboard/summary?${qs}`);
   return res.data;
 }
 
@@ -10,13 +20,15 @@ export async function getTotalRevenue() {
   return res.data;
 }
 
-export async function getSalesTrend(range = '30d') {
-  const res = await api.get(`/api/dashboard/sales-trend?range=${encodeURIComponent(range)}`);
+export async function getSalesTrend(filters) {
+  const qs = buildQuery(filters);
+  const res = await api.get(`/api/dashboard/sales-trend?${qs}`);
   return res.data;
 }
 
-export async function getTopProducts() {
-  const res = await api.get('/api/dashboard/top-products');
+export async function getTopProducts(filters) {
+  const qs = buildQuery(filters);
+  const res = await api.get(`/api/dashboard/top-products?${qs}`);
   return res.data;
 }
 
