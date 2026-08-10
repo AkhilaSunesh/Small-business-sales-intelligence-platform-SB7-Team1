@@ -166,11 +166,15 @@ export default function BusinessOverviewPage() {
       setRecentAlerts(finalAlerts);
 
       // 7. Mapped AI Recommendations list (use live recommendations)
-      const mappedRecs = recsList.map((rec, idx) => ({
-        title: `Product Affinity Recommendation #${idx + 1}`,
-        text: `AI detected a strong purchase correlation for product ${rec.ProductID || rec.productId}. Suggest bundling this product to boost cross-sales. Co-purchase affinity score: ${rec.CoPurchaseCount || rec.Confidence || 15} transactions.`,
-        priority: idx === 0 ? 'high' : 'medium'
-      }));
+      const mappedRecs = recsList.map((rec, idx) => {
+        const productId = rec.productId || rec.ProductID || 'Unknown';
+        const coPurchaseCount = rec.coPurchaseCount ?? rec.CoPurchaseCount ?? rec.purchaseCount ?? 0;
+        return {
+          title: `Product Affinity Recommendation #${idx + 1}`,
+          text: `AI detected a strong purchase correlation for product ${productId}. Suggest bundling this product to boost cross-sales. Co-purchase affinity score: ${coPurchaseCount.toLocaleString()} transactions.`,
+          priority: idx === 0 ? 'high' : 'medium'
+        };
+      });
       const finalRecs = mappedRecs.length > 0 ? mappedRecs.slice(0, 3) : [
         { title: 'Cross-Sell Bundling', text: "Promotional Bundle suggestion: Combine 'Espresso Beans' and 'Organic Honey' to increase average transaction size by $4.50. Target: repeat customers.", priority: 'high' },
         { title: 'Dynamic Price Adjustment', text: 'Increase Almond Milk price from $4.29 to $4.49 during weekend peaks (Fri-Sun 3PM-6PM). Demand models indicate zero volume elasticity loss.', priority: 'medium' },
