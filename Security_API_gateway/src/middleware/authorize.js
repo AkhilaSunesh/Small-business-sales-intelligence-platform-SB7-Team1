@@ -42,6 +42,9 @@ const permissions = {
         notifications:        ["GET"],
         "audit-summary":      ["GET"],
 
+        // User management — Store Manager can view users
+        users:                ["GET"],
+
         // AI insight services
         forecast:             ["GET"],
         "customer-groups":    ["GET", "POST"],
