@@ -30,6 +30,7 @@ const invoicesRoutes         = require("./routes/invoices.routes");
 const forecastRoutes         = require("./routes/forecast.routes");
 const notificationsRoutes    = require("./routes/notifications.routes");
 const auditSummaryRoutes     = require("./routes/auditSummary.routes");
+const usersRoutes            = require("./routes/users.routes");
 
 // AI microservice routes — one file per service, one port per service
 const customerGroupsRoutes   = require("./routes/customerGroups.routes");
@@ -111,6 +112,7 @@ app.use("/api/invoices",  authenticate, authorize, apiLimiter, invoicesRoutes);
 app.use("/api/forecast",       authenticate, authorize, apiLimiter, forecastRoutes);
 app.use("/api/notifications",   authenticate, authorize, apiLimiter, notificationsRoutes);
 app.use("/api/audit-summary",   authenticate, authorize, apiLimiter, auditSummaryRoutes);
+app.use("/api/users",           authenticate, authorize, apiLimiter, usersRoutes);
 
 // ── AI microservice routes ────────────────────────────────────────────────────
 // Each mounts on its own dedicated router → its own AI service port.
