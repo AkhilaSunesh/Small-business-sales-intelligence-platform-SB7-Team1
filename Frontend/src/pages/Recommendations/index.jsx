@@ -21,16 +21,19 @@ function RecommendationsPage() {
     try {
       const res = await recommendationService.getRecommendations();
       if (res && res.success && Array.isArray(res.data)) {
-        // Map backend ProductID/PurchaseCount structure to UI expected keys
         const mappedRecommendations = res.data.map((item, idx) => {
+          const fromProduct = item.productId || item.ProductID || 'Unknown';
+          const toProduct = item.recommendedProduct || item.RecommendedProduct || `Product ${fromProduct}`;
+          const coPurchaseCount = item.coPurchaseCount ?? item.CoPurchaseCount ?? item.purchaseCount ?? 0;
           const confidencePct = Math.round(100 - (idx * 2.5));
+
           return {
-            id: item.ProductID ? `REC-${item.ProductID}` : `rec-${idx}`,
-            category: 'Popular Suggestion',
+            id: item.productId ? `REC-${item.productId}` : `rec-${idx}`,
+            category: 'Affinity Suggestion',
             confidence: `${confidencePct}%`,
-            productPurchased: 'Store Inventory',
-            recommendedProduct: `Product ${item.ProductID || 'Unknown'}`,
-            reason: `Frequently purchased item with ${Number(item.PurchaseCount || 0).toLocaleString()} overall transactions.`,
+            productPurchased: `Product ${fromProduct}`,
+            recommendedProduct: `Product ${toProduct}`,
+            reason: `This pair has ${Number(coPurchaseCount).toLocaleString()} co-purchases in the current dataset.`,
             ...item
           };
         });
