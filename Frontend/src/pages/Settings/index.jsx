@@ -13,13 +13,6 @@ function SettingsPage() {
   const [showPasswordForm, setShowPasswordForm] = useState(false);
   const [showEditProfile, setShowEditProfile] = useState(false);
 
-  const [notificationSettings, setNotificationSettings] = useState({
-    emailNotifications: true,
-    smsNotifications: false,
-    pushNotifications: true,
-    marketingEmails: false,
-  });
-
   const [passwordForm, setPasswordForm] = useState({
     currentPassword: '',
     newPassword: '',
@@ -30,13 +23,6 @@ function SettingsPage() {
     name: user?.displayName || 'User',
     email: user?.email || 'user@example.com',
   });
-
-  const handleNotificationToggle = (key) => {
-    setNotificationSettings((prev) => ({
-      ...prev,
-      [key]: !prev[key],
-    }));
-  };
 
   const handlePasswordChange = (field, value) => {
     setPasswordForm((prev) => ({
@@ -222,50 +208,6 @@ function SettingsPage() {
             </div>
           </div>
         )}
-      </section>
-
-      {/* Notification Preferences */}
-      <section className="rounded-3xl border border-white/10 bg-slate-950/80 p-6">
-        <h2 className="text-xl font-semibold text-white mb-4">{t('notificationPreferences')}</h2>
-        <div className="space-y-3">
-          {Object.entries(notificationSettings).map(([key, value]) => (
-            <div key={key} className="flex items-center justify-between rounded-2xl bg-white/5 p-4">
-              <div>
-                <p className="text-sm font-medium text-white capitalize">
-                  {key === 'emailNotifications' && t('emailNotifications')}
-                  {key === 'smsNotifications' && t('smsNotifications')}
-                  {key === 'pushNotifications' && t('pushNotifications')}
-                  {key === 'marketingEmails' && t('marketingEmails')}
-                </p>
-                <p className="text-xs text-slate-400 mt-1">
-                  {key === 'emailNotifications' && t('emailDesc')}
-                  {key === 'smsNotifications' && t('smsDesc')}
-                  {key === 'pushNotifications' && t('pushDesc')}
-                  {key === 'marketingEmails' && t('marketingDesc')}
-                </p>
-              </div>
-              <label className="flex items-center cursor-pointer">
-                <input
-                  type="checkbox"
-                  checked={value}
-                  onChange={() => handleNotificationToggle(key)}
-                  className="sr-only"
-                />
-                <div
-                  className={`w-12 h-6 rounded-full transition-colors ${
-                    value ? 'bg-cyan-500' : 'bg-slate-600'
-                  }`}
-                >
-                  <div
-                    className={`w-5 h-5 rounded-full bg-white transition-transform absolute top-1 ${
-                      value ? 'translate-x-6 left-1' : 'left-1'
-                    }`}
-                  />
-                </div>
-              </label>
-            </div>
-          ))}
-        </div>
       </section>
 
       {/* Preferences Section */}
