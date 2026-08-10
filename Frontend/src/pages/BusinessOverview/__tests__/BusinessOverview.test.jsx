@@ -2,6 +2,22 @@ import React from 'react';
 import { render, screen, fireEvent, waitFor } from '@testing-library/react';
 import BusinessOverviewPage from '../index';
 
+jest.mock('../../../services/dashboardService', () => ({
+  getDashboardSummary: jest.fn(() => Promise.resolve({ data: { totalRevenue: 142850, totalSales: 350, totalCustomers: 1280, totalProducts: 512 } })),
+  getSalesTrend: jest.fn(() => Promise.resolve({ data: [] })),
+  getTopProducts: jest.fn(() => Promise.resolve({ data: [] })),
+  getAuditSummary: jest.fn(() => Promise.resolve({ data: { recentEntries: [] } })),
+}));
+
+jest.mock('../../../services/notificationService', () => ({
+  getNotificationCounts: jest.fn(() => Promise.resolve({ data: { lowStock: 12, overdueInvoices: 3, total: 15 } })),
+  getNotifications: jest.fn(() => Promise.resolve({ data: [] })),
+}));
+
+jest.mock('../../../services/recommendationService', () => ({
+  getRecommendations: jest.fn(() => Promise.resolve({ data: [] })),
+}));
+
 describe('BusinessOverviewPage Component Tests', () => {
   test('renders loading telemetry skeletons initially', () => {
     render(<BusinessOverviewPage />);

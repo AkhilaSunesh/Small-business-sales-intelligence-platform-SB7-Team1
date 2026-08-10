@@ -11,6 +11,6 @@ COPY Security_API_gateway/ ./
 
 RUN npx prisma generate
 
-EXPOSE 6000
+EXPOSE 7000
 
 CMD ["node", "src/server.js"]

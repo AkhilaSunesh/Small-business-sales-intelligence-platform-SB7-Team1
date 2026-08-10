@@ -1,0 +1,20 @@
+FROM python:3.11-slim
+
+WORKDIR /app
+
+# The build argument specifies which API service to build (e.g., segmentation, churn, recommendation, anomaly)
+ARG SERVICE_NAME
+
+# Install dependencies for the specific service
+COPY AIML/api/${SERVICE_NAME}/requirements.txt .
+RUN pip install --no-cache-dir -r requirements.txt
+
+# Copy the entire AIML folder to preserve relative paths to data/ and models/
+COPY AIML /app/AIML
+
+# Set the working directory to the service directory
+WORKDIR /app/AIML/api/${SERVICE_NAME}
+
+# The apps bind to specific ports internally (5010, 5011, 5012, 5013),
+# so we'll just run python app.py and expose them via docker-compose.
+CMD ["python", "app.py"]

@@ -206,7 +206,8 @@ async function main() {
     const invoicesToInsert = [];
     const paymentsToInsert = [];
 
-    const { v4: uuidv4 } = require("uuid");
+    const crypto = require("crypto");
+    const uuidv4 = crypto.randomUUID;
 
     // Check which KGL transactions already exist
     const existingSales = await prisma.salesTransaction.findMany({

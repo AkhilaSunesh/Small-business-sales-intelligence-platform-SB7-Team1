@@ -9,7 +9,7 @@ export default defineConfig({
     // Configure VITE_API_BASE_URL in .env to change the target.
     proxy: {
       '/api': {
-        target: process.env.VITE_API_BASE_URL || 'http://localhost:7000',
+        target: process.env.VITE_API_BASE_URL || 'http://localhost:6000',
         changeOrigin: true,
         secure: false,
         configure: (proxy, _options) => {

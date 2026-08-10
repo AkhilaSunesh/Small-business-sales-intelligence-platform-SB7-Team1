@@ -153,10 +153,10 @@ export function generateDashboardData({ dateRange, category, startDate, endDate 
   const activeProdCount = category === 'all' ? baseActiveProducts : profile.items.length;
 
   const summary = {
-    totalRevenue: `$${totalRevVal.toLocaleString()}`,
-    totalOrders: totalOrdVal.toLocaleString(),
-    avgOrderValue: `$${avgOrdVal.toFixed(2)}`,
-    activeProducts: activeProdCount.toString(),
+    totalRevenue: totalRevVal,
+    totalOrders: totalOrdVal,
+    avgOrderValue: avgOrdVal,
+    activeProducts: activeProdCount,
   };
 
   // Generate Daily/Weekly/Monthly Sales Trend Chart

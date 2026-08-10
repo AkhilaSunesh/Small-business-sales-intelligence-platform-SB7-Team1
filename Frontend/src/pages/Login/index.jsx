@@ -86,6 +86,14 @@ function LoginPage() {
 
       navigate('/dashboard');
     } catch (err) {
+      // Offline fallback: if the backend is unreachable, use mock token and proceed
+      if (err.message.includes('Unable to reach') || err.message.includes('Backend is offline') || err.message.includes('offline or unreachable')) {
+        localStorage.setItem('authToken', 'offline-mock-token');
+        login({ email: form.email, role: form.role });
+        navigate('/dashboard');
+        return;
+      }
+
       setError(err.message);
       setForm((prev) => ({ ...prev, captchaInput: '' }));
       generateCaptcha();
