@@ -1,6 +1,5 @@
 import { useCallback, useEffect, useState } from 'react';
-import { getTotalRevenue, getSalesTrend, getTopProducts } from '../services/dashboardService';
-import { generateDashboardData } from '../utils/mockDataGenerator';
+import { getDashboardSummary, getSalesTrend, getTopProducts } from '../services/dashboardService';
 
 export default function useDashboardData(filters) {
   const [loading, setLoading] = useState(true);
@@ -20,21 +19,9 @@ export default function useDashboardData(filters) {
   const fetchAll = useCallback(async () => {
     // If no auth token, we can't fetch from API
     if (!hasAuthToken()) {
-      setLoading(true);
-      setError(null);
-      const timer = setTimeout(() => {
-        try {
-          const mockRes = generateDashboardData(filters || { dateRange: '30d', category: 'all', startDate: '', endDate: '' });
-          setSummary(mockRes.summary);
-          setTrend(mockRes.trend);
-          setTopProducts(mockRes.topProducts);
-        } catch (err) {
-          setError(err?.message || 'Failed to simulate dashboard metrics');
-        } finally {
-          setLoading(false);
-        }
-      }, 350);
-      return () => clearTimeout(timer);
+      setLoading(false);
+      setError("Not authenticated");
+      return;
     }
 
     setLoading(true);
@@ -50,16 +37,8 @@ export default function useDashboardData(filters) {
       setTrend(trendRes?.data || trendRes || []);
       setTopProducts(topRes?.data || topRes || []);
     } catch (err) {
-      // Fallback to mock data if API is unreachable
-      console.warn('[Dashboard API] Server unreachable. Falling back to mock data.', err.message);
-      try {
-        const mockRes = generateDashboardData(filters || { dateRange: '30d', category: 'all', startDate: '', endDate: '' });
-        setSummary(mockRes.summary);
-        setTrend(mockRes.trend);
-        setTopProducts(mockRes.topProducts);
-      } catch (mockErr) {
-        setError(err?.message || 'Failed to fetch dashboard data');
-      }
+      console.error('[Dashboard API] Error fetching data:', err.message);
+      setError(err?.message || 'Failed to fetch dashboard data');
     } finally {
       setLoading(false);
     }

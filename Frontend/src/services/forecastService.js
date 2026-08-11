@@ -4,9 +4,10 @@ import api from './api';
  * Service function to fetch forecast analytics data from the backend.
  *
  * @param {string} range - Filter range ('7d', '30d', '6m', '1y')
+ * @param {string} category - Category filter
  * @returns {Promise<Object>} Forecast data including summary cards and trend items
  */
-export async function getForecastReportsData(range = '6m') {
+export async function getForecastReportsData(range = '6m', category = 'all') {
   let periods = 30;
   if (range === '7d') periods = 7;
   else if (range === '30d') periods = 30;
@@ -18,6 +19,7 @@ export async function getForecastReportsData(range = '6m') {
       days: periods,
       lookback: 90,
       window: 7,
+      category,
     },
   });
 
@@ -86,12 +88,13 @@ export async function getForecastReportsData(range = '6m') {
   throw new Error(response?.data?.message || 'Forecast data could not be loaded.');
 }
 
-export async function getRawForecastData(days, lookback, window = 7) {
+export async function getRawForecastData(days, lookback, window = 7, category = 'all') {
   const response = await api.get('/api/forecast', {
     params: {
       days,
       lookback,
       window,
+      category,
     },
   });
   return response.data;

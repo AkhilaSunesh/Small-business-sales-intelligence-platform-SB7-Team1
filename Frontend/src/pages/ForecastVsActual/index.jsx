@@ -28,17 +28,9 @@ import {
 import DashboardFilters from '../../components/ui/DashboardFilters';
 import DrillDownModal from '../../components/ui/DrillDownModal';
 import StatCard from '../../components/common/StatCard';
-import { generateForecastVsActualData } from '../../utils/mockDataGenerator';
 import forecastService from '../../services/forecastService';
 
-const CATEGORY_PROFILES = {
-  all: { valMult: 1.0, volMult: 1.0, avgPrice: 35 },
-  Electronics: { valMult: 0.45, volMult: 0.15, avgPrice: 120 },
-  Grocery: { valMult: 0.20, volMult: 0.55, avgPrice: 12 },
-  Fashion: { valMult: 0.22, volMult: 0.18, avgPrice: 55 },
-  Stationery: { valMult: 0.08, volMult: 0.35, avgPrice: 8 },
-  Others: { valMult: 0.05, volMult: 0.12, avgPrice: 22 }
-};
+
 
 export default function ForecastVsActualPage() {
   usePageTitle('Forecast vs Actual');
@@ -101,8 +93,8 @@ export default function ForecastVsActualPage() {
         lookback = Math.min(365, diffDays + 15);
       }
 
-      // 2. Fetch live data
-      const res = await forecastService.getRawForecastData(30, lookback, 7);
+      // 2. Fetch live data with category filter
+      const res = await forecastService.getRawForecastData(30, lookback, 7, filters.category);
       const historical = res.historical || [];
 
       if (historical.length === 0) {
@@ -111,10 +103,7 @@ export default function ForecastVsActualPage() {
         return;
       }
 
-      // 3. Process historical data with category multiplier and client-side SMA forecast
-      const profile = CATEGORY_PROFILES[filters.category] || CATEGORY_PROFILES.all;
-      const valMult = profile.valMult;
-      const volMult = profile.volMult;
+      // 3. Process historical data and client-side SMA forecast
       const windowSize = 7;
 
       const items = [];
@@ -122,17 +111,17 @@ export default function ForecastVsActualPage() {
       let startIdx = Math.max(windowSize, n - pointsCount);
 
       for (let i = startIdx; i < n; i++) {
-        // Actual values
-        const actualRevenue = Math.round((historical[i].revenue || 0) * valMult);
-        const actualSales = Math.round((historical[i].transactions || 0) * volMult) || 1;
+        // Actual values directly from backend
+        const actualRevenue = Math.round(historical[i].revenue || 0);
+        const actualSales = Math.round(historical[i].transactions || 0) || 1;
 
         // Forecast values (7-day SMA of preceding windowSize days)
         const windowSlice = historical.slice(i - windowSize, i);
         const sumRevenue = windowSlice.reduce((sum, item) => sum + (item.revenue || 0), 0);
         const sumTransactions = windowSlice.reduce((sum, item) => sum + (item.transactions || 0), 0);
         
-        const forecastRevenue = Math.round((sumRevenue / windowSize) * valMult);
-        const forecastSales = Math.round((sumTransactions / windowSize) * volMult) || 1;
+        const forecastRevenue = Math.round(sumRevenue / windowSize);
+        const forecastSales = Math.round(sumTransactions / windowSize) || 1;
 
         const diffRev = actualRevenue - forecastRevenue;
         const diffSales = actualSales - forecastSales;
@@ -192,14 +181,7 @@ export default function ForecastVsActualPage() {
     } catch (err) {
       console.error('Failed to load live forecast vs actual telemetry:', err);
       setErrorState(true);
-      
-      // Fallback to local mock generator
-      try {
-        const result = generateForecastVsActualData(filters);
-        setData(result);
-      } catch (mockErr) {
-        // ignore
-      }
+      setData({ summary: {}, items: [] });
     } finally {
       setLoading(false);
     }

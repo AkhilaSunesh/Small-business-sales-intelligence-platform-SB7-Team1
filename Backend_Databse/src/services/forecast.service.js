@@ -18,7 +18,7 @@ const prisma = require("../config/prisma");
 /**
  * Build a map of { "YYYY-MM-DD": { revenue, transactions } } from the DB.
  */
-async function fetchDailySales(lookbackDays) {
+async function fetchDailySales(lookbackDays, category) {
     const latest = await prisma.salesTransaction.aggregate({
         _max: { transactionDate: true }
     });
@@ -33,13 +33,21 @@ async function fetchDailySales(lookbackDays) {
     const since = new Date(endDate);
     since.setUTCDate(since.getUTCDate() - lookbackDays);
 
+    const whereClause = {
+        transactionDate: {
+            gte: since,
+            lt: new Date(endDate.getTime() + 24 * 60 * 60 * 1000)
+        }
+    };
+
+    if (category && category !== 'all') {
+        whereClause.product = {
+            category: category
+        };
+    }
+
     const rows = await prisma.salesTransaction.findMany({
-        where: {
-            transactionDate: {
-                gte: since,
-                lt: new Date(endDate.getTime() + 24 * 60 * 60 * 1000)
-            }
-        },
+        where: whereClause,
         select: { transactionDate: true, totalAmount: true }
     });
 
@@ -91,10 +99,11 @@ function sma(series, window) {
  * @param {number} days       — number of future days to forecast (1–365)
  * @param {number} lookback   — how many historical days to base the SMA on (default 90)
  * @param {number} smaWindow  — SMA window size in days (default 7)
+ * @param {string} category   — category to filter by (default 'all')
  * @returns {{ forecast: Array, historical: Array, period: number, generatedAt: string }}
  */
-async function generateForecast(days = 30, lookback = 90, smaWindow = 7) {
-    const { buckets, endDate } = await fetchDailySales(lookback);
+async function generateForecast(days = 30, lookback = 90, smaWindow = 7, category = 'all') {
+    const { buckets, endDate } = await fetchDailySales(lookback, category);
     const historical = buildDailySeries(buckets, lookback, endDate);
 
     // Seed the projection window with the last `smaWindow` days of history

@@ -176,8 +176,8 @@ export default function BusinessOverviewPage() {
         };
       });
       const finalRecs = mappedRecs.length > 0 ? mappedRecs.slice(0, 3) : [
-        { title: 'Cross-Sell Bundling', text: "Promotional Bundle suggestion: Combine 'Espresso Beans' and 'Organic Honey' to increase average transaction size by $4.50. Target: repeat customers.", priority: 'high' },
-        { title: 'Dynamic Price Adjustment', text: 'Increase Almond Milk price from $4.29 to $4.49 during weekend peaks (Fri-Sun 3PM-6PM). Demand models indicate zero volume elasticity loss.', priority: 'medium' },
+        { title: 'Cross-Sell Bundling', text: "Promotional Bundle suggestion: Combine 'Product A' and 'Product B' to increase average transaction size by $4.50. Target: repeat customers.", priority: 'high' },
+        { title: 'Dynamic Price Adjustment', text: 'Increase Product B price from $4.29 to $4.49 during weekend peaks (Fri-Sun 3PM-6PM). Demand models indicate zero volume elasticity loss.', priority: 'medium' },
       ];
       setAiRecs(finalRecs);
 
@@ -196,7 +196,7 @@ export default function BusinessOverviewPage() {
       });
       const finalActivity = mappedActivity.length > 0 ? mappedActivity : [
         { time: '10m ago', user: 'System Agent', desc: 'Triggered CPU usage warning (85% utilization threshold reached)' },
-        { time: '45m ago', user: 'Store Manager', desc: 'Changed inventory level for Organic Honey Jars (reduced to 3)' },
+        { time: '45m ago', user: 'Store Manager', desc: 'Changed inventory level for Product C (reduced to 3)' },
         { time: '2h ago', user: 'Sales Executive', desc: 'Dispatched Invoice #INV-2026-102 to John Doe ($450.00)' },
       ];
       setRecentActivity(finalActivity);
