@@ -13,7 +13,7 @@ const loginSchema = Joi.object({
 });
 
 const validateRegister = (req, res, next) => {
-    const { error } = registerSchema.validate(req.body, { abortEarly: false });
+    const { error, value } = registerSchema.validate(req.body, { abortEarly: false });
     if (error) {
         return res.status(400).json({
             success: false,
@@ -21,6 +21,7 @@ const validateRegister = (req, res, next) => {
             errors: error.details.map(err => err.message)
         });
     }
+    req.body = value;
     next();
 };
 
@@ -29,7 +30,7 @@ const refreshSchema = Joi.object({
 });
 
 const validateLogin = (req, res, next) => {
-    const { error } = loginSchema.validate(req.body, { abortEarly: false });
+    const { error, value } = loginSchema.validate(req.body, { abortEarly: false });
     if (error) {
         return res.status(400).json({
             success: false,
@@ -37,11 +38,12 @@ const validateLogin = (req, res, next) => {
             errors: error.details.map(err => err.message)
         });
     }
+    req.body = value;
     next();
 };
 
 const validateRefresh = (req, res, next) => {
-    const { error } = refreshSchema.validate(req.body, { abortEarly: false });
+    const { error, value } = refreshSchema.validate(req.body, { abortEarly: false });
     if (error) {
         return res.status(400).json({
             success: false,
@@ -49,6 +51,7 @@ const validateRefresh = (req, res, next) => {
             errors: error.details.map(err => err.message)
         });
     }
+    req.body = value;
     next();
 };
 
