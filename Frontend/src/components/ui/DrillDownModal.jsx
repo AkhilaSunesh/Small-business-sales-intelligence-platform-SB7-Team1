@@ -1,7 +1,7 @@
 import { useState, useEffect, useRef } from 'react';
 import PropTypes from 'prop-types';
-import { FiX, FiSearch, FiDownload, FiInfo, FiLayers, FiAlertCircle } from 'react-icons/fi';
-import { generateDrillDownData } from '../../utils/mockDataGenerator';
+import { FiX, FiSearch, FiDownload, FiInfo, FiLayers, FiAlertCircle, FiLoader } from 'react-icons/fi';
+import salesService from '../../services/salesService';
 
 export default function DrillDownModal({
   isOpen,
@@ -16,17 +16,39 @@ export default function DrillDownModal({
   const [exportSuccess, setExportSuccess] = useState(false);
   const modalRef = useRef(null);
 
-  // Load and generate drill-down details
+  const [loading, setLoading] = useState(false);
+
+  // Load drill-down details from actual dataset
   useEffect(() => {
     if (isOpen) {
-      const records = generateDrillDownData({
-        type: drillDownType,
-        id: drillDownId,
-        filters,
-      });
-      setData(records);
-      setSearch('');
-      setExportSuccess(false);
+      setLoading(true);
+      salesService.getSalesTransactions(filters, 1, 100)
+        .then(res => {
+          if (res.success) {
+            const records = res.data.map(t => ({
+              id: t.invoiceNo,
+              date: new Date(t.transactionDate).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' }),
+              product: t.product?.name || 'Unknown',
+              category: t.product?.category || 'Unknown',
+              quantity: t.quantity,
+              amount: `$${Number(t.totalAmount).toLocaleString()}`,
+              status: 'Completed',
+              paymentMethod: 'Standard'
+            }));
+            setData(records);
+          } else {
+            setData([]);
+          }
+        })
+        .catch(err => {
+          console.error("Failed to fetch drill-down data:", err);
+          setData([]);
+        })
+        .finally(() => {
+          setLoading(false);
+          setSearch('');
+          setExportSuccess(false);
+        });
     }
   }, [isOpen, drillDownType, drillDownId, filters]);
 
@@ -142,7 +164,12 @@ export default function DrillDownModal({
 
         {/* Content (Table & Details) */}
         <main className="flex-1 overflow-y-auto p-6">
-          {filteredData.length === 0 ? (
+          {loading ? (
+            <div className="flex flex-col items-center justify-center text-center py-12 space-y-3">
+              <FiLoader className="text-4xl text-cyan-400 animate-spin" />
+              <p className="text-slate-400 text-sm font-semibold">Loading actual transactions...</p>
+            </div>
+          ) : filteredData.length === 0 ? (
             <div className="flex flex-col items-center justify-center text-center py-12 space-y-3">
               <FiAlertCircle className="text-4xl text-slate-500 animate-pulse" />
               <p className="text-slate-400 text-sm font-semibold">No records matches the current search term.</p>
