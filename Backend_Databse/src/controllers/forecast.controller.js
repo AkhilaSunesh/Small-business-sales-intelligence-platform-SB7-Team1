@@ -33,7 +33,8 @@ exports.getForecast = async (req, res) => {
         }
 
         // ── Generate forecast ─────────────────────────────────────────────────
-        const result = await generateForecast(days, lookback, smaWindow);
+        const category = req.query.category || 'all';
+        const result = await generateForecast(days, lookback, smaWindow, category);
 
         return res.status(200).json({
             success:     true,

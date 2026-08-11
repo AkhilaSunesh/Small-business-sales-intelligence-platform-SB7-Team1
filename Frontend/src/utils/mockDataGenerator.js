@@ -18,14 +18,13 @@ function seedRandom(seedString) {
   };
 }
 
-// Category profiles for volume/value variations
 const CATEGORY_PROFILES = {
-  all: { valMult: 1.0, volMult: 1.0, avgPrice: 35, items: ['Smart Watch', 'Organic Honey', 'Designer Jeans', 'Notebook Pack', 'Wireless Earbuds', 'Fresh Avocados', 'Leather Wallet', 'Gel Pen Set', 'USB-C Cable'] },
-  Electronics: { valMult: 0.45, volMult: 0.15, avgPrice: 120, items: ['Smart Watch', 'Wireless Earbuds', 'USB-C Cable', 'Bluetooth Speaker', 'Power Bank'] },
-  Grocery: { valMult: 0.20, volMult: 0.55, avgPrice: 12, items: ['Organic Honey', 'Fresh Avocados', 'Whole Wheat Bread', 'Organic Milk', 'Greek Yogurt'] },
-  Fashion: { valMult: 0.22, volMult: 0.18, avgPrice: 55, items: ['Designer Jeans', 'Leather Wallet', 'Cotton T-Shirt', 'Running Shoes', 'Sunglasses'] },
-  Stationery: { valMult: 0.08, volMult: 0.35, avgPrice: 8, items: ['Notebook Pack', 'Gel Pen Set', 'Desk Organizer', 'Sketchbook', 'Highlighters'] },
-  Others: { valMult: 0.05, volMult: 0.12, avgPrice: 22, items: ['Coffee Mug', 'Scented Candle', 'Water Bottle', 'Phone Stand'] }
+  all: { valMult: 1.0, volMult: 1.0, avgPrice: 35, items: ['Product A', 'Product B', 'Product C', 'Product D'] },
+  Electronics: { valMult: 0.45, volMult: 0.15, avgPrice: 120, items: ['Product A', 'Product B'] },
+  Grocery: { valMult: 0.20, volMult: 0.55, avgPrice: 12, items: ['Product C', 'Product D'] },
+  Fashion: { valMult: 0.22, volMult: 0.18, avgPrice: 55, items: ['Product A', 'Product C'] },
+  Stationery: { valMult: 0.08, volMult: 0.35, avgPrice: 8, items: ['Product B', 'Product D'] },
+  Others: { valMult: 0.05, volMult: 0.12, avgPrice: 22, items: ['Product A', 'Product D'] }
 };
 
 // Generate date range boundaries and points
@@ -207,88 +206,6 @@ export function generateDashboardData({ dateRange, category, startDate, endDate 
   return { summary, trend, topProducts, loading: false, error: null };
 }
 
-/**
- * Generates Forecast vs Actual data
- */
-export function generateForecastVsActualData({ dateRange, category, startDate, endDate }) {
-  const { start, points, interval } = parseDateRange(dateRange, startDate, endDate);
-  const profile = CATEGORY_PROFILES[category] || CATEGORY_PROFILES.all;
-
-  const rng = seedRandom('forecast' + dateRange + category + (startDate || '') + (endDate || ''));
-  
-  // Forecast vs Actual points
-  const items = [];
-  let totalForecastRev = 0;
-  let totalActualRev = 0;
-  let totalForecastVol = 0;
-  let totalActualVol = 0;
-
-  const avgPrice = profile.avgPrice;
-  const baseRev = (100000 / 30) * profile.valMult; // reference base revenue per day
-
-  let currentDate = new Date(start);
-  for (let i = 0; i < points; i++) {
-    // Generate actual and forecast waves
-    const baseVal = baseRev * (interval === 'hour' ? 0.04 : interval === 'week' ? 7 : interval === 'month' ? 30 : 1.0);
-    const trendFactor = 0.8 + (i / points) * 0.3; // moderate upward trend
-    
-    // Forecast is what AI expected
-    const forecastFactor = (0.7 + rng() * 0.6) * trendFactor;
-    const forecastRevenue = Math.round(baseVal * forecastFactor);
-    const forecastSales = Math.round(forecastRevenue / avgPrice) || 1;
-
-    // Actual revenue deviates from Forecast by a small margin (+-10%)
-    const actualDeviation = 0.92 + rng() * 0.15; // 92% to 107%
-    const actualRevenue = Math.round(forecastRevenue * actualDeviation);
-    const actualSales = Math.round(actualRevenue / avgPrice) || 1;
-
-    const diffRev = actualRevenue - forecastRevenue;
-    const diffSales = actualSales - forecastSales;
-
-    // Accuracy per point = 100 - absolute percentage difference
-    const diffPct = Math.abs(diffRev) / (forecastRevenue || 1);
-    const accuracy = Math.max(50, 100 - (diffPct * 100));
-
-    items.push({
-      date: formatLabel(currentDate, interval, i),
-      rawDate: currentDate.toISOString().slice(0, 10),
-      forecastRevenue,
-      actualRevenue,
-      forecastSales,
-      actualSales,
-      differenceRevenue: diffRev,
-      differenceSales: diffSales,
-      accuracyPct: accuracy,
-    });
-
-    totalForecastRev += forecastRevenue;
-    totalActualRev += actualRevenue;
-    totalForecastVol += forecastSales;
-    totalActualVol += actualSales;
-
-    // Advance date
-    if (interval === 'hour') currentDate.setUTCHours(currentDate.getUTCHours() + 1);
-    else if (interval === 'day') currentDate.setUTCDate(currentDate.getUTCDate() + 1);
-    else if (interval === 'week') currentDate.setUTCDate(currentDate.getUTCDate() + 7);
-    else if (interval === 'month') currentDate.setUTCMonth(currentDate.getUTCMonth() + 1);
-  }
-
-  const accuracyPct = totalForecastRev > 0 ? Math.max(50, 100 - (Math.abs(totalActualRev - totalForecastRev) / totalForecastRev * 100)) : 95.5;
-  const growthRate = points > 1 ? ((items[items.length - 1].actualRevenue - items[0].actualRevenue) / (items[0].actualRevenue || 1)) * 100 : 5.5;
-
-  const summary = {
-    totalForecastRevenue: `$${totalForecastRev.toLocaleString()}`,
-    totalActualRevenue: `$${totalActualRev.toLocaleString()}`,
-    forecastAccuracy: `${accuracyPct.toFixed(1)}%`,
-    revenueDifference: `${totalActualRev >= totalForecastRev ? '+' : ''}$${(totalActualRev - totalForecastRev).toLocaleString()}`,
-    salesDifference: `${totalActualVol >= totalForecastVol ? '+' : ''}${(totalActualVol - totalForecastVol).toLocaleString()} units`,
-    growthPercent: `${growthRate >= 0 ? '+' : ''}${growthRate.toFixed(1)}%`,
-    rawRevenueDiff: totalActualRev - totalForecastRev,
-    rawSalesDiff: totalActualVol - totalForecastVol,
-  };
-
-  return { summary, items };
-}
 
 /**
  * Generates transactional records for Drill-down displays
