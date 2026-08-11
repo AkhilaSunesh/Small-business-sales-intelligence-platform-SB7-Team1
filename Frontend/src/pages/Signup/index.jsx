@@ -4,6 +4,7 @@ import { usePageTitle } from '../../hooks/usePageTitle';
 import Button from '../../components/ui/Button';
 import Input from '../../components/ui/Input';
 import { FiEye, FiEyeOff, FiCheckCircle } from 'react-icons/fi';
+import { registerUser } from '../../services/authService';
 
 function SignupPage() {
   usePageTitle('Sign Up');
@@ -23,6 +24,8 @@ function SignupPage() {
   const [showPassword, setShowPassword] = useState(false);
   const [showConfirmPassword, setShowConfirmPassword] = useState(false);
   const [isSuccess, setIsSuccess] = useState(false);
+  const [isLoading, setIsLoading] = useState(false);
+  const [submitError, setSubmitError] = useState('');
 
   const handleChange = (e) => {
     const { name, value, type, checked } = e.target;
@@ -104,12 +107,28 @@ function SignupPage() {
     return Object.keys(newErrors).length === 0;
   };
 
-  const handleSubmit = (e) => {
+  const handleSubmit = async (e) => {
     e.preventDefault();
     if (!validate()) return;
+    setSubmitError('');
 
-    // Simulate successful mock registration
-    setIsSuccess(true);
+    const roleMap = {
+      'Admin': 1,
+      'Business Owner': 2,
+      'Store Manager': 3,
+      'Sales Executive': 4
+    };
+    const roleId = roleMap[form.role] || 3;
+
+    setIsLoading(true);
+    try {
+      await registerUser(form.fullName, form.email, form.password, roleId);
+      setIsSuccess(true);
+    } catch (err) {
+      setSubmitError(err.message);
+    } finally {
+      setIsLoading(false);
+    }
   };
 
   if (isSuccess) {
@@ -303,8 +322,10 @@ function SignupPage() {
               {errors.agreeTerms && <p className="text-xs text-rose-400 mt-1">{errors.agreeTerms}</p>}
             </div>
 
-            <Button type="submit" className="w-full mt-2">
-              Sign Up
+            {submitError && <p className="text-sm text-rose-455 mt-2">{submitError}</p>}
+
+            <Button type="submit" className="w-full mt-2" disabled={isLoading}>
+              {isLoading ? 'Signing Up...' : 'Sign Up'}
             </Button>
 
             <div className="text-center text-sm text-slate-400 mt-4">

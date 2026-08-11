@@ -46,3 +46,29 @@ export async function loginUser(email, password) {
     throw new Error(backendMessage || `Login failed (HTTP ${err.response.status}).`);
   }
 }
+
+/**
+ * Register a new user with the backend.
+ *
+ * @param {string} name
+ * @param {string} email
+ * @param {string} password
+ * @param {number} roleId
+ * @returns {object} The registered user details
+ * @throws Error with a human-readable message for the Signup page to display
+ */
+export async function registerUser(name, email, password, roleId) {
+  try {
+    const { data } = await api.post('/api/auth/register', { name, email, password, roleId });
+    return data;
+  } catch (err) {
+    if (!err.response) {
+      throw new Error(
+        'Unable to reach the authentication server. ' +
+        'Please check your connection and try again.'
+      );
+    }
+    const backendMessage = err.response?.data?.message;
+    throw new Error(backendMessage || `Registration failed (HTTP ${err.response.status}).`);
+  }
+}
