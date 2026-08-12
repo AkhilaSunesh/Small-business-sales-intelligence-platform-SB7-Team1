@@ -165,13 +165,14 @@ function InvoiceListPage() {
     return sorted;
   }, [filteredInvoices, sortConfig]);
 
-  // Pagination Splitting: local split
-  const paginatedInvoices = useMemo(() => {
-    const startIndex = (currentPage - 1) * rowsPerPage;
-    return sortedInvoices.slice(startIndex, startIndex + rowsPerPage);
-  }, [sortedInvoices, currentPage, rowsPerPage]);
+  // Pagination Splitting: data already comes paginated from the server.
+  // Do NOT re-slice here — just use what the API returned for this page.
+  // Local filter/sort only runs over the current page's records (for method filter
+  // which is not sent to the backend).
+  const paginatedInvoices = sortedInvoices;
 
-  const totalPages = pagination?.totalPages || Math.ceil(sortedInvoices.length / rowsPerPage) || 1;
+  // Always derive totalPages from the backend pagination object.
+  const totalPages = pagination?.totalPages || 1;
 
   // Sorting Toggler
   const handleSort = (key) => {
@@ -209,13 +210,37 @@ function InvoiceListPage() {
     setDeleteInvoice(null);
   };
 
-  const handleDownload = (invoice) => {
-    showToast(`Downloading PDF document for ${invoice.id}...`, 'info');
-    
-    // Simulating file download link triggers
-    setTimeout(() => {
-      showToast(`PDF invoice for ${invoice.customer} successfully downloaded.`, 'success');
-    }, 1500);
+  const handleDownload = async (invoice) => {
+    showToast(`Preparing invoice ${invoice.id} for download…`, 'info');
+    try {
+      const response = await import('../../services/api').then(m => m.default.get(
+        `/api/invoices/${invoice.dbId}/download`,
+        { responseType: 'blob' }
+      ));
+
+      // Create a temporary anchor to trigger the browser download
+      const blob = new Blob([response.data], {
+        type: response.headers['content-type'] || 'text/plain',
+      });
+      const url = URL.createObjectURL(blob);
+      const link = document.createElement('a');
+      link.href = url;
+
+      // Derive filename from Content-Disposition or fall back to invoice ID
+      const contentDisposition = response.headers['content-disposition'] || '';
+      const match = contentDisposition.match(/filename="?([^";\n]+)"?/i);
+      link.download = match?.[1] || `invoice-${invoice.id}.txt`;
+
+      document.body.appendChild(link);
+      link.click();
+      document.body.removeChild(link);
+      URL.revokeObjectURL(url);
+
+      showToast(`Invoice ${invoice.id} downloaded successfully.`, 'success');
+    } catch (err) {
+      console.error('Download failed:', err);
+      showToast(`Failed to download invoice ${invoice.id}. Please try again.`, 'error');
+    }
   };
 
   const handlePrint = (invoice) => {
@@ -308,9 +333,9 @@ function InvoiceListPage() {
             <div className="rounded-3xl border border-white/10 bg-slate-950/80 p-6 backdrop-blur space-y-4">
               <div className="flex justify-between items-center px-1">
                 <span className="text-xs font-semibold text-slate-400">
-                  Showing {Math.min(sortedInvoices.length, (currentPage - 1) * rowsPerPage + 1)} to{' '}
-                  {Math.min(sortedInvoices.length, currentPage * rowsPerPage)} of{' '}
-                  {sortedInvoices.length} entries
+                  Showing {((currentPage - 1) * rowsPerPage + 1).toLocaleString()} –{' '}
+                  {Math.min(currentPage * rowsPerPage, pagination?.total || sortedInvoices.length).toLocaleString()} of{' '}
+                  {(pagination?.total || sortedInvoices.length).toLocaleString()} invoices
                 </span>
               </div>
 
