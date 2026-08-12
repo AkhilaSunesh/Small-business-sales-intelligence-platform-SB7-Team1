@@ -27,6 +27,9 @@ router.patch("/bulk", require("../controllers/bulk.controller").bulkUpdateInvoic
 // POST /api/invoices/:id/payments    — record a payment against an invoice (Joi validated)
 router.post("/:id/payments", validateRecordPayment, invoiceController.recordPayment);
 
+// GET  /api/invoices/:id/download   — download invoice as text receipt
+router.get("/:id/download", invoiceController.downloadInvoice);
+
 // GET  /api/invoices/:id             — single invoice by UUID (must be last)
 router.get("/:id", invoiceController.getInvoiceById);
 

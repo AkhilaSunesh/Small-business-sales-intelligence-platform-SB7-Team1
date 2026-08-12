@@ -5,9 +5,13 @@ const invoiceService = require("../services/invoice.service");
 //               customerSearch, invoiceSearch, dateFrom, dateTo
 exports.getInvoices = async (req, res, next) => {
   try {
+    // Accept both ?limit= and ?pageSize= for compatibility
+    const pageSize = parseInt(req.query.limit) ||
+                     parseInt(req.query.pageSize) || 20;
+
     const result = await invoiceService.listInvoices({
       page: parseInt(req.query.page) || 1,
-      pageSize: parseInt(req.query.pageSize) || 20,
+      pageSize,
       sortBy: req.query.sortBy || "createdAt",
       sortOrder: req.query.sortOrder || "desc",
       status: req.query.status || undefined,
@@ -18,10 +22,19 @@ exports.getInvoices = async (req, res, next) => {
       dateTo: req.query.dateTo || undefined
     });
 
+    // Normalise pagination — expose both limit and pageSize for compatibility
+    const pagination = {
+      total:      result.pagination.total,
+      page:       result.pagination.page,
+      limit:      result.pagination.pageSize,   // frontend expects "limit"
+      pageSize:   result.pagination.pageSize,   // keep for backward compat
+      totalPages: result.pagination.totalPages
+    };
+
     return res.status(200).json({
       success: true,
       data: result.data,
-      pagination: result.pagination
+      pagination
     });
   } catch (error) {
     next(error);
@@ -43,7 +56,7 @@ exports.getInvoicesByStatus = async (req, res, next) => {
 
     const result = await invoiceService.listInvoices({
       page: parseInt(req.query.page) || 1,
-      pageSize: parseInt(req.query.pageSize) || 20,
+      pageSize: parseInt(req.query.limit) || parseInt(req.query.pageSize) || 20,
       sortBy: req.query.sortBy || "createdAt",
       sortOrder: req.query.sortOrder || "desc",
       status,
@@ -57,7 +70,13 @@ exports.getInvoicesByStatus = async (req, res, next) => {
     return res.status(200).json({
       success: true,
       data: result.data,
-      pagination: result.pagination
+      pagination: {
+        total:      result.pagination.total,
+        page:       result.pagination.page,
+        limit:      result.pagination.pageSize,
+        pageSize:   result.pagination.pageSize,
+        totalPages: result.pagination.totalPages
+      }
     });
   } catch (error) {
     next(error);
@@ -207,6 +226,109 @@ exports.checkOverdueInvoices = async (req, res, next) => {
       message: `${result.updatedCount} invoice(s) marked as overdue`,
       data: result
     });
+  } catch (error) {
+    next(error);
+  }
+};
+
+// ─── GET /api/invoices/:id/download ────────────────────────────────────────
+// Returns a plain-text invoice receipt as a downloadable file.
+// PDF generation libraries are not available in this environment, so a
+// well-formatted text receipt is returned with the correct Content-Disposition.
+exports.downloadInvoice = async (req, res, next) => {
+  try {
+    const invoice = await invoiceService.getInvoiceById(req.params.id);
+
+    if (!invoice) {
+      return res.status(404).json({ success: false, message: "Invoice not found" });
+    }
+
+    // Build a human-readable text receipt
+    const lines = [];
+    const sep = "=".repeat(60);
+    const thin = "-".repeat(60);
+
+    lines.push(sep);
+    lines.push("                   MARKETMIND AI");
+    lines.push("                  INVOICE RECEIPT");
+    lines.push(sep);
+    lines.push("");
+    lines.push(`Invoice Number : ${invoice.invoiceNumber}`);
+    lines.push(`Date Created   : ${new Date(invoice.createdAt).toLocaleDateString("en-IN")}`);
+    lines.push(`Due Date       : ${new Date(invoice.dueDate).toLocaleDateString("en-IN")}`);
+    lines.push(`Status         : ${invoice.status}`);
+    lines.push("");
+    lines.push(thin);
+    lines.push("BILL TO:");
+    lines.push(`  Name         : ${invoice.customer?.name || "N/A"}`);
+    lines.push(`  Customer Code: ${invoice.customer?.customerCode || "N/A"}`);
+    if (invoice.customer?.email) {
+      lines.push(`  Email        : ${invoice.customer.email}`);
+    }
+    lines.push("");
+    lines.push(thin);
+    lines.push("LINE ITEMS:");
+    lines.push(thin);
+
+    // Line items from JSON field
+    const items = Array.isArray(invoice.lineItems) ? invoice.lineItems : [];
+    if (items.length > 0) {
+      lines.push(
+        "  Product".padEnd(30) + "Qty".padStart(6) + "Unit Price".padStart(12) + "Total".padStart(12)
+      );
+      lines.push(thin);
+      for (const item of items) {
+        const name  = String(item.productName || item.productId || "Item").slice(0, 28);
+        const qty   = String(item.quantity || 0);
+        const price = String((item.unitPrice || 0).toFixed(2));
+        const total = String((item.lineTotal  || 0).toFixed(2));
+        lines.push(
+          `  ${name.padEnd(28)}${qty.padStart(6)}${price.padStart(12)}${total.padStart(12)}`
+        );
+      }
+    } else {
+      lines.push("  (No line items recorded)");
+    }
+
+    lines.push("");
+    lines.push(thin);
+    lines.push(`${"Subtotal :".padEnd(48)}${String(invoice.subtotal?.toFixed(2) || "0.00").padStart(12)}`);
+    if (invoice.discountRate > 0) {
+      lines.push(`${"Discount (" + invoice.discountRate + "%) :".padEnd(48)}${("-" + String(invoice.discountAmount?.toFixed(2) || "0.00")).padStart(12)}`);
+    }
+    lines.push(`${"GST (" + invoice.taxRate + "%) :".padEnd(48)}${String(invoice.taxAmount?.toFixed(2) || "0.00").padStart(12)}`);
+    lines.push(sep);
+    lines.push(`${"TOTAL AMOUNT :".padEnd(48)}${String(invoice.totalAmount?.toFixed(2) || "0.00").padStart(12)}`);
+    lines.push(sep);
+    lines.push("");
+
+    // Payment history
+    if (invoice.payments && invoice.payments.length > 0) {
+      lines.push("PAYMENT HISTORY:");
+      lines.push(thin);
+      for (const p of invoice.payments) {
+        lines.push(`  ${new Date(p.paidAt).toLocaleDateString("en-IN").padEnd(14)} ${p.method.padEnd(16)} ${String(p.amount.toFixed(2)).padStart(10)}`);
+      }
+      const totalPaid = invoice.payments.reduce((s, p) => s + p.amount, 0);
+      lines.push(thin);
+      lines.push(`${"AMOUNT PAID :".padEnd(48)}${String(totalPaid.toFixed(2)).padStart(12)}`);
+      lines.push(`${"BALANCE DUE :".padEnd(48)}${String(Math.max(0, invoice.totalAmount - totalPaid).toFixed(2)).padStart(12)}`);
+      lines.push(sep);
+    }
+
+    lines.push("");
+    lines.push("   Thank you for your business — MarketMind AI");
+    lines.push(sep);
+
+    const content  = lines.join("\n");
+    const filename = `invoice-${invoice.invoiceNumber.replace(/[^a-zA-Z0-9-]/g, "_")}.txt`;
+
+    res.setHeader("Content-Type",        "text/plain; charset=utf-8");
+    res.setHeader("Content-Disposition", `attachment; filename="${filename}"`);
+    res.setHeader("Content-Length",      Buffer.byteLength(content, "utf8"));
+    res.setHeader("Cache-Control",       "no-cache");
+
+    return res.status(200).send(content);
   } catch (error) {
     next(error);
   }

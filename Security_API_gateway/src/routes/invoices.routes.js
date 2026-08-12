@@ -49,6 +49,38 @@ router.patch("/bulk", validateBulkInvoice,
 // POST /api/invoices/:id/payments — record payment
 router.post("/:id/payments",validateRecordPayment,auditSuccessfulAction("Invoice Payment Updated", "record-payment"),(req, res) => forward(req, res, `/invoices/${req.params.id}/payments`));
 
+// GET /api/invoices/:id/download — download invoice file (binary-safe)
+router.get("/:id/download", async (req, res) => {
+    try {
+        const response = await axios({
+            method:       "GET",
+            url:          `${BACKEND_API_URL}/invoices/${req.params.id}/download`,
+            headers:      { Authorization: req.headers.authorization || "" },
+            responseType: "arraybuffer",   // preserve binary/text content exactly
+            timeout:      30000
+        });
+
+        // Forward the exact Content-Type and Content-Disposition from the backend
+        const contentType        = response.headers["content-type"]        || "text/plain";
+        const contentDisposition = response.headers["content-disposition"]  || `attachment; filename="invoice.txt"`;
+
+        res.setHeader("Content-Type",        contentType);
+        res.setHeader("Content-Disposition", contentDisposition);
+        res.setHeader("Cache-Control",       "no-cache");
+
+        return res.status(response.status).send(Buffer.from(response.data));
+    } catch (error) {
+        const status = error.response?.status || 500;
+        // Error responses from backend are JSON — safe to decode
+        let message = error.message;
+        try {
+            const decoded = JSON.parse(Buffer.from(error.response?.data || "{}").toString());
+            message = decoded.message || message;
+        } catch (_) {}
+        return res.status(status).json({ success: false, message });
+    }
+});
+
 // GET /api/invoices/:id — single invoice
 router.get("/:id", (req, res) => forward(req, res, `/invoices/${req.params.id}`));
 
