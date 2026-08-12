@@ -56,22 +56,22 @@ export function NotificationProvider({ children }) {
         const isLowStock = item.type === 'LOW_STOCK';
         const priority = item.severity === 'CRITICAL' ? 'critical' : 'high';
         const category = isLowStock ? 'inventory' : 'invoice';
-        const id = isLowStock 
-          ? `live-stock-${item.productId || idx}` 
+        const id = isLowStock
+          ? `live-stock-${item.productId || idx}`
           : `live-invoice-${item.invoiceId || idx}`;
 
         return {
           id,
           title: isLowStock ? `Low Stock: ${item.productName}` : `Overdue Invoice: ${item.invoiceNumber}`,
           description: item.message,
-          time: isLowStock ? 'Recent' : `${item.daysOverdue} days overdue`,
+          time: isLowStock ? 'Recent' : `${item.daysOverdue} day(s) overdue`,
           priority,
           category,
           read: false,
         };
       });
 
-      // Filter live items based on user role
+      // Filter live items based on user role — show relevant categories only
       let roleKey = role || 'Owner';
       let filteredLive = mappedLiveItems;
       if (roleKey === 'Store Manager') {
@@ -79,47 +79,22 @@ export function NotificationProvider({ children }) {
       } else if (roleKey === 'Sales Executive') {
         filteredLive = mappedLiveItems.filter(item => item.category === 'invoice');
       }
+      // Owner and Admin see all notification types
 
-      // Get static items for this role that are NOT inventory/invoice (to support System, Revenue, AI_recommendation, Customer alerts)
-      const staticItems = MOCK_NOTIFICATIONS[roleKey] || [];
-      const filteredStatic = staticItems.filter(
-        item => item.category !== 'inventory' && item.category !== 'invoice'
-      );
-
-      // Merge live items first, then static items
-      const merged = [...filteredLive, ...filteredStatic];
-
-      // Retrieve read and deleted state from localStorage
-      const storedRead = JSON.parse(localStorage.getItem('marketmind:read-notifications') || '[]');
+      // Apply persistent read/deleted state from localStorage
+      const storedRead    = JSON.parse(localStorage.getItem('marketmind:read-notifications')    || '[]');
       const storedDeleted = JSON.parse(localStorage.getItem('marketmind:deleted-notifications') || '[]');
 
-      // Apply read status and filter out deleted notifications
-      const finalNotifications = merged
-        .map(item => ({
-          ...item,
-          read: storedRead.includes(item.id) ? true : item.read,
-        }))
+      const finalNotifications = filteredLive
+        .map(item => ({ ...item, read: storedRead.includes(item.id) ? true : item.read }))
         .filter(item => !storedDeleted.includes(item.id));
 
       setNotifications(finalNotifications);
     } catch (err) {
       console.error('Failed to load live notifications:', err);
-      setError(err.message || 'Failed to sync notification stream. Remote endpoint refused gateway connection.');
-      
-      // Fallback to static mock notifications if API fails
-      let roleKey = role || 'Owner';
-      const staticItems = MOCK_NOTIFICATIONS[roleKey] || [];
-      const storedRead = JSON.parse(localStorage.getItem('marketmind:read-notifications') || '[]');
-      const storedDeleted = JSON.parse(localStorage.getItem('marketmind:deleted-notifications') || '[]');
-
-      const finalNotifications = staticItems
-        .map(item => ({
-          ...item,
-          read: storedRead.includes(item.id) ? true : item.read,
-        }))
-        .filter(item => !storedDeleted.includes(item.id));
-
-      setNotifications(finalNotifications);
+      setError('Failed to sync notifications. Please check your connection and try again.');
+      // On API failure, show empty list rather than mock data
+      setNotifications([]);
     } finally {
       setLoading(false);
     }
