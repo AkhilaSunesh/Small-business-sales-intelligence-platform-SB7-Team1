@@ -427,4 +427,4 @@ Because the dataset contains only four products and does not contain ground-trut
 
 - `11_Improved_Product_Recommendation.ipynb`
 - `improved_product_recommendations.csv`
-- `improved_product_recommendations.pkl`
+- `improved_product_recommendations.pkl` 
