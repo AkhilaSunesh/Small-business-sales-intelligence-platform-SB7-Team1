@@ -120,6 +120,7 @@ export default function DashboardFilters({
             <input
               type="date"
               value={filters.startDate}
+              max={filters.endDate || new Date().toISOString().slice(0, 10)}
               onChange={(e) => handleCustomDateChange('startDate', e.target.value)}
               className="rounded-lg border border-white/10 bg-slate-950 px-3 py-1.5 text-xs text-slate-200 outline-none focus:border-cyan-400"
             />
@@ -129,10 +130,18 @@ export default function DashboardFilters({
             <input
               type="date"
               value={filters.endDate}
+              min={filters.startDate || undefined}
+              max={new Date().toISOString().slice(0, 10)}
               onChange={(e) => handleCustomDateChange('endDate', e.target.value)}
               className="rounded-lg border border-white/10 bg-slate-950 px-3 py-1.5 text-xs text-slate-200 outline-none focus:border-cyan-400"
             />
           </div>
+          {/* Date range validation message */}
+          {filters.startDate && filters.endDate && filters.startDate > filters.endDate && (
+            <p className="w-full text-xs text-rose-400 mt-1">
+              Invalid date range: The &apos;From&apos; date cannot be later than the &apos;To&apos; date.
+            </p>
+          )}
         </div>
       )}
 

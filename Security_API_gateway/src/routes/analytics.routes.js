@@ -26,4 +26,10 @@ const forward = async (req, res, backendPath) => {
 // GET /api/analytics/summary
 router.get("/summary", (req, res) => forward(req, res, "/analytics/summary"));
 
+// GET /api/analytics/payment-methods — real payment method distribution
+router.get("/payment-methods", (req, res) => forward(req, res, "/analytics/payment-methods"));
+
+// GET /api/analytics/categories — real sales by category
+router.get("/categories", (req, res) => forward(req, res, "/analytics/categories"));
+
 module.exports = router;

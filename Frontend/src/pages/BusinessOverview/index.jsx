@@ -9,9 +9,10 @@ import {
 } from 'recharts';
 import { 
   FiTrendingUp, FiShoppingBag, FiUsers, FiBox, FiAlertTriangle, 
-  FiZap, FiRefreshCw, FiGrid, FiActivity, FiInfo 
+  FiZap, FiRefreshCw, FiGrid, FiActivity
 } from 'react-icons/fi';
 import dashboardService from '../../services/dashboardService';
+import { getPaymentMethods, getCategoryBreakdown } from '../../services/dashboardService';
 import notificationService from '../../services/notificationService';
 import recommendationService from '../../services/recommendationService';
 
@@ -31,7 +32,7 @@ export default function BusinessOverviewPage() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
   const [isEmpty, setIsEmpty] = useState(false);
-  const [isDemoOpen, setIsDemoOpen] = useState(false);
+  const [isDemoOpen, setIsDemoOpen] = useState(false); // kept to avoid unused-var warning but button removed
 
   // Live telemetry states
   const [metrics, setMetrics] = useState({
@@ -63,7 +64,7 @@ export default function BusinessOverviewPage() {
     setLoading(true);
     setError(null);
     try {
-      const [summaryRes, trendRes, topRes, recsRes, countsRes, alertsRes, auditRes] = await Promise.all([
+      const [summaryRes, trendRes, topRes, recsRes, countsRes, alertsRes, auditRes, categoryRes, paymentRes] = await Promise.all([
         dashboardService.getDashboardSummary(),
         dashboardService.getSalesTrend('30d'),
         dashboardService.getTopProducts(),
@@ -71,6 +72,8 @@ export default function BusinessOverviewPage() {
         notificationService.getNotificationCounts().catch(() => ({ data: { lowStock: 0, overdueInvoices: 0, total: 0 } })),
         notificationService.getNotifications({ page: 1, limit: 5 }).catch(() => ({ data: [] })),
         dashboardService.getAuditSummary(5).catch(() => ({ data: { recentEntries: [] } })),
+        getCategoryBreakdown().catch(() => ({ data: [] })),
+        getPaymentMethods().catch(() => ({ data: [] })),
       ]);
 
       const summary = (summaryRes && summaryRes.data) || {};
@@ -123,49 +126,34 @@ export default function BusinessOverviewPage() {
       }));
       setTopProducts(mappedProducts);
 
-      // 4. Group Top Products for Category Distribution Chart
-      const categoryMap = {};
-      products.forEach(p => {
-        if (p.category) {
-          categoryMap[p.category] = (categoryMap[p.category] || 0) + p.revenue;
-        }
-      });
-      const defaultCategories = {
-        'Organic Grocery': 42300,
-        'Snacks & Bakery': 31200,
-        'Beverages': 25400,
-        'Personal Care': 18900,
-        'Dairy & Eggs': 25050
-      };
-      const finalCategoryData = Object.keys(categoryMap).length > 0
-        ? Object.entries(categoryMap).map(([name, value]) => ({ name, value }))
-        : Object.entries(defaultCategories).map(([name, value]) => ({ name, value }));
+      // 4. Category Distribution — from real /api/analytics/categories
+      const rawCategories = (categoryRes && categoryRes.data) || [];
+      const finalCategoryData = rawCategories.length > 0
+        ? rawCategories.map(c => ({ name: c.name, value: c.value }))
+        : (Object.keys(categoryMap).length > 0
+            ? Object.entries(categoryMap).map(([name, value]) => ({ name, value }))
+            : []);
       setCategoryData(finalCategoryData);
 
-      // 5. Customer Acquisition Distribution
-      const totalCust = summary.totalCustomers || 1280;
-      setCustomerDist([
-        { channel: 'In-Store Walk-in', count: Math.round(totalCust * 0.45) },
-        { channel: 'Online Store', count: Math.round(totalCust * 0.33) },
-        { channel: 'Local Delivery App', count: Math.round(totalCust * 0.14) },
-        { channel: 'Catering B2B', count: Math.round(totalCust * 0.08) },
-      ]);
+      // 5. Payment Method Distribution — from real /api/analytics/payment-methods
+      const rawPayments = (paymentRes && paymentRes.data) || [];
+      const paymentDistData = rawPayments.map(p => ({
+        channel: p.method,
+        count:   p.count,
+        revenue: p.revenue
+      }));
+      setCustomerDist(paymentDistData);
 
-      // 6. Recent Alerts Logs
+      // 6. Recent Alerts — from real notification API only
       const mappedAlerts = rawAlerts.map((n, idx) => ({
         id: idx + 1,
         text: n.message,
         type: n.severity === 'CRITICAL' ? 'critical' : 'warning',
         time: n.time || 'Recent',
       }));
-      const finalAlerts = mappedAlerts.length > 0 ? mappedAlerts : [
-        { id: 1, text: 'Security: Multiple failed login attempts from IP 192.168.1.104', type: 'critical', time: '10m ago' },
-        { id: 2, text: 'Stock: Organic Oats is below critical threshold of 10 items', type: 'warning', time: '45m ago' },
-        { id: 3, text: 'Billing: Overdue Invoice #INV-2026-089 past 5 days ($1,850.00)', type: 'warning', time: '2h ago' },
-      ];
-      setRecentAlerts(finalAlerts);
+      setRecentAlerts(mappedAlerts);
 
-      // 7. Mapped AI Recommendations list (use live recommendations)
+      // 7. AI Recommendations — live only, no hardcoded fallback
       const mappedRecs = recsList.map((rec, idx) => {
         const productId = rec.productId || rec.ProductID || 'Unknown';
         const coPurchaseCount = rec.coPurchaseCount ?? rec.CoPurchaseCount ?? rec.purchaseCount ?? 0;
@@ -175,13 +163,9 @@ export default function BusinessOverviewPage() {
           priority: idx === 0 ? 'high' : 'medium'
         };
       });
-      const finalRecs = mappedRecs.length > 0 ? mappedRecs.slice(0, 3) : [
-        { title: 'Cross-Sell Bundling', text: "Promotional Bundle suggestion: Combine 'Product A' and 'Product B' to increase average transaction size by $4.50. Target: repeat customers.", priority: 'high' },
-        { title: 'Dynamic Price Adjustment', text: 'Increase Product B price from $4.29 to $4.49 during weekend peaks (Fri-Sun 3PM-6PM). Demand models indicate zero volume elasticity loss.', priority: 'medium' },
-      ];
-      setAiRecs(finalRecs);
+      setAiRecs(mappedRecs.slice(0, 3));
 
-      // 8. Recent Activity logs from Gateway Audit logs
+      // 8. Recent Activity from audit log — real entries only
       const rawAudit = (auditRes && auditRes.data && auditRes.data.recentEntries) || [];
       const mappedActivity = rawAudit.map((entry) => {
         const dateObj = new Date(entry.timestamp);
@@ -194,23 +178,24 @@ export default function BusinessOverviewPage() {
           desc: `${entry.event} on ${entry.method || 'GET'} ${entry.endpoint || '/'} (Status: ${entry.status || 200})`,
         };
       });
-      const finalActivity = mappedActivity.length > 0 ? mappedActivity : [
-        { time: '10m ago', user: 'System Agent', desc: 'Triggered CPU usage warning (85% utilization threshold reached)' },
-        { time: '45m ago', user: 'Store Manager', desc: 'Changed inventory level for Product C (reduced to 3)' },
-        { time: '2h ago', user: 'Sales Executive', desc: 'Dispatched Invoice #INV-2026-102 to John Doe ($450.00)' },
-      ];
-      setRecentActivity(finalActivity);
+      setRecentActivity(mappedActivity);
 
-      // 9. Calculate health metrics
-      const totalProd = summary.totalProducts || 512;
+      // 9. Business health — all metrics derived from real data
+      const totalProd    = summary.totalProducts || 1;
       const lowStockCount = counts.lowStock || 0;
-      const stockAvailability = Math.max(50, Math.round(100 - (lowStockCount / totalProd * 100)));
-      const overallScore = Math.round((96 + stockAvailability + 95) / 3);
+      const stockAvailability = Math.max(0, Math.round(100 - (lowStockCount / totalProd * 100)));
+      const totalRev     = summary.totalRevenue || 0;
+      const totalOrd     = summary.totalOrders  || 0;
+      const avgOrder     = totalOrd > 0 ? totalRev / totalOrd : 0;
+      // Margin proxy: ratio of avg order to max observed price (capped 0–100)
+      const maxExpectedOrder = 300;
+      const marginScore  = Math.min(100, Math.round((avgOrder / maxExpectedOrder) * 100));
+      const overallScore = Math.round((marginScore + stockAvailability) / 2);
       setBusinessHealth({
-        overall: overallScore,
-        margin: 96,
-        stock: stockAvailability,
-        retention: 95
+        overall:   Math.max(0, Math.min(100, overallScore)),
+        margin:    Math.max(0, Math.min(100, marginScore)),
+        stock:     Math.max(0, Math.min(100, stockAvailability)),
+        retention: null   // Not available in the dataset — not shown
       });
 
     } catch (err) {
@@ -248,41 +233,6 @@ export default function BusinessOverviewPage() {
           <Button onClick={handleRetry} variant="secondary" className="gap-2 py-2.5 px-4 rounded-xl text-xs font-bold">
             <FiRefreshCw className={loading ? 'animate-spin' : ''} /> Refresh Data
           </Button>
-
-          {/* Interactive State Demo Menu */}
-          <div className="relative">
-            <button
-              onClick={() => setIsDemoOpen(!isDemoOpen)}
-              className="inline-flex items-center gap-2 rounded-xl border border-cyan-400/20 bg-cyan-400/10 px-4 py-2.5 text-xs font-bold text-cyan-300 hover:bg-cyan-400/20 transition cursor-pointer"
-            >
-              <FiInfo /> Toggle Demo States
-            </button>
-            {isDemoOpen && (
-              <div className="absolute right-0 mt-2 z-30 w-48 rounded-2xl border border-white/10 bg-slate-950 p-2.5 shadow-2xl backdrop-blur">
-                <p className="text-[9px] uppercase tracking-wider font-extrabold text-slate-500 mb-2 px-2">Demo Controls</p>
-                <div className="space-y-1">
-                  <button
-                    onClick={() => { setLoading(!loading); setIsDemoOpen(false); }}
-                    className="w-full text-left text-xs font-medium text-slate-350 hover:bg-white/5 hover:text-white px-2 py-1.5 rounded-lg transition"
-                  >
-                    {loading ? 'Disable Loading' : 'Enable Loading'}
-                  </button>
-                  <button
-                    onClick={() => { if (error) setError(null); else triggerErrorDemo(); setIsDemoOpen(false); }}
-                    className="w-full text-left text-xs font-medium text-slate-350 hover:bg-white/5 hover:text-white px-2 py-1.5 rounded-lg transition"
-                  >
-                    {error ? 'Disable Error State' : 'Enable Error State'}
-                  </button>
-                  <button
-                    onClick={() => { setIsEmpty(!isEmpty); setIsDemoOpen(false); }}
-                    className="w-full text-left text-xs font-medium text-slate-350 hover:bg-white/5 hover:text-white px-2 py-1.5 rounded-lg transition"
-                  >
-                    {isEmpty ? 'Disable Empty State' : 'Enable Empty State'}
-                  </button>
-                </div>
-              </div>
-            )}
-          </div>
         </div>
       </section>
 
@@ -313,10 +263,10 @@ export default function BusinessOverviewPage() {
           <h3 className="text-lg font-semibold text-white">Dashboard Telemetry Empty</h3>
           <p className="text-sm mt-1 text-slate-500">There is no telemetry or sales data reported on the intelligence stream for this period.</p>
           <button
-            onClick={() => setIsEmpty(false)}
+            onClick={handleRetry}
             className="mt-4 inline-flex items-center gap-2 rounded-xl bg-cyan-400 text-slate-950 px-4 py-2 text-xs font-semibold hover:bg-cyan-300 transition"
           >
-            Insert Dummy Data
+            <FiRefreshCw /> Retry
           </button>
         </div>
       ) : (
@@ -366,8 +316,10 @@ export default function BusinessOverviewPage() {
                       <XAxis dataKey="month" tick={{ fill: '#94a3b8', fontSize: 11 }} />
                       <YAxis tick={{ fill: '#94a3b8', fontSize: 11 }} />
                       <Tooltip 
-                        contentStyle={{ backgroundColor: '#020617', borderColor: 'rgba(255,255,255,0.1)', borderRadius: '16px' }}
-                        labelStyle={{ color: '#fff', fontWeight: 'bold' }}
+                        contentStyle={{ backgroundColor: '#020617', borderColor: 'rgba(255,255,255,0.12)', borderRadius: '16px', boxShadow: '0 8px 32px rgba(0,0,0,0.5)' }}
+                        labelStyle={{ color: '#e2e8f0', fontWeight: 700, fontSize: 12 }}
+                        itemStyle={{ color: '#22d3ee', fontSize: 12 }}
+                        formatter={(value) => [`$${Number(value).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`, 'Revenue']}
                       />
                       <Area type="monotone" dataKey="revenue" stroke="#22d3ee" strokeWidth={2.5} fillOpacity={1} fill="url(#colorRev)" />
                     </AreaChart>
@@ -415,7 +367,7 @@ export default function BusinessOverviewPage() {
                     <div className="space-y-2.5">
                       <div>
                         <div className="flex justify-between text-[11px] mb-1">
-                          <span className="text-slate-400">Margin Health</span>
+                          <span className="text-slate-400">Margin Score</span>
                           <span className="font-semibold text-white">{businessHealth.margin}%</span>
                         </div>
                         <div className="h-1.5 w-full bg-slate-900 rounded-full overflow-hidden">
@@ -429,15 +381,6 @@ export default function BusinessOverviewPage() {
                         </div>
                         <div className="h-1.5 w-full bg-slate-900 rounded-full overflow-hidden">
                           <div className="h-full bg-amber-400 rounded-full" style={{ width: `${businessHealth.stock}%` }} />
-                        </div>
-                      </div>
-                      <div>
-                        <div className="flex justify-between text-[11px] mb-1">
-                          <span className="text-slate-400">Customer Retention</span>
-                          <span className="font-semibold text-white">{businessHealth.retention}%</span>
-                        </div>
-                        <div className="h-1.5 w-full bg-slate-900 rounded-full overflow-hidden">
-                          <div className="h-full bg-emerald-400 rounded-full" style={{ width: `${businessHealth.retention}%` }} />
                         </div>
                       </div>
                     </div>
@@ -494,9 +437,9 @@ export default function BusinessOverviewPage() {
               )}
             </div>
 
-            {/* Customer Distribution Chart */}
+            {/* Payment Methods Distribution Chart */}
             <div className="rounded-3xl border border-white/10 bg-slate-950/80 p-6">
-              <h3 className="text-sm font-semibold text-white mb-4">Customer Acquisition</h3>
+              <h3 className="text-sm font-semibold text-white mb-4">Payment Methods</h3>
               {loading ? (
                 <div className="h-56 animate-pulse rounded-2xl bg-white/5" />
               ) : (

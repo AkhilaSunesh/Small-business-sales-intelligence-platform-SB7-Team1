@@ -181,7 +181,7 @@ async function main() {
         if (existingInventoryIds.has(product.id)) continue;
         inventoriesToInsert.push({
             productId: product.id,
-            quantity: 100000,
+            quantity: 1000,
             lowStockThreshold: 10
         });
     }
