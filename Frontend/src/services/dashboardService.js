@@ -39,3 +39,13 @@ export async function getAuditSummary(limit = 5) {
 
 export default { getDashboardSummary, getTotalRevenue, getSalesTrend, getTopProducts, getAuditSummary };
 
+
+export async function getPaymentMethods() {
+  const res = await api.get('/api/analytics/payment-methods');
+  return res.data;
+}
+
+export async function getCategoryBreakdown() {
+  const res = await api.get('/api/analytics/categories');
+  return res.data;
+}

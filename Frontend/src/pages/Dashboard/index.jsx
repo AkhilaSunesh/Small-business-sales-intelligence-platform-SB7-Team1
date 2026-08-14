@@ -149,7 +149,17 @@ function DashboardPage() {
                 onClick={() => handleOpenDrillDown('kpi', 'Average Order Value', 'Average Basket Value Logs')}
                 className="cursor-pointer transition hover:scale-[1.01]"
               >
-                <StatCard label="Avg Order Value" value={stats.avgOrderValue} helper="Computed average transaction" accent="amber" loading={loading} />
+                <StatCard
+                  label="Avg Order Value"
+                  value={
+                    stats.avgOrderValue !== undefined
+                      ? `$${Number(stats.avgOrderValue).toFixed(2)}`
+                      : '$0.00'
+                  }
+                  helper="Computed average transaction"
+                  accent="amber"
+                  loading={loading}
+                />
               </div>
               <div
                 onClick={() => handleOpenDrillDown('kpi', 'Active Products', 'Catalog Items List')}

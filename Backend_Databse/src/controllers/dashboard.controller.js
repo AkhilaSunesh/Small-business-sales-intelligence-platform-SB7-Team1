@@ -43,9 +43,10 @@ exports.getDashboardSummary = async (req, res) => {
     try {
         const where = buildWhereClause(req);
 
-        const [totalSales, revenueAgg] = await Promise.all([
+        const [totalSales, revenueAgg, totalCustomers] = await Promise.all([
             prisma.salesTransaction.count({ where }),
-            prisma.salesTransaction.aggregate({ _sum: { totalAmount: true }, where })
+            prisma.salesTransaction.aggregate({ _sum: { totalAmount: true }, where }),
+            prisma.customer.count()
         ]);
 
         // Get total products (optionally filtered by category)
@@ -63,6 +64,8 @@ exports.getDashboardSummary = async (req, res) => {
             data: {
                 totalRevenue,
                 totalOrders: totalSales,
+                totalSales,
+                totalCustomers,
                 avgOrderValue,
                 activeProducts: totalProducts
             }

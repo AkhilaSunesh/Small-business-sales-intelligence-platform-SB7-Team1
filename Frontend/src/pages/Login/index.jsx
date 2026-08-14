@@ -4,7 +4,7 @@ import { usePageTitle } from '../../hooks/usePageTitle';
 import { useAppContext } from '../../context/AppContext';
 import Button from '../../components/ui/Button';
 import Input from '../../components/ui/Input';
-import { FiRefreshCw } from 'react-icons/fi';
+import { FiRefreshCw, FiEye, FiEyeOff } from 'react-icons/fi';
 import { loginUser } from '../../services/authService';
 
 function LoginPage() {
@@ -14,6 +14,7 @@ function LoginPage() {
   const [captcha, setCaptcha] = useState('');
   const [error, setError] = useState('');
   const [isLoading, setIsLoading] = useState(false);
+  const [showPassword, setShowPassword] = useState(false);
   usePageTitle('Login');
 
   const generateCaptcha = useCallback(() => {
@@ -134,14 +135,26 @@ function LoginPage() {
               onChange={handleChange}
               placeholder="name@example.com"
             />
-            <Input
-              label="Password"
-              name="password"
-              type="password"
-              value={form.password}
-              onChange={handleChange}
-              placeholder="Enter your password"
-            />
+            {/* Password field with show/hide toggle */}
+            <div className="relative">
+              <Input
+                label="Password"
+                name="password"
+                type={showPassword ? 'text' : 'password'}
+                value={form.password}
+                onChange={handleChange}
+                placeholder="Enter your password"
+              />
+              <button
+                type="button"
+                onClick={() => setShowPassword(prev => !prev)}
+                className="absolute right-4 top-[2.35rem] text-slate-400 hover:text-slate-200 transition"
+                aria-label={showPassword ? 'Hide password' : 'Show password'}
+                tabIndex={-1}
+              >
+                {showPassword ? <FiEyeOff size={17} /> : <FiEye size={17} />}
+              </button>
+            </div>
             <div>
               <label htmlFor="role" className="mb-2 block text-sm font-medium text-slate-200">
                 User role

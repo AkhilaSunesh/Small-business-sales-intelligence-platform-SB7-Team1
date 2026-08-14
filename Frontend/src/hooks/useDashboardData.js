@@ -27,6 +27,18 @@ export default function useDashboardData(filters) {
     setLoading(true);
     setError(null);
     try {
+      // Validate custom date range before sending request
+      if (
+        filters.dateRange === 'custom' &&
+        filters.startDate &&
+        filters.endDate &&
+        filters.startDate > filters.endDate
+      ) {
+        setError("Invalid date range: The 'From' date cannot be later than the 'To' date.");
+        setLoading(false);
+        return;
+      }
+
       const [sumRes, trendRes, topRes] = await Promise.all([
         getDashboardSummary(filters),
         getSalesTrend(filters),
