@@ -25,6 +25,8 @@ model User {
   role      Role @relation(fields: [roleId], references: [id])
 
   isActive    Boolean   @default(true)
+  isDeleted   Boolean   @default(false)
+  isPending   Boolean   @default(false)
   lastLoginAt DateTime?
 
   sales            SalesTransaction[]

@@ -42,7 +42,8 @@ function CustomerInsightsPage() {
     fetchCustomerSegmentation();
   }, [fetchCustomerSegmentation]);
 
-  const hasData = Array.isArray(customers) && customers.length > 0;
+  const vulnerableCustomers = customers.filter(c => c.category === 'Occasional');
+  const hasData = Array.isArray(vulnerableCustomers) && vulnerableCustomers.length > 0;
 
   const handleRetryConnection = () => {
     fetchCustomerSegmentation();
@@ -188,9 +189,9 @@ function CustomerInsightsPage() {
               <div className="flex items-center justify-between border-b border-white/5 pb-4">
                 <div className="flex items-center gap-2">
                   <FiList className="text-cyan-400 text-lg" />
-                  <h2 className="text-base font-semibold text-white">Customer Group List</h2>
+                  <h2 className="text-base font-semibold text-white">Vulnerable Customers List</h2>
                 </div>
-                <span className="text-xs text-slate-400 font-mono">Total: {customers.length}</span>
+                <span className="text-xs text-slate-400 font-mono">Total: {vulnerableCustomers.length}</span>
               </div>
 
               <div className="overflow-x-auto">
@@ -198,28 +199,26 @@ function CustomerInsightsPage() {
                   <thead>
                     <tr className="border-b border-white/5 text-xs uppercase tracking-wider text-slate-400">
                       <th className="pb-3 pl-2 font-semibold">Customer Name</th>
-                      <th className="pb-3 font-semibold text-center">Customer Category</th>
+                      <th className="pb-3 font-semibold text-center">Status</th>
+                      <th className="pb-3 font-semibold text-center">Retention Suggestion (AI)</th>
                       <th className="pb-3 font-semibold text-right pr-2">Total Orders</th>
                     </tr>
                   </thead>
                   <tbody className="divide-y divide-white/5 text-sm text-slate-300">
-                    {customers.map((cust) => (
+                    {vulnerableCustomers.map((cust) => (
                       <tr key={cust.id} className="hover:bg-white/5 transition-colors">
                         <td className="py-3.5 pl-2">
                           <div className="font-semibold text-white">{cust.name}</div>
                           <div className="text-xs font-mono text-slate-500">{cust.id}</div>
                         </td>
                         <td className="py-3.5 text-center">
-                          <span
-                            className={`inline-flex px-3 py-1 rounded-full text-xs font-semibold ${
-                              cust.category === 'Loyal'
-                                ? 'bg-emerald-500/10 text-emerald-300 border border-emerald-500/20'
-                                : cust.category === 'Occasional'
-                                ? 'bg-amber-500/10 text-amber-300 border border-amber-500/20'
-                                : 'bg-cyan-500/10 text-cyan-300 border border-cyan-500/20'
-                            }`}
-                          >
-                            {cust.category === 'Occasional' ? 'Occasional (Vulnerable)' : cust.category}
+                          <span className="inline-flex px-3 py-1 rounded-full text-xs font-semibold bg-rose-500/10 text-rose-300 border border-rose-500/20">
+                            Vulnerable
+                          </span>
+                        </td>
+                        <td className="py-3.5 text-center">
+                          <span className="text-xs text-amber-300 bg-amber-500/10 px-2.5 py-1 rounded-full border border-amber-500/20">
+                            {cust.totalOrders < 3 ? 'Send 20% win-back discount' : 'Offer VIP loyalty trial'}
                           </span>
                         </td>
                         <td className="py-3.5 text-right pr-2 font-mono font-bold text-white">

@@ -29,6 +29,8 @@ model User {
   // Synced with Backend_Databse/prisma/schema.prisma
   // Added by migration: 20260815071842_add_user_lastlogin_isactive
   isActive    Boolean   @default(true)
+  isDeleted   Boolean   @default(false)
+  isPending   Boolean   @default(false)
   lastLoginAt DateTime?
 
   sales            SalesTransaction[]

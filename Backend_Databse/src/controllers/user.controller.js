@@ -24,6 +24,7 @@ const SAFE_SELECT = {
     email:       true,
     roleId:      true,
     isActive:    true,
+    isPending:   true,
     lastLoginAt: true,
     role:        { select: { id: true, name: true } }
 };
@@ -36,7 +37,7 @@ function mapUser(u) {
         email:     u.email,
         roleId:    u.roleId,
         role:      u.role?.name || ROLE_LABELS[u.roleId] || "Unknown",
-        status:    u.isActive ? "Active" : "Inactive",
+        status:    u.isPending ? "Pending" : (u.isActive ? "Active" : "Inactive"),
         lastLogin: u.lastLoginAt
             ? new Date(u.lastLoginAt).toLocaleString("en-IN", { timeZone: "Asia/Kolkata" })
             : "N/A"
@@ -52,7 +53,7 @@ exports.getUsers = async (req, res) => {
         const limit = Math.min(100, Math.max(1, parseInt(req.query.limit, 10) || 20));
         const skip  = (page - 1) * limit;
 
-        const where = {};
+        const where = { isDeleted: false };
         if (req.query.search) {
             where.OR = [
                 { name:  { contains: req.query.search, mode: "insensitive" } },
@@ -132,7 +133,7 @@ exports.updateUserStatus = async (req, res) => {
 
         const updated = await prisma.user.update({
             where:  { id: req.params.id },
-            data:   { isActive: nextActive },
+            data:   { isActive: nextActive, isPending: false },
             select: SAFE_SELECT
         });
 
@@ -164,7 +165,7 @@ exports.deleteUser = async (req, res) => {
 
         const updated = await prisma.user.update({
             where:  { id: req.params.id },
-            data:   { isActive: false },
+            data:   { isActive: false, isDeleted: true },
             select: SAFE_SELECT
         });
 
