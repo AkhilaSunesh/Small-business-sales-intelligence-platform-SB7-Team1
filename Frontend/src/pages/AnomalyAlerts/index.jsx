@@ -37,7 +37,7 @@ function AnomalyAlertsPage() {
           
           // Create human-readable title and description
           const title = `Unusual transaction for Customer #${item.CustomerID || 'Unknown'}`;
-          const description = `Suspicious activity detected in ${item.ProductCategory || 'general category'} at ${item.StoreLocation || 'store'}. Quantity: ${item.Quantity || 0}, total amount: $${totalAmt.toFixed(2)} (anomaly status: ${item.Anomaly || 'flagged'}).`;
+          const description = `Suspicious activity detected in ${item.ProductCategory || 'general category'} at ${item.StoreLocation || 'store'}. Quantity: ${item.Quantity || 0}, total amount: $${totalAmt.toFixed(2)}`;
           
           // Format date cleanly
           let formattedDate = 'N/A';

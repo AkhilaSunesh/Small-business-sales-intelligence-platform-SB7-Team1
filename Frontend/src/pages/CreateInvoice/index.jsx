@@ -132,8 +132,8 @@ function CreateInvoicePage() {
     }
     const prod = products.find((p) => p.id === prodId);
     if (prod) {
-      setItemPrice(prod.price);
-      setItemDiscount(0);
+      setItemPrice(Number(prod.price).toFixed(2));
+      setItemDiscount('');
       setItemTax(18);
     }
   };
@@ -167,17 +167,17 @@ function CreateInvoicePage() {
       id: Date.now() + Math.random(),
       productId: prod.id,
       productName: prod.name,
-      quantity: Number(itemQty),
-      unitPrice: Number(itemPrice),
-      discountPercent: Number(itemDiscount),
-      taxPercent: Number(itemTax),
+      quantity: Number(itemQty) || 1,
+      unitPrice: Number(itemPrice) || 0,
+      discountPercent: Number(itemDiscount) || 0,
+      taxPercent: Number(itemTax) || 0,
     };
 
     setInvoiceItems([...invoiceItems, newItem]);
     setSelectedProdId('');
     setItemQty(1);
     setItemPrice('');
-    setItemDiscount(0);
+    setItemDiscount('');
     setItemTax(18);
     toast.show('Product added to invoice.', 'success');
   };
@@ -187,11 +187,11 @@ function CreateInvoicePage() {
     setInvoiceItems(prevItems =>
       prevItems.map(item => {
         if (item.id === itemId) {
-          const updatedValue = Number(value);
-          if (field === 'quantity' && updatedValue < 1) return item;
-          if (field === 'unitPrice' && updatedValue < 0) return item;
-          if (field === 'discountPercent' && (updatedValue < 0 || updatedValue > 100)) return item;
-          if (field === 'taxPercent' && (updatedValue < 0 || updatedValue > 100)) return item;
+          const updatedValue = value === '' ? '' : Number(value);
+          if (field === 'quantity' && updatedValue !== '' && updatedValue < 1) return item;
+          if (field === 'unitPrice' && updatedValue !== '' && updatedValue < 0) return item;
+          if (field === 'discountPercent' && updatedValue !== '' && (updatedValue < 0 || updatedValue > 100)) return item;
+          if (field === 'taxPercent' && updatedValue !== '' && (updatedValue < 0 || updatedValue > 100)) return item;
           return { ...item, [field]: updatedValue };
         }
         return item;
@@ -247,7 +247,7 @@ function CreateInvoicePage() {
     setSelectedProdId('');
     setItemQty(1);
     setItemPrice('');
-    setItemDiscount(0);
+    setItemDiscount('');
     setItemTax(18);
     const dateStr = new Date().toISOString().slice(0, 10).replace(/-/g, '');
     const rand = Math.floor(1000 + Math.random() * 9000);
@@ -312,14 +312,48 @@ function CreateInvoicePage() {
 
   return (
     <div className="space-y-6 relative min-h-[500px]">
-      {loadingCatalogs && (
-        <div className="absolute inset-0 z-30 flex items-center justify-center rounded-[2rem] bg-slate-950/60 backdrop-blur-sm min-h-[500px]">
-          <div className="flex flex-col items-center gap-3">
-            <FiRefreshCw className="animate-spin text-4xl text-cyan-400" />
-            <p className="text-sm font-semibold text-slate-350">Loading client and product catalogs...</p>
+      <style type="text/css" media="print">
+        {`
+          /* Hide the scrollbars and fix the modal positioning */
+          .fixed.inset-0 {
+            position: absolute !important;
+            background: transparent !important;
+            padding: 0 !important;
+            align-items: flex-start !important;
+          }
+          .max-h-\\[90vh\\] {
+            max-height: none !important;
+          }
+          .overflow-y-auto, .overflow-hidden {
+            overflow: visible !important;
+          }
+          /* Force all text in the invoice to be black and borders visible */
+          #printable-invoice, #printable-invoice * {
+            color: black !important;
+            border-color: #cbd5e1 !important;
+          }
+          /* Ensure backgrounds print transparent */
+          #printable-invoice .bg-white\\/5, #printable-invoice .bg-slate-950\\/40, #printable-invoice .bg-white\\/2 {
+            background-color: transparent !important;
+          }
+          
+          /* Hide the Close and Print buttons in the modal during print */
+          #printable-invoice + div {
+            display: none !important;
+          }
+        `}
+      </style>
+
+      {/* Hide the main UI completely when printing so it takes up zero layout space */}
+      <div className="print:hidden space-y-6">
+        {loadingCatalogs && (
+          <div className="absolute inset-0 z-30 flex items-center justify-center rounded-[2rem] bg-slate-950/60 backdrop-blur-sm min-h-[500px]">
+            <div className="flex flex-col items-center gap-3">
+              <FiRefreshCw className="animate-spin text-4xl text-cyan-400" />
+              <p className="text-sm font-semibold text-slate-350">Loading client and product catalogs...</p>
+            </div>
           </div>
-        </div>
-      )}
+        )}
 
       {catalogError && !loadingCatalogs && (
         <div className="rounded-3xl border border-rose-500/10 bg-slate-950/80 p-8 backdrop-blur text-center space-y-4 max-w-md mx-auto my-8">
@@ -417,6 +451,8 @@ function CreateInvoicePage() {
                   className="w-full rounded-2xl border border-white/10 bg-white/5 px-4 py-3 text-sm text-white outline-none focus:border-cyan-400/50 focus:ring-2 focus:ring-cyan-400/20"
                   value={invoiceDate}
                   onChange={(e) => setInvoiceDate(e.target.value)}
+                  min={new Date(Date.now() - 7 * 24 * 60 * 60 * 1000).toISOString().split('T')[0]}
+                  max={new Date(Date.now() + 7 * 24 * 60 * 60 * 1000).toISOString().split('T')[0]}
                 />
               </div>
 
@@ -501,9 +537,10 @@ function CreateInvoicePage() {
                               type="number"
                               min="0"
                               step="0.01"
-                              className="w-24 rounded-xl border border-white/10 bg-white/5 px-2 py-1.5 text-center text-sm text-white outline-none focus:border-cyan-400/50"
+                              className="w-24 rounded-xl border border-white/10 bg-white/5 px-2 py-1.5 text-center text-sm text-slate-400 cursor-not-allowed outline-none"
                               value={item.unitPrice}
-                              onChange={(e) => handleUpdateItemInline(item.id, 'unitPrice', e.target.value)}
+                              readOnly
+                              disabled
                             />
                           </td>
                           <td className="py-2 text-center">
@@ -581,7 +618,7 @@ function CreateInvoicePage() {
                   min="1"
                   className="w-full rounded-2xl border border-white/10 bg-white/5 px-4 py-3 text-sm text-white outline-none transition focus:border-cyan-400/50 focus:ring-2 focus:ring-cyan-400/20"
                   value={itemQty}
-                  onChange={(e) => setItemQty(Number(e.target.value))}
+                  onChange={(e) => setItemQty(e.target.value === '' ? '' : Number(e.target.value))}
                 />
               </div>
 
@@ -597,6 +634,7 @@ function CreateInvoicePage() {
                   value={itemPrice}
                   onChange={(e) => setItemPrice(e.target.value)}
                   placeholder="0.00"
+                  readOnly
                 />
               </div>
 
@@ -611,7 +649,7 @@ function CreateInvoicePage() {
                     max="100"
                     className="w-full rounded-2xl border border-white/10 bg-white/5 px-4 py-3 text-sm text-white outline-none transition focus:border-cyan-400/50"
                     value={itemDiscount}
-                    onChange={(e) => setItemDiscount(Number(e.target.value))}
+                    onChange={(e) => setItemDiscount(e.target.value === '' ? '' : Number(e.target.value))}
                   />
                 </div>
 
@@ -625,7 +663,7 @@ function CreateInvoicePage() {
                     max="100"
                     className="w-full rounded-2xl border border-white/10 bg-white/5 px-4 py-3 text-sm text-white outline-none transition focus:border-cyan-400/50"
                     value={itemTax}
-                    onChange={(e) => setItemTax(Number(e.target.value))}
+                    onChange={(e) => setItemTax(e.target.value === '' ? '' : Number(e.target.value))}
                   />
                 </div>
               </div>
@@ -740,6 +778,7 @@ function CreateInvoicePage() {
             </div>
           </div>
         </div>
+      </div>
       </div>
 
       {/* RENDER INVOICE PREVIEW MODAL OVERLAY */}

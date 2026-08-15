@@ -219,7 +219,7 @@ function CustomerInsightsPage() {
                                 : 'bg-cyan-500/10 text-cyan-300 border border-cyan-500/20'
                             }`}
                           >
-                            {cust.category}
+                            {cust.category === 'Occasional' ? 'Occasional (Vulnerable)' : cust.category}
                           </span>
                         </td>
                         <td className="py-3.5 text-right pr-2 font-mono font-bold text-white">
