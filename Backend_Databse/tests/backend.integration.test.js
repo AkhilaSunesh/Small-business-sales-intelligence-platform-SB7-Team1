@@ -22,7 +22,9 @@ jest.mock("../src/config/prisma", () => ({
         count:      jest.fn().mockResolvedValue(0)
     },
     product: {
-        findMany:   jest.fn().mockResolvedValue([]),
+        findMany:   jest.fn().mockResolvedValue([
+            { id: "00000000-0000-0000-0000-000000000002", name: "Product A", price: 50.00 }
+        ]),
         findUnique: jest.fn().mockResolvedValue(null),
         count:      jest.fn().mockResolvedValue(0)
     },

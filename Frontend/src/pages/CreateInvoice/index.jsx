@@ -65,7 +65,10 @@ function CreateInvoicePage() {
       try {
         const [custRes, prodRes] = await Promise.all([
           customerService.getCustomers(),
-          productService.getProducts()
+          // Use /api/products/with-stock to get DB price + available stock
+          import('../../services/api').then(m =>
+            m.default.get('/api/products/with-stock').then(r => r.data)
+          )
         ]);
         if (custRes && custRes.success && Array.isArray(custRes.data)) {
           setCustomers(custRes.data);
@@ -120,7 +123,7 @@ function CreateInvoicePage() {
     return () => document.removeEventListener('mousedown', handleClickOutside);
   }, []);
 
-  // Pre-fill fields when selecting product
+  // Pre-fill fields when selecting product — price comes from DB, not user input
   const handleProductSelectChange = (e) => {
     const prodId = e.target.value;
     setSelectedProdId(prodId);
@@ -132,8 +135,9 @@ function CreateInvoicePage() {
     }
     const prod = products.find((p) => p.id === prodId);
     if (prod) {
-      setItemPrice(Number(prod.price).toFixed(2));
-      setItemDiscount('');
+      // Set price directly from DB — user cannot override this
+      setItemPrice(prod.price);
+      setItemDiscount(0);
       setItemTax(18);
     }
   };
@@ -149,10 +153,6 @@ function CreateInvoicePage() {
       toast.show('Quantity must be greater than 0.', 'error');
       return;
     }
-    if (itemPrice < 0) {
-      toast.show('Unit price cannot be negative.', 'error');
-      return;
-    }
     if (itemDiscount < 0 || itemDiscount > 100) {
       toast.show('Discount must be between 0% and 100%.', 'error');
       return;
@@ -163,35 +163,62 @@ function CreateInvoicePage() {
     }
 
     const prod = products.find((p) => p.id === selectedProdId);
+    if (!prod) {
+      toast.show('Selected product not found.', 'error');
+      return;
+    }
+
+    // Frontend stock check (backend also validates, but give early feedback)
+    if (itemQty > (prod.quantity ?? 0)) {
+      toast.show(
+        `Insufficient stock. Only ${prod.quantity} unit(s) of ${prod.name} available.`,
+        'error'
+      );
+      return;
+    }
+
+    // Check for duplicate product in existing items
+    const existingItem = invoiceItems.find(i => i.productId === prod.id);
+    const totalQtyRequested = (existingItem ? existingItem.quantity : 0) + Number(itemQty);
+    if (totalQtyRequested > (prod.quantity ?? 0)) {
+      toast.show(
+        `Insufficient stock. Total requested (${totalQtyRequested}) exceeds available (${prod.quantity}) for ${prod.name}.`,
+        'error'
+      );
+      return;
+    }
+
     const newItem = {
       id: Date.now() + Math.random(),
       productId: prod.id,
       productName: prod.name,
-      quantity: Number(itemQty) || 1,
-      unitPrice: Number(itemPrice) || 0,
-      discountPercent: Number(itemDiscount) || 0,
-      taxPercent: Number(itemTax) || 0,
+      quantity: Number(itemQty),
+      // Unit price comes from DB product record — never from user input
+      unitPrice: prod.price,
+      discountPercent: Number(itemDiscount),
+      taxPercent: Number(itemTax),
     };
 
     setInvoiceItems([...invoiceItems, newItem]);
     setSelectedProdId('');
     setItemQty(1);
     setItemPrice('');
-    setItemDiscount('');
+    setItemDiscount(0);
     setItemTax(18);
     toast.show('Product added to invoice.', 'success');
   };
 
-  // Update item field inline in table
+  // Update item field inline in table — unitPrice is blocked (comes from DB)
   const handleUpdateItemInline = (itemId, field, value) => {
+    // unitPrice must never be overridden — it is locked to the DB product price
+    if (field === 'unitPrice') return;
     setInvoiceItems(prevItems =>
       prevItems.map(item => {
         if (item.id === itemId) {
-          const updatedValue = value === '' ? '' : Number(value);
-          if (field === 'quantity' && updatedValue !== '' && updatedValue < 1) return item;
-          if (field === 'unitPrice' && updatedValue !== '' && updatedValue < 0) return item;
-          if (field === 'discountPercent' && updatedValue !== '' && (updatedValue < 0 || updatedValue > 100)) return item;
-          if (field === 'taxPercent' && updatedValue !== '' && (updatedValue < 0 || updatedValue > 100)) return item;
+          const updatedValue = Number(value);
+          if (field === 'quantity' && updatedValue < 1) return item;
+          if (field === 'discountPercent' && (updatedValue < 0 || updatedValue > 100)) return item;
+          if (field === 'taxPercent' && (updatedValue < 0 || updatedValue > 100)) return item;
           return { ...item, [field]: updatedValue };
         }
         return item;
@@ -247,7 +274,7 @@ function CreateInvoicePage() {
     setSelectedProdId('');
     setItemQty(1);
     setItemPrice('');
-    setItemDiscount('');
+    setItemDiscount(0);
     setItemTax(18);
     const dateStr = new Date().toISOString().slice(0, 10).replace(/-/g, '');
     const rand = Math.floor(1000 + Math.random() * 9000);
@@ -312,48 +339,14 @@ function CreateInvoicePage() {
 
   return (
     <div className="space-y-6 relative min-h-[500px]">
-      <style type="text/css" media="print">
-        {`
-          /* Hide the scrollbars and fix the modal positioning */
-          .fixed.inset-0 {
-            position: absolute !important;
-            background: transparent !important;
-            padding: 0 !important;
-            align-items: flex-start !important;
-          }
-          .max-h-\\[90vh\\] {
-            max-height: none !important;
-          }
-          .overflow-y-auto, .overflow-hidden {
-            overflow: visible !important;
-          }
-          /* Force all text in the invoice to be black and borders visible */
-          #printable-invoice, #printable-invoice * {
-            color: black !important;
-            border-color: #cbd5e1 !important;
-          }
-          /* Ensure backgrounds print transparent */
-          #printable-invoice .bg-white\\/5, #printable-invoice .bg-slate-950\\/40, #printable-invoice .bg-white\\/2 {
-            background-color: transparent !important;
-          }
-          
-          /* Hide the Close and Print buttons in the modal during print */
-          #printable-invoice + div {
-            display: none !important;
-          }
-        `}
-      </style>
-
-      {/* Hide the main UI completely when printing so it takes up zero layout space */}
-      <div className="print:hidden space-y-6">
-        {loadingCatalogs && (
-          <div className="absolute inset-0 z-30 flex items-center justify-center rounded-[2rem] bg-slate-950/60 backdrop-blur-sm min-h-[500px]">
-            <div className="flex flex-col items-center gap-3">
-              <FiRefreshCw className="animate-spin text-4xl text-cyan-400" />
-              <p className="text-sm font-semibold text-slate-350">Loading client and product catalogs...</p>
-            </div>
+      {loadingCatalogs && (
+        <div className="absolute inset-0 z-30 flex items-center justify-center rounded-[2rem] bg-slate-950/60 backdrop-blur-sm min-h-[500px]">
+          <div className="flex flex-col items-center gap-3">
+            <FiRefreshCw className="animate-spin text-4xl text-cyan-400" />
+            <p className="text-sm font-semibold text-slate-350">Loading client and product catalogs...</p>
           </div>
-        )}
+        </div>
+      )}
 
       {catalogError && !loadingCatalogs && (
         <div className="rounded-3xl border border-rose-500/10 bg-slate-950/80 p-8 backdrop-blur text-center space-y-4 max-w-md mx-auto my-8">
@@ -451,8 +444,6 @@ function CreateInvoicePage() {
                   className="w-full rounded-2xl border border-white/10 bg-white/5 px-4 py-3 text-sm text-white outline-none focus:border-cyan-400/50 focus:ring-2 focus:ring-cyan-400/20"
                   value={invoiceDate}
                   onChange={(e) => setInvoiceDate(e.target.value)}
-                  min={new Date(Date.now() - 7 * 24 * 60 * 60 * 1000).toISOString().split('T')[0]}
-                  max={new Date(Date.now() + 7 * 24 * 60 * 60 * 1000).toISOString().split('T')[0]}
                 />
               </div>
 
@@ -533,15 +524,10 @@ function CreateInvoicePage() {
                             />
                           </td>
                           <td className="py-2 text-center">
-                            <input
-                              type="number"
-                              min="0"
-                              step="0.01"
-                              className="w-24 rounded-xl border border-white/10 bg-white/5 px-2 py-1.5 text-center text-sm text-slate-400 cursor-not-allowed outline-none"
-                              value={item.unitPrice}
-                              readOnly
-                              disabled
-                            />
+                            {/* Unit price is read-only — sourced from database, cannot be modified */}
+                            <span className="inline-block w-24 rounded-xl border border-white/5 bg-white/3 px-2 py-1.5 text-center text-sm text-slate-300 cursor-not-allowed select-none">
+                              ₹{Number(item.unitPrice).toFixed(2)}
+                            </span>
                           </td>
                           <td className="py-2 text-center">
                             <input
@@ -603,7 +589,7 @@ function CreateInvoicePage() {
                   <option value="">-- Choose Catalog Product --</option>
                   {products.map((prod) => (
                     <option key={prod.id} value={prod.id}>
-                      {prod.name} (${prod.price})
+                      {prod.name} — ₹{Number(prod.price).toFixed(2)} (Stock: {prod.quantity ?? 0})
                     </option>
                   ))}
                 </select>
@@ -618,24 +604,23 @@ function CreateInvoicePage() {
                   min="1"
                   className="w-full rounded-2xl border border-white/10 bg-white/5 px-4 py-3 text-sm text-white outline-none transition focus:border-cyan-400/50 focus:ring-2 focus:ring-cyan-400/20"
                   value={itemQty}
-                  onChange={(e) => setItemQty(e.target.value === '' ? '' : Number(e.target.value))}
+                  onChange={(e) => setItemQty(Number(e.target.value))}
                 />
               </div>
 
               <div>
                 <label className="block text-xs font-semibold uppercase tracking-wider text-slate-400 mb-2">
-                  Unit Price ($)
+                  Unit Price (₹) — from database
                 </label>
                 <input
-                  type="number"
-                  min="0"
-                  step="0.01"
-                  className="w-full rounded-2xl border border-white/10 bg-white/5 px-4 py-3 text-sm text-white placeholder-slate-500 outline-none transition focus:border-cyan-400/50 focus:ring-2 focus:ring-cyan-400/20"
-                  value={itemPrice}
-                  onChange={(e) => setItemPrice(e.target.value)}
-                  placeholder="0.00"
+                  type="text"
                   readOnly
+                  disabled
+                  className="w-full rounded-2xl border border-white/5 bg-white/3 px-4 py-3 text-sm text-slate-300 outline-none cursor-not-allowed select-none"
+                  value={itemPrice !== '' ? `₹${Number(itemPrice).toFixed(2)}` : 'Select a product'}
+                  aria-label="Unit price (read-only, sourced from database)"
                 />
+                <p className="mt-1 text-[10px] text-slate-500">Price is retrieved from the product database and cannot be edited.</p>
               </div>
 
               <div className="grid grid-cols-2 gap-4">
@@ -649,7 +634,7 @@ function CreateInvoicePage() {
                     max="100"
                     className="w-full rounded-2xl border border-white/10 bg-white/5 px-4 py-3 text-sm text-white outline-none transition focus:border-cyan-400/50"
                     value={itemDiscount}
-                    onChange={(e) => setItemDiscount(e.target.value === '' ? '' : Number(e.target.value))}
+                    onChange={(e) => setItemDiscount(Number(e.target.value))}
                   />
                 </div>
 
@@ -663,7 +648,7 @@ function CreateInvoicePage() {
                     max="100"
                     className="w-full rounded-2xl border border-white/10 bg-white/5 px-4 py-3 text-sm text-white outline-none transition focus:border-cyan-400/50"
                     value={itemTax}
-                    onChange={(e) => setItemTax(e.target.value === '' ? '' : Number(e.target.value))}
+                    onChange={(e) => setItemTax(Number(e.target.value))}
                   />
                 </div>
               </div>
@@ -778,7 +763,6 @@ function CreateInvoicePage() {
             </div>
           </div>
         </div>
-      </div>
       </div>
 
       {/* RENDER INVOICE PREVIEW MODAL OVERLAY */}

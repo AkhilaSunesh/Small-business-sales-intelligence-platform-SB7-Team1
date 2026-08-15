@@ -194,6 +194,8 @@ async function createInvoiceFromSale(sale, userId) {
 }
 
 // ─── Create a manual invoice (not tied to a sale) ─────────────────────────
+// Security: unitPrice from the client is IGNORED. The authoritative price
+// is always retrieved from the Product record in PostgreSQL.
 async function createManualInvoice({
   customerId,
   salesTransactionId,
@@ -206,8 +208,36 @@ async function createManualInvoice({
 }) {
   const gstRate = taxRate;
 
-  // Calculate subtotal from line items
-  const subtotal = lineItems.reduce((sum, item) => sum + (item.quantity * item.unitPrice), 0);
+  // ── Step 1: Resolve product prices from DB (never trust client-supplied price) ──
+  const productIds = lineItems.map(item => item.productId).filter(Boolean);
+  const dbProducts = await prisma.product.findMany({
+    where: { id: { in: productIds } },
+    select: { id: true, name: true, price: true }
+  });
+  const productMap = new Map(dbProducts.map(p => [p.id, p]));
+
+  // Validate all products exist and attach DB price to each line item
+  const resolvedItems = [];
+  for (const item of lineItems) {
+    const dbProd = productMap.get(item.productId);
+    if (!dbProd) {
+      throw Object.assign(
+        new Error(`Product not found: ${item.productId}`),
+        { code: "PRODUCT_NOT_FOUND" }
+      );
+    }
+    resolvedItems.push({
+      ...item,
+      productName: dbProd.name,
+      // SECURITY: use DB price, reject any client-supplied unitPrice
+      unitPrice: dbProd.price
+    });
+  }
+
+  // ── Step 2: Calculate subtotal from resolved items ──
+  const subtotal = resolvedItems.reduce(
+    (sum, item) => sum + (item.quantity * item.unitPrice), 0
+  );
 
   // Calculate discount
   const discountAmount = subtotal * (discountRate / 100);
@@ -228,6 +258,37 @@ async function createManualInvoice({
   const finalDueDate = dueDate || new Date(Date.now() + 30 * 24 * 60 * 60 * 1000);
 
   const invoice = await prisma.$transaction(async (tx) => {
+    // ── Step 3: Validate inventory for every line item BEFORE creating anything ──
+    for (const item of resolvedItems) {
+      if (!item.productId) continue;
+      const inventory = await tx.inventory.findUnique({ where: { productId: item.productId } });
+      if (!inventory) {
+        throw Object.assign(
+          new Error(`No inventory record for product: ${item.productName || item.productId}`),
+          { code: "INSUFFICIENT_STOCK" }
+        );
+      }
+      if (inventory.quantity < item.quantity) {
+        throw Object.assign(
+          new Error(
+            `Insufficient stock for ${item.productName || item.productId}. ` +
+            `Available: ${inventory.quantity}, Requested: ${item.quantity}`
+          ),
+          { code: "INSUFFICIENT_STOCK" }
+        );
+      }
+    }
+
+    // ── Step 4: Build line items with computed lineTotal ──
+    const lineItemsForDb = resolvedItems.map(item => ({
+      productId:   item.productId,
+      productName: item.productName,
+      quantity:    item.quantity,
+      unitPrice:   item.unitPrice,
+      lineTotal:   item.quantity * item.unitPrice
+    }));
+
+    // ── Step 5: Create the invoice ──
     const inv = await tx.invoice.create({
       data: {
         invoiceNumber,
@@ -242,27 +303,17 @@ async function createManualInvoice({
         status: "UNPAID",
         dueDate: new Date(finalDueDate),
         createdById: createdById || null,
-        lineItems
+        lineItems: lineItemsForDb
       }
     });
 
-    // Deduct inventory for each product in line items
-    for (const item of lineItems) {
-      if (item.productId) {
-        const inventory = await tx.inventory.findUnique({ where: { productId: item.productId } });
-        if (inventory) {
-          if (inventory.quantity < item.quantity) {
-            throw Object.assign(
-              new Error(`Insufficient stock for product ${item.productName || item.productId}`),
-              { code: "INSUFFICIENT_STOCK" }
-            );
-          }
-          await tx.inventory.update({
-            where: { productId: item.productId },
-            data: { quantity: { decrement: item.quantity } }
-          });
-        }
-      }
+    // ── Step 6: Deduct inventory atomically (all or nothing) ──
+    for (const item of resolvedItems) {
+      if (!item.productId) continue;
+      await tx.inventory.update({
+        where: { productId: item.productId },
+        data:  { quantity: { decrement: item.quantity } }
+      });
     }
 
     return inv;
