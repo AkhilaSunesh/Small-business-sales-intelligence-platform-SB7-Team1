@@ -1,8 +1,9 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import { usePageTitle } from '../../hooks/usePageTitle';
 import StatCard from '../../components/common/StatCard';
 import SectionCard from '../../components/common/SectionCard';
 import Button from '../../components/ui/Button';
+import DashboardFilters from '../../components/ui/DashboardFilters';
 import { 
   AreaChart, Area, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer,
   PieChart, Pie, Cell, BarChart, Bar
@@ -15,15 +16,10 @@ import dashboardService from '../../services/dashboardService';
 import { getPaymentMethods, getCategoryBreakdown } from '../../services/dashboardService';
 import notificationService from '../../services/notificationService';
 import recommendationService from '../../services/recommendationService';
+import forecastService from '../../services/forecastService';
 
 const COLORS = ['#22d3ee', '#34d399', '#6366f1', '#fbbf24', '#f472b6'];
 
-// List: Quick Business Insights (static advice panels)
-const BUSINESS_INSIGHTS = [
-  { label: 'Peak Store Hours', text: 'Saturdays between 11:00 AM and 2:00 PM account for 22% of weekly sales volume. Ensure staffing matches peak requirements.', accent: 'cyan' },
-  { label: 'Customer Concentration', text: 'High-Value Customer cohort (top 5% spenders) accounts for 34% of total profit margin. Recommend launching a VIP loyalty trial.', accent: 'purple' },
-  { label: 'Dead Stock Alert', text: 'Soy Protein Powders (SKU: SPP-990) shows 0 sales velocity over the past 45 days. Suggest running a 25% discount clearance.', accent: 'amber' },
-];
 
 export default function BusinessOverviewPage() {
   usePageTitle('Business Overview');
@@ -33,6 +29,21 @@ export default function BusinessOverviewPage() {
   const [error, setError] = useState(null);
   const [isEmpty, setIsEmpty] = useState(false);
   const [isDemoOpen, setIsDemoOpen] = useState(false); // kept to avoid unused-var warning but button removed
+
+  // Filter state
+  const [filters, setFilters] = useState({
+    dateRange: '1y',
+    category: 'all',
+    startDate: '',
+    endDate: '',
+  });
+
+  const [forecastSummary, setForecastSummary] = useState({
+    predictedSales: 'N/A',
+    expectedRevenue: 'N/A',
+    forecastGrowth: 'N/A'
+  });
+  const [dynamicInsights, setDynamicInsights] = useState([]);
 
   // Live telemetry states
   const [metrics, setMetrics] = useState({
@@ -60,20 +71,21 @@ export default function BusinessOverviewPage() {
   });
 
   // Load telemetry from backend APIs
-  const fetchTelemetry = async () => {
+  const fetchTelemetry = useCallback(async () => {
     setLoading(true);
     setError(null);
     try {
-      const [summaryRes, trendRes, topRes, recsRes, countsRes, alertsRes, auditRes, categoryRes, paymentRes] = await Promise.all([
-        dashboardService.getDashboardSummary(),
-        dashboardService.getSalesTrend('30d'),
-        dashboardService.getTopProducts(),
+      const [summaryRes, trendRes, topRes, recsRes, countsRes, alertsRes, auditRes, categoryRes, paymentRes, forecastRes] = await Promise.all([
+        dashboardService.getDashboardSummary(filters),
+        dashboardService.getSalesTrend(filters),
+        dashboardService.getTopProducts(filters),
         recommendationService.getRecommendations().catch(() => ({ data: [] })),
         notificationService.getNotificationCounts().catch(() => ({ data: { lowStock: 0, overdueInvoices: 0, total: 0 } })),
         notificationService.getNotifications({ page: 1, limit: 5 }).catch(() => ({ data: [] })),
         dashboardService.getAuditSummary(5).catch(() => ({ data: { recentEntries: [] } })),
         getCategoryBreakdown().catch(() => ({ data: [] })),
         getPaymentMethods().catch(() => ({ data: [] })),
+        forecastService.getForecastReportsData(filters.dateRange, filters.category).catch(() => null),
       ]);
 
       const summary = (summaryRes && summaryRes.data) || {};
@@ -96,7 +108,7 @@ export default function BusinessOverviewPage() {
         totalRevenue: summary.totalRevenue ? `$${summary.totalRevenue.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}` : '$0.00',
         totalOrders: summary.totalSales ? summary.totalSales.toLocaleString() : '0',
         totalCustomers: summary.totalCustomers ? summary.totalCustomers.toLocaleString() : '0',
-        totalProducts: summary.totalProducts ? summary.totalProducts.toLocaleString() : '0',
+        totalProducts: summary.activeProducts ? summary.activeProducts.toLocaleString() : '0',
         lowStockProducts: counts.lowStock ? counts.lowStock.toLocaleString() : '0',
         pendingInvoices: counts.overdueInvoices ? counts.overdueInvoices.toLocaleString() : '0',
         aiRecommendations: recsList.length ? recsList.length.toLocaleString() : '0',
@@ -128,11 +140,7 @@ export default function BusinessOverviewPage() {
 
       // 4. Category Distribution — from real /api/analytics/categories
       const rawCategories = (categoryRes && categoryRes.data) || [];
-      const finalCategoryData = rawCategories.length > 0
-        ? rawCategories.map(c => ({ name: c.name, value: c.value }))
-        : (Object.keys(categoryMap).length > 0
-            ? Object.entries(categoryMap).map(([name, value]) => ({ name, value }))
-            : []);
+      const finalCategoryData = rawCategories.map(c => ({ name: c.name, value: c.value }));
       setCategoryData(finalCategoryData);
 
       // 5. Payment Method Distribution — from real /api/analytics/payment-methods
@@ -181,7 +189,7 @@ export default function BusinessOverviewPage() {
       setRecentActivity(mappedActivity);
 
       // 9. Business health — all metrics derived from real data
-      const totalProd    = summary.totalProducts || 1;
+      const totalProd    = summary.activeProducts || 1;
       const lowStockCount = counts.lowStock || 0;
       const stockAvailability = Math.max(0, Math.round(100 - (lowStockCount / totalProd * 100)));
       const totalRev     = summary.totalRevenue || 0;
@@ -198,17 +206,50 @@ export default function BusinessOverviewPage() {
         retention: null   // Not available in the dataset — not shown
       });
 
+      // 10. Forecast and Dynamic Insights
+      setForecastSummary(forecastRes?.summary || {
+        predictedSales: 'N/A',
+        expectedRevenue: 'N/A',
+        forecastGrowth: 'N/A'
+      });
+
+      const dynInsights = [];
+      if (mappedProducts.length > 0) {
+        dynInsights.push({
+          label: 'Top Performer',
+          text: `Your best selling product is ${mappedProducts[0].name}, generating ${mappedProducts[0].rev} in revenue. Ensure sufficient stock is maintained.`,
+          accent: 'cyan'
+        });
+      }
+      if (rawCategories.length > 0) {
+        const topCat = [...rawCategories].sort((a,b)=>b.value-a.value)[0];
+        dynInsights.push({
+          label: 'Category Leader',
+          text: `The ${topCat.name} category leads your sales with $${topCat.value.toLocaleString()} in revenue. Consider expanding this product line.`,
+          accent: 'purple'
+        });
+      }
+      if (rawPayments.length > 0) {
+        const topPay = [...rawPayments].sort((a,b)=>b.count-a.count)[0];
+        dynInsights.push({
+          label: 'Preferred Payment',
+          text: `Most customers prefer using ${topPay.method} (${topPay.count} transactions). Ensure the payment gateway is optimized for this method.`,
+          accent: 'amber'
+        });
+      }
+      setDynamicInsights(dynInsights);
+
     } catch (err) {
       console.error('Failed to load dashboard telemetry:', err);
       setError(err.message || 'Gateway Timeout: Connection to AI Analytics Pipeline (Port 8443) refused by cluster load balancer.');
     } finally {
       setLoading(false);
     }
-  };
+  }, [filters]);
 
   useEffect(() => {
     fetchTelemetry();
-  }, []);
+  }, [fetchTelemetry]);
 
   const triggerErrorDemo = () => {
     setError('Gateway Timeout: Connection to AI Analytics Pipeline (Port 8443) refused by cluster load balancer.');
@@ -235,6 +276,13 @@ export default function BusinessOverviewPage() {
           </Button>
         </div>
       </section>
+
+      {/* Filters Toolbar */}
+      <DashboardFilters
+        filters={filters}
+        onChange={setFilters}
+        onReset={() => setFilters({ dateRange: '1y', category: 'all', startDate: '', endDate: '' })}
+      />
 
       {/* CORE DISPLAY ROUTING */}
       {error ? (
@@ -275,15 +323,15 @@ export default function BusinessOverviewPage() {
           
           {/* Summary Stat Cards Grid (8 stats in 2 rows on desktop) */}
           <section className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
-            <StatCard label="Total Revenue" value={loading ? '' : metrics.totalRevenue} helper="+12.4% vs last month" accent="cyan" loading={loading} />
-            <StatCard label="Total Orders" value={loading ? '' : metrics.totalOrders} helper="+8.2% vs last month" accent="emerald" loading={loading} />
-            <StatCard label="Total Customers" value={loading ? '' : metrics.totalCustomers} helper="+5.1% vs last month" accent="cyan" loading={loading} />
-            <StatCard label="Total Products" value={loading ? '' : metrics.totalProducts} helper="42 new items added" accent="slate" loading={loading} />
+            <StatCard label="Total Revenue" value={loading ? '' : metrics.totalRevenue} accent="cyan" loading={loading} />
+            <StatCard label="Total Orders" value={loading ? '' : metrics.totalOrders} accent="emerald" loading={loading} />
+            <StatCard label="Total Customers" value={loading ? '' : metrics.totalCustomers} accent="cyan" loading={loading} />
+            <StatCard label="Total Products" value={loading ? '' : metrics.totalProducts} accent="slate" loading={loading} />
             
-            <StatCard label="Low Stock Products" value={loading ? '' : metrics.lowStockProducts} helper="Items below safe threshold" accent="amber" loading={loading} />
-            <StatCard label="Pending Invoices" value={loading ? '' : metrics.pendingInvoices} helper="Unpaid customer invoices" accent="amber" loading={loading} />
-            <StatCard label="AI Recommendations" value={loading ? '' : metrics.aiRecommendations} helper="Product affinity opportunities" accent="purple" loading={loading} />
-            <StatCard label="Active Alerts" value={loading ? '' : metrics.activeAlerts} helper="Real-time alert notifications" accent="rose" loading={loading} />
+            <StatCard label="Low Stock Products" value={loading ? '' : metrics.lowStockProducts} accent="amber" loading={loading} />
+            <StatCard label="Pending Invoices" value={loading ? '' : metrics.pendingInvoices} accent="amber" loading={loading} />
+            <StatCard label="AI Recommendations" value={loading ? '' : metrics.aiRecommendations} accent="purple" loading={loading} />
+            <StatCard label="Active Alerts" value={loading ? '' : metrics.activeAlerts} accent="rose" loading={loading} />
           </section>
 
           {/* Section 1: Revenue Trend & Business Health Score */}
@@ -478,21 +526,21 @@ export default function BusinessOverviewPage() {
               </div>
               
               <div className="space-y-1">
-                <span className="text-[10px] uppercase font-bold text-slate-400 tracking-wide block">Next Month Forecast (Aug)</span>
-                <span className="text-3xl font-bold text-white block">$42,500.00</span>
-                <span className="text-xs font-semibold text-emerald-400 block">+10.6% projected surge</span>
+                <span className="text-[10px] uppercase font-bold text-slate-400 tracking-wide block">Next Period Forecast</span>
+                <span className="text-3xl font-bold text-white block">{forecastSummary.expectedRevenue}</span>
+                <span className="text-xs font-semibold text-emerald-400 block">{forecastSummary.forecastGrowth} projected surge</span>
               </div>
 
               <div className="border-t border-white/5 pt-3">
                 <p className="text-xs text-slate-350 leading-relaxed italic bg-slate-950/40 p-3 rounded-xl border border-white/5">
-                  "High restock priority suggested for Organic Teas and Seasonal Beverages by August 10 to capture rising demand predicted by seasonal weather variations."
+                  "Based on predictive analytics, unit sales are expected to reach {forecastSummary.predictedSales}. Ensure appropriate inventory coverage to meet this demand."
                 </p>
               </div>
             </article>
 
             {/* Quick Business Insights (3 cards) */}
             <div className="md:col-span-2 grid gap-4 sm:grid-cols-3">
-              {BUSINESS_INSIGHTS.map((insight, idx) => (
+              {dynamicInsights.map((insight, idx) => (
                 <div 
                   key={idx} 
                   className={`rounded-3xl border border-white/10 bg-slate-950/80 p-5 flex flex-col justify-between hover:border-cyan-400/25 transition-all duration-300`}

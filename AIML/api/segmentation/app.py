@@ -162,9 +162,15 @@ def _build_segment_response():
                 "color": color_map[category]
             })
 
+    mixed_customers = pd.DataFrame()
+    for cluster_id in cluster_to_category.keys():
+        subset = customer_data[customer_data[_GROUP_COLUMN] == cluster_id]
+        top_subset = subset.sort_values(by=["Frequency", "TotalSpent"], ascending=[False, False]).head(20)
+        mixed_customers = pd.concat([mixed_customers, top_subset])
+
     customers = [
         _format_customer_row(row)
-        for _, row in customer_data.sort_values(by=["Frequency", "TotalSpent"], ascending=[False, False]).head(50).iterrows()
+        for _, row in mixed_customers.iterrows()
     ]
 
     return {

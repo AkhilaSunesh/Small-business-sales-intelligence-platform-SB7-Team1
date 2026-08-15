@@ -62,7 +62,9 @@ exports.register = async (req, res) => {
                 name,
                 email,
                 password: hashedPassword,
-                roleId: roleId
+                roleId: roleId,
+                isActive: false,
+                isPending: true
             }
         });
 

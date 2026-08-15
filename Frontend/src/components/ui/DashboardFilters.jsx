@@ -13,11 +13,8 @@ const RANGE_LABELS = {
 
 const CATEGORIES = [
   { value: 'all', label: 'All Categories' },
+  { value: 'Books', label: 'Books' },
   { value: 'Electronics', label: 'Electronics' },
-  { value: 'Grocery', label: 'Grocery' },
-  { value: 'Fashion', label: 'Fashion' },
-  { value: 'Stationery', label: 'Stationery' },
-  { value: 'Others', label: 'Others' },
 ];
 
 export default function DashboardFilters({
