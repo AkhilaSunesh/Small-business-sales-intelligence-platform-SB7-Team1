@@ -42,11 +42,11 @@ export default function DashboardFilters({
   };
 
   const removeRangeFilter = () => {
-    onChange({ ...filters, dateRange: '30d', startDate: '', endDate: '' });
+    onChange({ ...filters, dateRange: '1y', startDate: '', endDate: '' });
   };
 
   // Determine if filters deviate from defaults
-  const isFiltered = filters.dateRange !== '30d' || filters.category !== 'all' || filters.startDate !== '' || filters.endDate !== '';
+  const isFiltered = filters.dateRange !== '1y' || filters.category !== 'all' || filters.startDate !== '' || filters.endDate !== '';
 
   return (
     <div className="space-y-4 rounded-3xl border border-white/10 bg-slate-950/80 p-5 md:p-6 backdrop-blur">
@@ -151,7 +151,7 @@ export default function DashboardFilters({
           <span className="text-[10px] uppercase font-bold tracking-widest text-slate-500 mr-1">Active:</span>
 
           {/* Date Range Badge */}
-          {(filters.dateRange !== '30d' || filters.startDate || filters.endDate) && (
+          {(filters.dateRange !== '1y' || filters.startDate || filters.endDate) && (
             <div className="inline-flex items-center gap-1.5 rounded-full bg-cyan-400/10 border border-cyan-400/20 px-3 py-1 text-xs font-medium text-cyan-300">
               <span>
                 Range:{' '}

@@ -37,7 +37,7 @@ export default function ForecastVsActualPage() {
 
   // Filter state
   const [filters, setFilters] = useState({
-    dateRange: '30d',
+    dateRange: '1y',
     category: 'all',
     startDate: '',
     endDate: '',
