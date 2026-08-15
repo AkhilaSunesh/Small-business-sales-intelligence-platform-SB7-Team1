@@ -26,6 +26,11 @@ model User {
   roleId   Int
   role     Role   @relation(fields: [roleId], references: [id])
 
+  // Synced with Backend_Databse/prisma/schema.prisma
+  // Added by migration: 20260815071842_add_user_lastlogin_isactive
+  isActive    Boolean   @default(true)
+  lastLoginAt DateTime?
+
   sales            SalesTransaction[]
   invoicesCreated  Invoice[]
   paymentsRecorded Payment[]
