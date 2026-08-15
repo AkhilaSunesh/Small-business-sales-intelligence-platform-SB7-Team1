@@ -93,16 +93,16 @@ export function AppProvider({ children }) {
     root.style.colorScheme = theme;
   }, [theme]);
 
-  const login = useCallback(({ email, role }) => {
+  const login = useCallback(({ id, email, role, name }) => {
     const newUser = {
+      id,
       email,
       role,
-      displayName: email ? email.split('@')[0] : role,
+      // Prefer the real name from the API; fall back to email prefix
+      displayName: name || (email ? email.split('@')[0] : role),
     };
-    // Debug log to help trace login during development
-    // (remove or silence in production)
     // eslint-disable-next-line no-console
-    console.debug('[Auth] login:', newUser);
+    console.debug('[Auth] login:', { id: newUser.id, email: newUser.email, role: newUser.role });
     try {
       localStorage.setItem('marketmindUser', JSON.stringify(newUser));
     } catch (error) {

@@ -24,6 +24,9 @@ model User {
   roleId    Int
   role      Role @relation(fields: [roleId], references: [id])
 
+  isActive    Boolean   @default(true)
+  lastLoginAt DateTime?
+
   sales            SalesTransaction[]
   invoicesCreated  Invoice[]
   paymentsRecorded Payment[]

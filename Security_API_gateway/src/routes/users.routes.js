@@ -14,7 +14,7 @@ const BACKEND_API_URL = process.env.BACKEND_API_URL || "http://127.0.0.1:5000/ap
 
 const forward = async (req, res, backendPath) => {
     const target = `${BACKEND_API_URL}${backendPath}`;
-    console.log(`[Gateway] Forwarding request: ${target}`);
+    console.log(`[Gateway] Forwarding request: ${req.method} ${target}`);
     try {
         const response = await axios({
             method:  req.method,
@@ -33,6 +33,8 @@ const forward = async (req, res, backendPath) => {
             const code = error.code || "UNKNOWN";
             if (code === "ECONNREFUSED") {
                 console.warn(`[users] ECONNREFUSED — backend not running at ${target}`);
+            } else if (code === "ECONNABORTED" || error.message?.includes("timeout")) {
+                console.warn(`[users] Timeout — backend did not respond in time: ${target}`);
             } else {
                 console.warn(`[users] Network error (${code}): ${error.message}`);
             }
@@ -43,16 +45,27 @@ const forward = async (req, res, backendPath) => {
             });
         }
         const status = error.response.status || 500;
+        if (status === 404) console.warn(`[users] 404 Not Found: ${target}`);
+        if (status === 503) console.warn(`[users] 503 Service Unavailable: ${target}`);
         res.status(status).json(
             error.response.data || { success: false, message: error.message }
         );
     }
 };
 
-// GET /api/users         — list users (paginated)
-router.get("/",    (req, res) => forward(req, res, "/users"));
+// GET    /api/users              — list users (paginated)
+router.get(    "/",               (req, res) => forward(req, res, "/users"));
 
-// GET /api/users/:id     — single user by UUID
-router.get("/:id", (req, res) => forward(req, res, `/users/${req.params.id}`));
+// GET    /api/users/:id          — single user by UUID
+router.get(    "/:id",            (req, res) => forward(req, res, `/users/${req.params.id}`));
+
+// PATCH  /api/users/:id/profile  — update display name
+router.patch(  "/:id/profile",    (req, res) => forward(req, res, `/users/${req.params.id}/profile`));
+
+// PATCH  /api/users/:id/status   — toggle isActive
+router.patch(  "/:id/status",     (req, res) => forward(req, res, `/users/${req.params.id}/status`));
+
+// DELETE /api/users/:id          — soft-delete user
+router.delete( "/:id",            (req, res) => forward(req, res, `/users/${req.params.id}`));
 
 module.exports = router;

@@ -18,32 +18,52 @@ import {
   FiX,
   FiAlertCircle,
   FiRefreshCw,
+  FiCheckCircle,
 } from 'react-icons/fi';
+
+// ── Inline toast banner ────────────────────────────────────────────────────────
+function Banner({ msg }) {
+  if (!msg) return null;
+  const colour =
+    msg.type === 'success'
+      ? 'bg-emerald-500/10 text-emerald-300 border border-emerald-500/20'
+      : 'bg-rose-500/10 text-rose-300 border border-rose-500/20';
+  const Icon = msg.type === 'success' ? FiCheckCircle : FiAlertCircle;
+  return (
+    <div className={`flex items-center gap-3 rounded-2xl px-4 py-3 text-sm font-medium mb-4 ${colour}`}>
+      <Icon size={16} className="shrink-0" />
+      {msg.text}
+    </div>
+  );
+}
 
 function UsersPage() {
   usePageTitle('User Management');
 
   // ── API state ───────────────────────────────────────────────────────────────
-  const [users, setUsers] = useState([]);
-  const [loading, setLoading] = useState(true);
+  const [users, setUsers]           = useState([]);
+  const [loading, setLoading]       = useState(true);
   const [fetchError, setFetchError] = useState(null);
+  const [actionMsg, setActionMsg]   = useState(null); // { type, text } for mutations
+  const [actionBusy, setActionBusy] = useState(null); // userId currently being mutated
 
   // ── Filter / sort / pagination state ────────────────────────────────────────
-  const [searchTerm, setSearchTerm] = useState('');
-  const [roleFilter, setRoleFilter] = useState('');
+  const [searchTerm, setSearchTerm]   = useState('');
+  const [roleFilter, setRoleFilter]   = useState('');
   const [statusFilter, setStatusFilter] = useState('');
-  const [sortField, setSortField] = useState('name');
-  const [sortOrder, setSortOrder] = useState('asc');
+  const [sortField, setSortField]     = useState('name');
+  const [sortOrder, setSortOrder]     = useState('asc');
   const [currentPage, setCurrentPage] = useState(1);
   const itemsPerPage = 5;
 
   // ── Modal state ──────────────────────────────────────────────────────────────
-  const [activeModal, setActiveModal] = useState(null);
+  const [activeModal, setActiveModal]   = useState(null);
   const [selectedUser, setSelectedUser] = useState(null);
-  const [formData, setFormData] = useState({ name: '', email: '', role: 'Sales Executive', status: 'Active' });
-  const [formErrors, setFormErrors] = useState({});
+  const [formData, setFormData]         = useState({ name: '', email: '', role: 'Sales Executive', status: 'Active' });
+  const [formErrors, setFormErrors]     = useState({});
+  const [deleteConfirmId, setDeleteConfirmId] = useState(null); // id awaiting confirmation
 
-  // ── Fetch users from GET /api/users via existing api.js (auto-attaches JWT) ─
+  // ── Fetch users from GET /api/users ─────────────────────────────────────────
   const fetchUsers = useCallback(async () => {
     setLoading(true);
     setFetchError(null);
@@ -67,27 +87,26 @@ function UsersPage() {
     }
   }, []);
 
-  useEffect(() => {
-    fetchUsers();
-  }, [fetchUsers]);
+  useEffect(() => { fetchUsers(); }, [fetchUsers]);
 
   // ── Summary metrics ──────────────────────────────────────────────────────────
-  const stats = useMemo(() => {
-    const total    = users.length;
-    const active   = users.filter(u => u.status === 'Active').length;
-    const inactive = users.filter(u => u.status === 'Inactive').length;
-    const pending  = users.filter(u => u.status === 'Pending').length;
-    return { total, active, inactive, pending };
-  }, [users]);
+  const stats = useMemo(() => ({
+    total:    users.length,
+    active:   users.filter(u => u.status === 'Active').length,
+    inactive: users.filter(u => u.status === 'Inactive').length,
+    pending:  users.filter(u => u.status === 'Pending').length,
+  }), [users]);
 
   // ── Sort & Filter ────────────────────────────────────────────────────────────
   const filteredAndSortedUsers = useMemo(() => {
     let result = [...users];
     if (searchTerm.trim()) {
       const term = searchTerm.toLowerCase();
-      result = result.filter(u => u.name?.toLowerCase().includes(term) || u.email?.toLowerCase().includes(term));
+      result = result.filter(u =>
+        u.name?.toLowerCase().includes(term) || u.email?.toLowerCase().includes(term)
+      );
     }
-    if (roleFilter) result = result.filter(u => u.role === roleFilter);
+    if (roleFilter)   result = result.filter(u => u.role === roleFilter);
     if (statusFilter) result = result.filter(u => u.status === statusFilter);
     result.sort((a, b) => {
       let aVal = a[sortField] ?? '';
@@ -100,13 +119,18 @@ function UsersPage() {
     return result;
   }, [users, searchTerm, roleFilter, statusFilter, sortField, sortOrder]);
 
-  const totalPages    = Math.ceil(filteredAndSortedUsers.length / itemsPerPage);
+  const totalPages     = Math.ceil(filteredAndSortedUsers.length / itemsPerPage);
   const paginatedUsers = useMemo(() => {
     const start = (currentPage - 1) * itemsPerPage;
     return filteredAndSortedUsers.slice(start, start + itemsPerPage);
   }, [filteredAndSortedUsers, currentPage]);
 
-  // ── Handlers ─────────────────────────────────────────────────────────────────
+  // ── Helpers ───────────────────────────────────────────────────────────────────
+  const showMsg = (type, text) => {
+    setActionMsg({ type, text });
+    setTimeout(() => setActionMsg(null), 4000);
+  };
+
   const handleSort = (field) => {
     if (sortField === field) setSortOrder(prev => prev === 'asc' ? 'desc' : 'asc');
     else { setSortField(field); setSortOrder('asc'); }
@@ -117,25 +141,62 @@ function UsersPage() {
     setSearchTerm(''); setRoleFilter(''); setStatusFilter(''); setCurrentPage(1);
   };
 
-  const handleToggleStatus = (userId) => {
-    setUsers(prev => prev.map(u => {
-      if (u.id === userId) {
-        const next = u.status === 'Active' ? 'Inactive' : 'Active';
-        alert(`User status changed to ${next} for ${u.name}`);
-        return { ...u, status: next };
+  // ── Toggle status — calls PATCH /api/users/:id/status ────────────────────────
+  const handleToggleStatus = async (userId) => {
+    if (actionBusy) return;
+    setActionBusy(userId);
+    setActionMsg(null);
+    try {
+      const res = await api.patch(`/api/users/${userId}/status`);
+      if (res.data?.success) {
+        // Optimistically update local state from the returned record
+        const updated = res.data.data;
+        setUsers(prev => prev.map(u => u.id === userId ? { ...u, ...updated } : u));
+        showMsg('success', res.data.message || 'User status updated.');
+      } else {
+        showMsg('error', res.data?.message || 'Failed to update status.');
       }
-      return u;
-    }));
-  };
-
-  const handleDeleteUser = (userId, userName) => {
-    if (window.confirm(`Are you sure you want to delete user "${userName}"?`)) {
-      setUsers(prev => prev.filter(u => u.id !== userId));
-      alert(`User "${userName}" deleted successfully.`);
-      if (paginatedUsers.length === 1 && currentPage > 1) setCurrentPage(p => p - 1);
+    } catch (err) {
+      const msg =
+        err?.response?.data?.message ||
+        (err?.response?.status === 401 ? 'Session expired. Please log in again.' :
+         err?.response?.status === 403 ? 'You do not have permission to change user status.' :
+         'Failed to update user status. Please try again.');
+      showMsg('error', msg);
+    } finally {
+      setActionBusy(null);
     }
   };
 
+  // ── Delete — calls DELETE /api/users/:id (soft-delete) ───────────────────────
+  const handleDeleteUser = async (userId) => {
+    if (actionBusy) return;
+    setDeleteConfirmId(null);
+    setActionBusy(userId);
+    setActionMsg(null);
+    try {
+      const res = await api.delete(`/api/users/${userId}`);
+      if (res.data?.success) {
+        // Re-fetch so the table reflects the server state
+        await fetchUsers();
+        showMsg('success', res.data.message || 'User deleted successfully.');
+        if (paginatedUsers.length === 1 && currentPage > 1) setCurrentPage(p => p - 1);
+      } else {
+        showMsg('error', res.data?.message || 'Failed to delete user.');
+      }
+    } catch (err) {
+      const msg =
+        err?.response?.data?.message ||
+        (err?.response?.status === 401 ? 'Session expired. Please log in again.' :
+         err?.response?.status === 403 ? 'You do not have permission to delete users.' :
+         'Failed to delete user. Please try again.');
+      showMsg('error', msg);
+    } finally {
+      setActionBusy(null);
+    }
+  };
+
+  // ── Modal helpers ─────────────────────────────────────────────────────────────
   const handleOpenAddModal = () => {
     setFormData({ name: '', email: '', role: 'Sales Executive', status: 'Active' });
     setFormErrors({});
@@ -150,7 +211,8 @@ function UsersPage() {
   };
 
   const handleOpenViewModal = (user) => {
-    setSelectedUser(user); setActiveModal('view');
+    setSelectedUser(user);
+    setActiveModal('view');
   };
 
   const handleFormChange = (e) => {
@@ -169,18 +231,43 @@ function UsersPage() {
     return Object.keys(errors).length === 0;
   };
 
-  const handleSaveUser = (e) => {
+  // Add/Edit modal save — local-only for add; PATCH profile for edit
+  const handleSaveUser = async (e) => {
     e.preventDefault();
     if (!validateForm()) return;
+
     if (activeModal === 'add') {
+      // Adding users via API is out of scope for this task (requires password setup).
+      // This keeps the local-only path for the Add modal as previously designed.
       const newId = `USR${String(users.length + 1).padStart(3, '0')}`;
       setUsers(prev => [{ id: newId, ...formData, lastLogin: 'N/A' }, ...prev]);
-      alert(`User "${formData.name}" added successfully.`);
-    } else if (activeModal === 'edit') {
-      setUsers(prev => prev.map(u => u.id === selectedUser.id ? { ...u, ...formData } : u));
-      alert(`User "${formData.name}" details updated.`);
+      showMsg('success', `User "${formData.name}" added successfully.`);
+      setActiveModal(null);
+    } else if (activeModal === 'edit' && selectedUser) {
+      // Name update goes to the real API
+      setActionBusy(selectedUser.id);
+      try {
+        const res = await api.patch(`/api/users/${selectedUser.id}/profile`, {
+          name: formData.name.trim(),
+        });
+        if (res.data?.success) {
+          setUsers(prev => prev.map(u =>
+            u.id === selectedUser.id ? { ...u, ...res.data.data } : u
+          ));
+          showMsg('success', `User "${formData.name}" updated successfully.`);
+          setActiveModal(null);
+        } else {
+          showMsg('error', res.data?.message || 'Failed to update user.');
+        }
+      } catch (err) {
+        const msg =
+          err?.response?.data?.message ||
+          'Failed to update user. Please try again.';
+        showMsg('error', msg);
+      } finally {
+        setActionBusy(null);
+      }
     }
-    setActiveModal(null);
   };
 
   // ── Render ───────────────────────────────────────────────────────────────────
@@ -224,13 +311,20 @@ function UsersPage() {
         <div className="flex flex-col md:flex-row md:items-center gap-4">
           <div className="flex-1 relative">
             <FiSearch className="absolute left-4 top-[18px] text-slate-400" />
-            <input type="text" placeholder="Search by Name or Email..." value={searchTerm}
+            <input
+              type="text"
+              placeholder="Search by Name or Email..."
+              value={searchTerm}
               onChange={e => { setSearchTerm(e.target.value); setCurrentPage(1); }}
-              className="w-full rounded-2xl border border-white/10 bg-white/5 pl-11 pr-4 py-3 text-slate-100 outline-none transition placeholder:text-slate-500 focus:border-cyan-400/50 focus:ring-2 focus:ring-cyan-400/20" />
+              className="w-full rounded-2xl border border-white/10 bg-white/5 pl-11 pr-4 py-3 text-slate-100 outline-none transition placeholder:text-slate-500 focus:border-cyan-400/50 focus:ring-2 focus:ring-cyan-400/20"
+            />
           </div>
           <div className="w-full md:w-48">
-            <select value={roleFilter} onChange={e => { setRoleFilter(e.target.value); setCurrentPage(1); }}
-              className="w-full rounded-2xl border border-white/10 bg-slate-950 px-4 py-3 text-slate-200 outline-none transition focus:border-cyan-400/50 focus:ring-2 focus:ring-cyan-400/20">
+            <select
+              value={roleFilter}
+              onChange={e => { setRoleFilter(e.target.value); setCurrentPage(1); }}
+              className="w-full rounded-2xl border border-white/10 bg-slate-950 px-4 py-3 text-slate-200 outline-none transition focus:border-cyan-400/50 focus:ring-2 focus:ring-cyan-400/20"
+            >
               <option value="">All Roles</option>
               <option value="Owner">Owner</option>
               <option value="Store Manager">Store Manager</option>
@@ -239,8 +333,11 @@ function UsersPage() {
             </select>
           </div>
           <div className="w-full md:w-48">
-            <select value={statusFilter} onChange={e => { setStatusFilter(e.target.value); setCurrentPage(1); }}
-              className="w-full rounded-2xl border border-white/10 bg-slate-950 px-4 py-3 text-slate-200 outline-none transition focus:border-cyan-400/50 focus:ring-2 focus:ring-cyan-400/20">
+            <select
+              value={statusFilter}
+              onChange={e => { setStatusFilter(e.target.value); setCurrentPage(1); }}
+              className="w-full rounded-2xl border border-white/10 bg-slate-950 px-4 py-3 text-slate-200 outline-none transition focus:border-cyan-400/50 focus:ring-2 focus:ring-cyan-400/20"
+            >
               <option value="">All Statuses</option>
               <option value="Active">Active</option>
               <option value="Inactive">Inactive</option>
@@ -248,13 +345,21 @@ function UsersPage() {
             </select>
           </div>
           {(searchTerm || roleFilter || statusFilter) && (
-            <button onClick={handleResetFilters} className="px-4 py-3 text-sm text-cyan-400 hover:text-cyan-300 font-medium hover:underline shrink-0">Reset Filters</button>
+            <button
+              onClick={handleResetFilters}
+              className="px-4 py-3 text-sm text-cyan-400 hover:text-cyan-300 font-medium hover:underline shrink-0"
+            >
+              Reset Filters
+            </button>
           )}
         </div>
       </section>
 
       {/* Users Table */}
       <section className="rounded-3xl border border-white/10 bg-slate-950/80 p-6 overflow-hidden">
+
+        {/* Mutation feedback banner */}
+        <Banner msg={actionMsg} />
 
         {/* Loading state */}
         {loading && (
@@ -269,14 +374,16 @@ function UsersPage() {
           <div className="flex flex-col items-center justify-center py-16 gap-4">
             <FiAlertCircle size={36} className="text-rose-400" />
             <p className="text-sm text-rose-300 text-center max-w-sm">{fetchError}</p>
-            <button onClick={fetchUsers}
-              className="flex items-center gap-2 px-4 py-2 rounded-xl border border-white/10 bg-white/5 text-sm text-slate-300 hover:text-white hover:bg-white/10 transition">
+            <button
+              onClick={fetchUsers}
+              className="flex items-center gap-2 px-4 py-2 rounded-xl border border-white/10 bg-white/5 text-sm text-slate-300 hover:text-white hover:bg-white/10 transition"
+            >
               <FiRefreshCw size={14} /> Retry
             </button>
           </div>
         )}
 
-        {/* Empty — no users at all */}
+        {/* Empty — no users */}
         {!loading && !fetchError && users.length === 0 && (
           <div className="text-center py-12 space-y-3">
             <FiUsers className="text-5xl text-slate-600 mx-auto" />
@@ -319,26 +426,68 @@ function UsersPage() {
                       <td className="py-4 px-4 font-semibold text-white">{user.name}</td>
                       <td className="py-4 px-4 text-slate-350">{user.email}</td>
                       <td className="py-4 px-4">
-                        <span className="inline-flex rounded-xl bg-white/5 px-2.5 py-1 text-xs text-slate-300 border border-white/5">{user.role}</span>
+                        <span className="inline-flex rounded-xl bg-white/5 px-2.5 py-1 text-xs text-slate-300 border border-white/5">
+                          {user.role}
+                        </span>
                       </td>
                       <td className="py-4 px-4">
                         <span className={`inline-flex items-center gap-1.5 rounded-full px-2.5 py-0.5 text-xs font-medium ${
-                          user.status === 'Active' ? 'bg-emerald-500/10 text-emerald-450 border border-emerald-500/20'
-                          : user.status === 'Inactive' ? 'bg-slate-500/10 text-slate-400 border border-white/5'
-                          : 'bg-amber-500/10 text-amber-450 border border-amber-500/20'}`}>
-                          <span className={`h-1.5 w-1.5 rounded-full ${user.status === 'Active' ? 'bg-emerald-500' : user.status === 'Inactive' ? 'bg-slate-500' : 'bg-amber-500'}`} />
+                          user.status === 'Active'
+                            ? 'bg-emerald-500/10 text-emerald-450 border border-emerald-500/20'
+                            : user.status === 'Inactive'
+                            ? 'bg-slate-500/10 text-slate-400 border border-white/5'
+                            : 'bg-amber-500/10 text-amber-450 border border-amber-500/20'
+                        }`}>
+                          <span className={`h-1.5 w-1.5 rounded-full ${
+                            user.status === 'Active' ? 'bg-emerald-500'
+                            : user.status === 'Inactive' ? 'bg-slate-500'
+                            : 'bg-amber-500'
+                          }`} />
                           {user.status}
                         </span>
                       </td>
                       <td className="py-4 px-4 text-xs text-slate-400">{user.lastLogin}</td>
                       <td className="py-4 px-4 text-right">
                         <div className="flex justify-end gap-1.5">
-                          <button onClick={() => handleOpenViewModal(user)} className="p-2 rounded-xl text-slate-400 hover:text-white hover:bg-white/5 transition" title="View Details"><FiEye size={16} /></button>
-                          <button onClick={() => handleOpenEditModal(user)} className="p-2 rounded-xl text-slate-400 hover:text-cyan-300 hover:bg-white/5 transition" title="Edit"><FiEdit2 size={16} /></button>
-                          <button onClick={() => handleToggleStatus(user.id)} className={`p-2 rounded-xl transition ${user.status === 'Active' ? 'text-slate-400 hover:text-amber-400' : 'text-slate-400 hover:text-emerald-400'} hover:bg-white/5`} title={user.status === 'Active' ? 'Deactivate' : 'Activate'}>
-                            {user.status === 'Active' ? <FiUserX size={16} /> : <FiUserCheck size={16} />}
+                          <button
+                            onClick={() => handleOpenViewModal(user)}
+                            className="p-2 rounded-xl text-slate-400 hover:text-white hover:bg-white/5 transition"
+                            title="View Details"
+                          >
+                            <FiEye size={16} />
                           </button>
-                          <button onClick={() => handleDeleteUser(user.id, user.name)} className="p-2 rounded-xl text-slate-400 hover:text-rose-400 hover:bg-white/5 transition" title="Delete"><FiTrash2 size={16} /></button>
+                          <button
+                            onClick={() => handleOpenEditModal(user)}
+                            className="p-2 rounded-xl text-slate-400 hover:text-cyan-300 hover:bg-white/5 transition"
+                            title="Edit"
+                          >
+                            <FiEdit2 size={16} />
+                          </button>
+                          <button
+                            onClick={() => handleToggleStatus(user.id)}
+                            disabled={actionBusy === user.id}
+                            className={`p-2 rounded-xl transition ${
+                              user.status === 'Active'
+                                ? 'text-slate-400 hover:text-amber-400'
+                                : 'text-slate-400 hover:text-emerald-400'
+                            } hover:bg-white/5 disabled:opacity-40 disabled:cursor-not-allowed`}
+                            title={user.status === 'Active' ? 'Deactivate' : 'Activate'}
+                          >
+                            {actionBusy === user.id
+                              ? <FiRefreshCw size={16} className="animate-spin" />
+                              : user.status === 'Active'
+                              ? <FiUserX size={16} />
+                              : <FiUserCheck size={16} />
+                            }
+                          </button>
+                          <button
+                            onClick={() => setDeleteConfirmId(user.id)}
+                            disabled={actionBusy === user.id}
+                            className="p-2 rounded-xl text-slate-400 hover:text-rose-400 hover:bg-white/5 transition disabled:opacity-40 disabled:cursor-not-allowed"
+                            title="Delete"
+                          >
+                            <FiTrash2 size={16} />
+                          </button>
                         </div>
                       </td>
                     </tr>
@@ -350,15 +499,29 @@ function UsersPage() {
             {totalPages > 1 && (
               <div className="flex items-center justify-between border-t border-white/10 mt-6 pt-4 text-slate-400 text-sm">
                 <div>
-                  Showing <span className="font-semibold text-white">{(currentPage - 1) * itemsPerPage + 1}</span> to{' '}
-                  <span className="font-semibold text-white">{Math.min(currentPage * itemsPerPage, filteredAndSortedUsers.length)}</span> of{' '}
+                  Showing{' '}
+                  <span className="font-semibold text-white">{(currentPage - 1) * itemsPerPage + 1}</span> to{' '}
+                  <span className="font-semibold text-white">
+                    {Math.min(currentPage * itemsPerPage, filteredAndSortedUsers.length)}
+                  </span>{' '}
+                  of{' '}
                   <span className="font-semibold text-white">{filteredAndSortedUsers.length}</span> entries
                 </div>
                 <div className="flex gap-2">
-                  <button onClick={() => setCurrentPage(p => Math.max(p - 1, 1))} disabled={currentPage === 1}
-                    className="p-2 rounded-xl border border-white/10 bg-white/5 text-slate-200 hover:bg-white/10 disabled:opacity-40 disabled:cursor-not-allowed transition"><FiChevronLeft size={16} /></button>
-                  <button onClick={() => setCurrentPage(p => Math.min(p + 1, totalPages))} disabled={currentPage === totalPages}
-                    className="p-2 rounded-xl border border-white/10 bg-white/5 text-slate-200 hover:bg-white/10 disabled:opacity-40 disabled:cursor-not-allowed transition"><FiChevronRight size={16} /></button>
+                  <button
+                    onClick={() => setCurrentPage(p => Math.max(p - 1, 1))}
+                    disabled={currentPage === 1}
+                    className="p-2 rounded-xl border border-white/10 bg-white/5 text-slate-200 hover:bg-white/10 disabled:opacity-40 disabled:cursor-not-allowed transition"
+                  >
+                    <FiChevronLeft size={16} />
+                  </button>
+                  <button
+                    onClick={() => setCurrentPage(p => Math.min(p + 1, totalPages))}
+                    disabled={currentPage === totalPages}
+                    className="p-2 rounded-xl border border-white/10 bg-white/5 text-slate-200 hover:bg-white/10 disabled:opacity-40 disabled:cursor-not-allowed transition"
+                  >
+                    <FiChevronRight size={16} />
+                  </button>
                 </div>
               </div>
             )}
@@ -366,23 +529,84 @@ function UsersPage() {
         )}
       </section>
 
+      {/* Delete Confirmation Modal */}
+      {deleteConfirmId && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-950/80 backdrop-blur-sm">
+          <div className="glass-panel w-full max-w-sm rounded-[2rem] p-6 space-y-5 relative border border-white/10 shadow-2xl">
+            <button
+              onClick={() => setDeleteConfirmId(null)}
+              className="absolute top-4 right-4 text-slate-400 hover:text-white"
+            >
+              <FiX size={20} />
+            </button>
+            <div className="flex items-center gap-3">
+              <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-rose-500/10 text-rose-400 shrink-0">
+                <FiTrash2 size={18} />
+              </div>
+              <div>
+                <h3 className="text-base font-semibold text-white">Delete User</h3>
+                <p className="text-xs text-slate-400 mt-0.5">This action cannot be undone.</p>
+              </div>
+            </div>
+            <p className="text-sm text-slate-300">
+              Are you sure you want to delete{' '}
+              <span className="font-semibold text-white">
+                {users.find(u => u.id === deleteConfirmId)?.name ?? 'this user'}
+              </span>
+              ? The account will be deactivated and removed from the active directory.
+            </p>
+            <div className="flex gap-3">
+              <button
+                onClick={() => handleDeleteUser(deleteConfirmId)}
+                className="flex-1 rounded-2xl bg-rose-500/20 border border-rose-500/30 text-rose-300 hover:bg-rose-500/30 py-2.5 text-sm font-medium transition"
+              >
+                Yes, delete
+              </button>
+              <button
+                onClick={() => setDeleteConfirmId(null)}
+                className="flex-1 rounded-2xl bg-white/5 border border-white/10 text-slate-300 hover:bg-white/10 py-2.5 text-sm font-medium transition"
+              >
+                Cancel
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
       {/* View Modal */}
       {activeModal === 'view' && selectedUser && (
         <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-950/80 backdrop-blur-sm">
           <div className="glass-panel w-full max-w-md rounded-[2rem] p-6 space-y-6 relative border border-white/10 shadow-2xl">
-            <button onClick={() => setActiveModal(null)} className="absolute top-4 right-4 text-slate-400 hover:text-white"><FiX size={20} /></button>
+            <button onClick={() => setActiveModal(null)} className="absolute top-4 right-4 text-slate-400 hover:text-white">
+              <FiX size={20} />
+            </button>
             <div>
               <h3 className="text-xl font-semibold text-white">User Details</h3>
               <p className="text-xs text-slate-400 mt-1 font-mono">{selectedUser.id}</p>
             </div>
             <div className="space-y-4">
-              <div className="rounded-2xl bg-white/5 p-4"><p className="text-xs text-slate-400 mb-1">Full Name</p><p className="text-base text-white font-medium">{selectedUser.name}</p></div>
-              <div className="rounded-2xl bg-white/5 p-4"><p className="text-xs text-slate-400 mb-1">Email Address</p><p className="text-base text-white font-medium">{selectedUser.email}</p></div>
-              <div className="grid grid-cols-2 gap-3">
-                <div className="rounded-2xl bg-white/5 p-4"><p className="text-xs text-slate-400 mb-1">Assigned Role</p><p className="text-base text-white font-medium">{selectedUser.role}</p></div>
-                <div className="rounded-2xl bg-white/5 p-4"><p className="text-xs text-slate-400 mb-1">User Status</p><p className="text-base text-white font-medium">{selectedUser.status}</p></div>
+              <div className="rounded-2xl bg-white/5 p-4">
+                <p className="text-xs text-slate-400 mb-1">Full Name</p>
+                <p className="text-base text-white font-medium">{selectedUser.name}</p>
               </div>
-              <div className="rounded-2xl bg-white/5 p-4"><p className="text-xs text-slate-400 mb-1">Last Logged In</p><p className="text-base text-white font-medium">{selectedUser.lastLogin}</p></div>
+              <div className="rounded-2xl bg-white/5 p-4">
+                <p className="text-xs text-slate-400 mb-1">Email Address</p>
+                <p className="text-base text-white font-medium">{selectedUser.email}</p>
+              </div>
+              <div className="grid grid-cols-2 gap-3">
+                <div className="rounded-2xl bg-white/5 p-4">
+                  <p className="text-xs text-slate-400 mb-1">Assigned Role</p>
+                  <p className="text-base text-white font-medium">{selectedUser.role}</p>
+                </div>
+                <div className="rounded-2xl bg-white/5 p-4">
+                  <p className="text-xs text-slate-400 mb-1">User Status</p>
+                  <p className="text-base text-white font-medium">{selectedUser.status}</p>
+                </div>
+              </div>
+              <div className="rounded-2xl bg-white/5 p-4">
+                <p className="text-xs text-slate-400 mb-1">Last Logged In</p>
+                <p className="text-base text-white font-medium">{selectedUser.lastLogin}</p>
+              </div>
             </div>
             <Button onClick={() => setActiveModal(null)} className="w-full">Close</Button>
           </div>
@@ -393,23 +617,54 @@ function UsersPage() {
       {(activeModal === 'add' || activeModal === 'edit') && (
         <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-950/80 backdrop-blur-sm">
           <div className="glass-panel w-full max-w-md rounded-[2rem] p-6 space-y-6 relative border border-white/10 shadow-2xl">
-            <button onClick={() => setActiveModal(null)} className="absolute top-4 right-4 text-slate-400 hover:text-white"><FiX size={20} /></button>
+            <button onClick={() => setActiveModal(null)} className="absolute top-4 right-4 text-slate-400 hover:text-white">
+              <FiX size={20} />
+            </button>
             <div>
-              <h3 className="text-xl font-semibold text-white">{activeModal === 'add' ? 'Add New User' : 'Edit User Details'}</h3>
-              <p className="text-xs text-slate-400 mt-1">{activeModal === 'add' ? 'Create a new user account profile.' : `Modifying profile for ${selectedUser?.id}`}</p>
+              <h3 className="text-xl font-semibold text-white">
+                {activeModal === 'add' ? 'Add New User' : 'Edit User Details'}
+              </h3>
+              <p className="text-xs text-slate-400 mt-1">
+                {activeModal === 'add'
+                  ? 'Create a new user account profile.'
+                  : `Modifying profile for ${selectedUser?.id}`}
+              </p>
             </div>
             <form onSubmit={handleSaveUser} className="space-y-4">
               <div>
-                <Input label="Full Name" name="name" type="text" value={formData.name} onChange={handleFormChange} placeholder="e.g. John Doe" className={formErrors.name ? 'border-rose-500/50' : ''} />
+                <Input
+                  label="Full Name"
+                  name="name"
+                  type="text"
+                  value={formData.name}
+                  onChange={handleFormChange}
+                  placeholder="e.g. John Doe"
+                  className={formErrors.name ? 'border-rose-500/50' : ''}
+                />
                 {formErrors.name && <p className="text-xs text-rose-400 mt-1">{formErrors.name}</p>}
               </div>
               <div>
-                <Input label="Email Address" name="email" type="email" value={formData.email} onChange={handleFormChange} placeholder="e.g. john@example.com" className={formErrors.email ? 'border-rose-500/50' : ''} />
+                <Input
+                  label="Email Address"
+                  name="email"
+                  type="email"
+                  value={formData.email}
+                  onChange={handleFormChange}
+                  placeholder="e.g. john@example.com"
+                  disabled={activeModal === 'edit'}
+                  className={`${formErrors.email ? 'border-rose-500/50' : ''} ${activeModal === 'edit' ? 'cursor-not-allowed opacity-60' : ''}`}
+                />
                 {formErrors.email && <p className="text-xs text-rose-400 mt-1">{formErrors.email}</p>}
               </div>
               <div>
                 <label className="mb-2 block text-sm font-medium text-slate-200">System Role</label>
-                <select name="role" value={formData.role} onChange={handleFormChange} className="w-full rounded-2xl border border-white/10 bg-slate-950 px-4 py-3 text-slate-200 outline-none transition focus:border-cyan-400/50">
+                <select
+                  name="role"
+                  value={formData.role}
+                  onChange={handleFormChange}
+                  disabled={activeModal === 'edit'}
+                  className="w-full rounded-2xl border border-white/10 bg-slate-950 px-4 py-3 text-slate-200 outline-none transition focus:border-cyan-400/50"
+                >
                   <option value="Owner">Owner</option>
                   <option value="Store Manager">Store Manager</option>
                   <option value="Sales Executive">Sales Executive</option>
@@ -418,15 +673,25 @@ function UsersPage() {
               </div>
               <div>
                 <label className="mb-2 block text-sm font-medium text-slate-200">Status</label>
-                <select name="status" value={formData.status} onChange={handleFormChange} className="w-full rounded-2xl border border-white/10 bg-slate-950 px-4 py-3 text-slate-200 outline-none transition focus:border-cyan-400/50">
+                <select
+                  name="status"
+                  value={formData.status}
+                  onChange={handleFormChange}
+                  disabled={activeModal === 'edit'}
+                  className="w-full rounded-2xl border border-white/10 bg-slate-950 px-4 py-3 text-slate-200 outline-none transition focus:border-cyan-400/50"
+                >
                   <option value="Active">Active</option>
                   <option value="Inactive">Inactive</option>
                   <option value="Pending">Pending</option>
                 </select>
               </div>
               <div className="flex gap-3 pt-2">
-                <Button type="submit" className="flex-1">Save Changes</Button>
-                <Button type="button" variant="secondary" onClick={() => setActiveModal(null)} className="flex-1">Cancel</Button>
+                <Button type="submit" className="flex-1" disabled={!!actionBusy}>
+                  {actionBusy ? 'Saving…' : 'Save Changes'}
+                </Button>
+                <Button type="button" variant="secondary" onClick={() => setActiveModal(null)} className="flex-1">
+                  Cancel
+                </Button>
               </div>
             </form>
           </div>
