@@ -136,7 +136,7 @@ function CreateInvoicePage() {
     const prod = products.find((p) => p.id === prodId);
     if (prod) {
       // Set price directly from DB — user cannot override this
-      setItemPrice(prod.price);
+      setItemPrice(Number(prod.price).toFixed(2));
       setItemDiscount(0);
       setItemTax(18);
     }
@@ -215,10 +215,10 @@ function CreateInvoicePage() {
     setInvoiceItems(prevItems =>
       prevItems.map(item => {
         if (item.id === itemId) {
-          const updatedValue = Number(value);
-          if (field === 'quantity' && updatedValue < 1) return item;
-          if (field === 'discountPercent' && (updatedValue < 0 || updatedValue > 100)) return item;
-          if (field === 'taxPercent' && (updatedValue < 0 || updatedValue > 100)) return item;
+          const updatedValue = value === '' ? '' : Number(value);
+          if (field === 'quantity' && updatedValue !== '' && updatedValue < 1) return item;
+          if (field === 'discountPercent' && updatedValue !== '' && (updatedValue < 0 || updatedValue > 100)) return item;
+          if (field === 'taxPercent' && updatedValue !== '' && (updatedValue < 0 || updatedValue > 100)) return item;
           return { ...item, [field]: updatedValue };
         }
         return item;
@@ -238,10 +238,14 @@ function CreateInvoicePage() {
     let totalTax = 0;
 
     invoiceItems.forEach((item) => {
-      const itemSubtotal = item.unitPrice * item.quantity;
-      const itemDiscountVal = itemSubtotal * (item.discountPercent / 100);
+      const qty = item.quantity === '' ? 0 : item.quantity;
+      const discount = item.discountPercent === '' ? 0 : item.discountPercent;
+      const tax = item.taxPercent === '' ? 0 : item.taxPercent;
+
+      const itemSubtotal = item.unitPrice * qty;
+      const itemDiscountVal = itemSubtotal * (discount / 100);
       const taxable = itemSubtotal - itemDiscountVal;
-      const itemTaxVal = taxable * (item.taxPercent / 100);
+      const itemTaxVal = taxable * (tax / 100);
 
       subtotal += itemSubtotal;
       totalDiscount += itemDiscountVal;
@@ -337,10 +341,36 @@ function CreateInvoicePage() {
     }
   };
 
+  const todayDate = new Date();
+  const minDate = new Date(todayDate);
+  minDate.setDate(todayDate.getDate() - 7);
+  const maxDate = new Date(todayDate);
+  maxDate.setDate(todayDate.getDate() + 7);
+
   return (
     <div className="space-y-6 relative min-h-[500px]">
+      <style type="text/css" media="print">
+        {`
+          .fixed.inset-0 {
+            position: absolute !important;
+            align-items: flex-start !important;
+            padding: 0 !important;
+            background: white !important;
+          }
+          .fixed.inset-0 > div {
+            max-height: none !important;
+            border: none !important;
+            box-shadow: none !important;
+          }
+          #printable-invoice, #printable-invoice * {
+            color: black !important;
+            border-color: #cbd5e1 !important;
+          }
+        `}
+      </style>
+      
       {loadingCatalogs && (
-        <div className="absolute inset-0 z-30 flex items-center justify-center rounded-[2rem] bg-slate-950/60 backdrop-blur-sm min-h-[500px]">
+        <div className="absolute inset-0 z-30 flex items-center justify-center rounded-[2rem] bg-slate-950/60 backdrop-blur-sm min-h-[500px] print:hidden">
           <div className="flex flex-col items-center gap-3">
             <FiRefreshCw className="animate-spin text-4xl text-cyan-400" />
             <p className="text-sm font-semibold text-slate-350">Loading client and product catalogs...</p>
@@ -349,7 +379,7 @@ function CreateInvoicePage() {
       )}
 
       {catalogError && !loadingCatalogs && (
-        <div className="rounded-3xl border border-rose-500/10 bg-slate-950/80 p-8 backdrop-blur text-center space-y-4 max-w-md mx-auto my-8">
+        <div className="rounded-3xl border border-rose-500/10 bg-slate-950/80 p-8 backdrop-blur text-center space-y-4 max-w-md mx-auto my-8 print:hidden">
           <div className="flex items-center justify-center w-14 h-14 rounded-full bg-rose-500/10 text-rose-400 mx-auto">
             <FiAlertTriangle className="text-2xl shrink-0" />
           </div>
@@ -369,7 +399,7 @@ function CreateInvoicePage() {
       )}
 
       {/* Top Title Section */}
-      <section className="rounded-3xl border border-white/10 bg-slate-950/80 p-6 md:p-8 backdrop-blur flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
+      <section className="print:hidden rounded-3xl border border-white/10 bg-slate-950/80 p-6 md:p-8 backdrop-blur flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
         <div>
           <h1 className="text-3xl font-bold tracking-tight text-white">Create Invoice</h1>
           <p className="mt-1.5 text-sm text-slate-400">Generate fresh sales transactions and calculate totals instantly.</p>
@@ -385,7 +415,7 @@ function CreateInvoicePage() {
       </section>
 
       {/* Main Grid: Form Left, Product Adder Right */}
-      <div className="grid gap-6 xl:grid-cols-3">
+      <div className="print:hidden grid gap-6 xl:grid-cols-3">
         {/* Left Side: Client Info & Bill Details */}
         <div className="xl:col-span-2 space-y-6">
           {/* Customer & General Details */}
@@ -443,6 +473,8 @@ function CreateInvoicePage() {
                   type="date"
                   className="w-full rounded-2xl border border-white/10 bg-white/5 px-4 py-3 text-sm text-white outline-none focus:border-cyan-400/50 focus:ring-2 focus:ring-cyan-400/20"
                   value={invoiceDate}
+                  min={minDate.toISOString().split('T')[0]}
+                  max={maxDate.toISOString().split('T')[0]}
                   onChange={(e) => setInvoiceDate(e.target.value)}
                 />
               </div>
@@ -519,7 +551,7 @@ function CreateInvoicePage() {
                               type="number"
                               min="1"
                               className="w-16 rounded-xl border border-white/10 bg-white/5 px-2 py-1.5 text-center text-sm text-white outline-none focus:border-cyan-400/50"
-                              value={item.quantity}
+                              value={item.quantity === '' ? '' : item.quantity}
                               onChange={(e) => handleUpdateItemInline(item.id, 'quantity', e.target.value)}
                             />
                           </td>
@@ -535,7 +567,7 @@ function CreateInvoicePage() {
                               min="0"
                               max="100"
                               className="w-16 rounded-xl border border-white/10 bg-white/5 px-2 py-1.5 text-center text-sm text-white outline-none focus:border-cyan-400/50"
-                              value={item.discountPercent}
+                              value={item.discountPercent === '' ? '' : item.discountPercent}
                               onChange={(e) => handleUpdateItemInline(item.id, 'discountPercent', e.target.value)}
                             />
                           </td>
@@ -545,7 +577,7 @@ function CreateInvoicePage() {
                               min="0"
                               max="100"
                               className="w-16 rounded-xl border border-white/10 bg-white/5 px-2 py-1.5 text-center text-sm text-white outline-none focus:border-cyan-400/50"
-                              value={item.taxPercent}
+                              value={item.taxPercent === '' ? '' : item.taxPercent}
                               onChange={(e) => handleUpdateItemInline(item.id, 'taxPercent', e.target.value)}
                             />
                           </td>
@@ -603,8 +635,8 @@ function CreateInvoicePage() {
                   type="number"
                   min="1"
                   className="w-full rounded-2xl border border-white/10 bg-white/5 px-4 py-3 text-sm text-white outline-none transition focus:border-cyan-400/50 focus:ring-2 focus:ring-cyan-400/20"
-                  value={itemQty}
-                  onChange={(e) => setItemQty(Number(e.target.value))}
+                  value={itemQty === '' ? '' : itemQty}
+                  onChange={(e) => setItemQty(e.target.value === '' ? '' : Number(e.target.value))}
                 />
               </div>
 
@@ -633,8 +665,8 @@ function CreateInvoicePage() {
                     min="0"
                     max="100"
                     className="w-full rounded-2xl border border-white/10 bg-white/5 px-4 py-3 text-sm text-white outline-none transition focus:border-cyan-400/50"
-                    value={itemDiscount}
-                    onChange={(e) => setItemDiscount(Number(e.target.value))}
+                    value={itemDiscount === '' ? '' : itemDiscount}
+                    onChange={(e) => setItemDiscount(e.target.value === '' ? '' : Number(e.target.value))}
                   />
                 </div>
 
@@ -647,8 +679,8 @@ function CreateInvoicePage() {
                     min="0"
                     max="100"
                     className="w-full rounded-2xl border border-white/10 bg-white/5 px-4 py-3 text-sm text-white outline-none transition focus:border-cyan-400/50"
-                    value={itemTax}
-                    onChange={(e) => setItemTax(Number(e.target.value))}
+                    value={itemTax === '' ? '' : itemTax}
+                    onChange={(e) => setItemTax(e.target.value === '' ? '' : Number(e.target.value))}
                   />
                 </div>
               </div>
