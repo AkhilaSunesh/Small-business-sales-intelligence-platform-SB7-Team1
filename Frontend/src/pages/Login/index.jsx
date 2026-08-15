@@ -81,16 +81,20 @@ function LoginPage() {
         localStorage.setItem('refreshToken', data.refreshToken);
       }
 
-      // Update AppContext with email and the role the user selected on the form
-      // (the form role maps frontend labels; the JWT carries the backend roleId)
-      login({ email: form.email, role: form.role });
+      // Update AppContext with id, name, email and the role the user selected on the form
+      login({
+        id:    data.user?.id,
+        name:  data.user?.name,
+        email: form.email,
+        role:  form.role,
+      });
 
       navigate('/dashboard');
     } catch (err) {
       // Offline fallback: if the backend is unreachable, use mock token and proceed
       if (err.message.includes('Unable to reach') || err.message.includes('Backend is offline') || err.message.includes('offline or unreachable')) {
         localStorage.setItem('authToken', 'offline-mock-token');
-        login({ email: form.email, role: form.role });
+        login({ email: form.email, role: form.role, id: null, name: null });
         navigate('/dashboard');
         return;
       }

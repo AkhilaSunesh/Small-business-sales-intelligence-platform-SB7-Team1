@@ -18,4 +18,7 @@ router.get( "/me",     authenticate, authController.me);
 // POST /api/auth/logout — stateless logout (requires valid access token)
 router.post("/logout", authenticate, authController.logout);
 
+// PATCH /api/auth/change-password — update own password (requires valid access token)
+router.patch("/change-password", authenticate, authController.changePassword);
+
 module.exports = router;

@@ -2,11 +2,12 @@ const request = require('supertest');
 const jwt = require('jsonwebtoken');
 
 jest.mock('../src/auth/auth.controller', () => ({
-    register:     jest.fn((req, res) => res.status(201).json({ success: true, message: 'Registered' })),
-    login:        jest.fn((req, res) => res.status(200).json({ success: true, message: 'Logged in', accessToken: 'test-token', refreshToken: 'refresh-token', user: { id: 'user-id', roleId: 1 } })),
-    refreshToken: jest.fn((req, res) => res.status(200).json({ success: true, accessToken: 'new-access-token' })),
-    me:           jest.fn((req, res) => res.status(200).json({ success: true, user: { id: 'user-id', roleId: 1, role: { name: 'Business Owner' } } })),
-    logout:       jest.fn((req, res) => res.status(200).json({ success: true, message: 'Logged out successfully.' }))
+    register:       jest.fn((req, res) => res.status(201).json({ success: true, message: 'Registered' })),
+    login:          jest.fn((req, res) => res.status(200).json({ success: true, message: 'Logged in', accessToken: 'test-token', refreshToken: 'refresh-token', user: { id: 'user-id', roleId: 1 } })),
+    refreshToken:   jest.fn((req, res) => res.status(200).json({ success: true, accessToken: 'new-access-token' })),
+    me:             jest.fn((req, res) => res.status(200).json({ success: true, user: { id: 'user-id', roleId: 1, role: { name: 'Business Owner' } } })),
+    logout:         jest.fn((req, res) => res.status(200).json({ success: true, message: 'Logged out successfully.' })),
+    changePassword: jest.fn((req, res) => res.status(200).json({ success: true, message: 'Password updated successfully.' }))
 }));
 
 const app = require('../src/app');

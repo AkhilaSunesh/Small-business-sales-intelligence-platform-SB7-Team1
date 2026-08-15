@@ -4,57 +4,128 @@ import { useAuth } from '../../context/AuthContext';
 import { useTranslation } from 'react-i18next';
 import Button from '../../components/ui/Button';
 import Input from '../../components/ui/Input';
+import api from '../../services/api';
 
 function SettingsPage() {
   usePageTitle('Settings');
 
   const { t, i18n } = useTranslation();
-  const { user, logout, theme, setTheme } = useAuth();
-  const [showPasswordForm, setShowPasswordForm] = useState(false);
-  const [showEditProfile, setShowEditProfile] = useState(false);
+  const { user, login, logout, theme, setTheme } = useAuth();
 
+  // ── Profile form ─────────────────────────────────────────────────────────────
+  const [showEditProfile, setShowEditProfile] = useState(false);
+  const [profileForm, setProfileForm] = useState({
+    name: user?.displayName || '',
+  });
+  const [profileSaving, setProfileSaving] = useState(false);
+  const [profileMsg, setProfileMsg]       = useState(null); // { type: 'success'|'error', text }
+
+  // ── Password form ─────────────────────────────────────────────────────────────
+  const [showPasswordForm, setShowPasswordForm] = useState(false);
   const [passwordForm, setPasswordForm] = useState({
     currentPassword: '',
     newPassword: '',
     confirmPassword: '',
   });
+  const [passwordSaving, setPasswordSaving] = useState(false);
+  const [passwordMsg, setPasswordMsg]       = useState(null); // { type: 'success'|'error', text }
 
-  const [profileForm, setProfileForm] = useState({
-    name: user?.displayName || 'User',
-    email: user?.email || 'user@example.com',
-  });
+  // ── Helpers ───────────────────────────────────────────────────────────────────
+  const handleProfileChange = (field, value) => {
+    setProfileForm(prev => ({ ...prev, [field]: value }));
+    if (profileMsg) setProfileMsg(null);
+  };
 
   const handlePasswordChange = (field, value) => {
-    setPasswordForm((prev) => ({
-      ...prev,
-      [field]: value,
-    }));
+    setPasswordForm(prev => ({ ...prev, [field]: value }));
+    if (passwordMsg) setPasswordMsg(null);
   };
 
-  const handleProfileChange = (field, value) => {
-    setProfileForm((prev) => ({
-      ...prev,
-      [field]: value,
-    }));
+  // ── Save profile (name only) ──────────────────────────────────────────────────
+  const handleSaveProfile = async () => {
+    if (!profileForm.name.trim() || profileForm.name.trim().length < 2) {
+      setProfileMsg({ type: 'error', text: 'Name must be at least 2 characters.' });
+      return;
+    }
+
+    if (!user?.id) {
+      setProfileMsg({ type: 'error', text: 'Session expired. Please log in again.' });
+      return;
+    }
+
+    setProfileSaving(true);
+    setProfileMsg(null);
+    try {
+      const res = await api.patch(`/api/users/${user.id}/profile`, {
+        name: profileForm.name.trim(),
+      });
+
+      if (res.data?.success) {
+        // Refresh AppContext so the sidebar/header also reflects the new name
+        login({
+          id:    user.id,
+          email: user.email,
+          role:  user.role,
+          name:  res.data.data?.name || profileForm.name.trim(),
+        });
+        setProfileMsg({ type: 'success', text: 'Profile updated successfully.' });
+        setShowEditProfile(false);
+      } else {
+        setProfileMsg({ type: 'error', text: res.data?.message || 'Failed to update profile.' });
+      }
+    } catch (err) {
+      const msg =
+        err?.response?.data?.message ||
+        (err?.response?.status === 401 ? 'Session expired. Please log in again.' :
+         err?.response?.status === 403 ? 'You do not have permission to update this profile.' :
+         'Failed to update profile. Please try again.');
+      setProfileMsg({ type: 'error', text: msg });
+    } finally {
+      setProfileSaving(false);
+    }
   };
 
-  const handleSavePassword = () => {
-    if (passwordForm.newPassword !== passwordForm.confirmPassword) {
-      alert('New passwords do not match');
+  // ── Change password ───────────────────────────────────────────────────────────
+  const handleSavePassword = async () => {
+    setPasswordMsg(null);
+
+    if (!passwordForm.currentPassword) {
+      setPasswordMsg({ type: 'error', text: 'Current password is required.' });
       return;
     }
     if (passwordForm.newPassword.length < 6) {
-      alert('Password must be at least 6 characters');
+      setPasswordMsg({ type: 'error', text: 'New password must be at least 6 characters.' });
       return;
     }
-    alert('Password change request sent to backend. Feature coming soon.');
-    setPasswordForm({ currentPassword: '', newPassword: '', confirmPassword: '' });
-    setShowPasswordForm(false);
-  };
+    if (passwordForm.newPassword !== passwordForm.confirmPassword) {
+      setPasswordMsg({ type: 'error', text: 'New passwords do not match.' });
+      return;
+    }
 
-  const handleSaveProfile = () => {
-    alert('Profile update request sent to backend. Feature coming soon.');
-    setShowEditProfile(false);
+    setPasswordSaving(true);
+    try {
+      const res = await api.patch('/api/auth/change-password', {
+        currentPassword: passwordForm.currentPassword,
+        newPassword:     passwordForm.newPassword,
+      });
+
+      if (res.data?.success) {
+        setPasswordMsg({ type: 'success', text: 'Password updated successfully.' });
+        setPasswordForm({ currentPassword: '', newPassword: '', confirmPassword: '' });
+        setShowPasswordForm(false);
+      } else {
+        setPasswordMsg({ type: 'error', text: res.data?.message || 'Failed to update password.' });
+      }
+    } catch (err) {
+      const msg =
+        err?.response?.data?.message ||
+        (err?.response?.status === 401 ? 'Current password is incorrect.' :
+         err?.response?.status === 403 ? 'You do not have permission to change this password.' :
+         'Failed to update password. Please try again.');
+      setPasswordMsg({ type: 'error', text: msg });
+    } finally {
+      setPasswordSaving(false);
+    }
   };
 
   const handleLogout = () => {
@@ -64,15 +135,24 @@ function SettingsPage() {
     }
   };
 
+  // ── Inline message component ──────────────────────────────────────────────────
+  const InlineMsg = ({ msg }) => {
+    if (!msg) return null;
+    const base = 'rounded-2xl px-4 py-3 text-sm font-medium';
+    const colour =
+      msg.type === 'success'
+        ? 'bg-emerald-500/10 text-emerald-300 border border-emerald-500/20'
+        : 'bg-rose-500/10 text-rose-300 border border-rose-500/20';
+    return <p className={`${base} ${colour}`}>{msg.text}</p>;
+  };
+
   return (
     <div className="space-y-6">
       {/* Page Header */}
       <section className="rounded-3xl border border-white/10 bg-slate-950/80 p-8 flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
         <div>
           <h1 className="text-3xl font-semibold text-white">{t('settings')}</h1>
-          <p className="mt-2 text-sm text-slate-400">
-            {t('manageProfile')}
-          </p>
+          <p className="mt-2 text-sm text-slate-400">{t('manageProfile')}</p>
         </div>
       </section>
 
@@ -85,27 +165,42 @@ function SettingsPage() {
           </div>
           <Button
             variant="secondary"
-            onClick={() => setShowEditProfile(!showEditProfile)}
+            onClick={() => {
+              setShowEditProfile(!showEditProfile);
+              setProfileMsg(null);
+              setProfileForm({ name: user?.displayName || '' });
+            }}
             className="text-sm"
           >
-            {showEditProfile ? `${t('cancel')}` : `${t('editProfile')}`}
+            {showEditProfile ? t('cancel') : t('editProfile')}
           </Button>
         </div>
 
+        <InlineMsg msg={profileMsg} />
+
         {showEditProfile ? (
-          <div className="space-y-4">
+          <div className="space-y-4 mt-4">
+            {/* Name — editable */}
             <Input
               label={t('fullName')}
               type="text"
               value={profileForm.name}
               onChange={(e) => handleProfileChange('name', e.target.value)}
             />
-            <Input
-              label={t('emailAddress')}
-              type="email"
-              value={profileForm.email}
-              onChange={(e) => handleProfileChange('email', e.target.value)}
-            />
+            {/* Email — read-only: cannot be changed via this form */}
+            <div>
+              <label className="mb-2 block text-sm font-medium text-slate-400">
+                {t('emailAddress')}
+                <span className="ml-2 text-xs text-slate-500">(read-only)</span>
+              </label>
+              <input
+                type="email"
+                value={user?.email || ''}
+                readOnly
+                disabled
+                className="w-full rounded-2xl border border-white/5 bg-white/2 px-4 py-3 text-slate-500 cursor-not-allowed outline-none"
+              />
+            </div>
             <div className="grid grid-cols-2 gap-3">
               <Input
                 label={t('role')}
@@ -123,26 +218,23 @@ function SettingsPage() {
               />
             </div>
             <div className="flex gap-3">
-              <Button variant="primary" onClick={handleSaveProfile}>
-                {t('saveChanges')}
+              <Button variant="primary" onClick={handleSaveProfile} disabled={profileSaving}>
+                {profileSaving ? 'Saving…' : t('saveChanges')}
               </Button>
-              <Button
-                variant="secondary"
-                onClick={() => setShowEditProfile(false)}
-              >
+              <Button variant="secondary" onClick={() => { setShowEditProfile(false); setProfileMsg(null); }}>
                 {t('cancel')}
               </Button>
             </div>
           </div>
         ) : (
-          <div className="grid gap-4 sm:grid-cols-2">
+          <div className="grid gap-4 sm:grid-cols-2 mt-4">
             <div className="rounded-2xl bg-white/5 p-4">
               <p className="text-xs font-medium text-slate-400 mb-1">{t('fullName')}</p>
-              <p className="text-base text-white font-medium">{profileForm.name}</p>
+              <p className="text-base text-white font-medium">{user?.displayName || '—'}</p>
             </div>
             <div className="rounded-2xl bg-white/5 p-4">
               <p className="text-xs font-medium text-slate-400 mb-1">{t('emailAddress')}</p>
-              <p className="text-base text-white font-medium">{profileForm.email}</p>
+              <p className="text-base text-white font-medium">{user?.email || '—'}</p>
             </div>
             <div className="rounded-2xl bg-white/5 p-4">
               <p className="text-xs font-medium text-slate-400 mb-1">{t('role')}</p>
@@ -165,12 +257,18 @@ function SettingsPage() {
           </div>
           <Button
             variant="secondary"
-            onClick={() => setShowPasswordForm(!showPasswordForm)}
+            onClick={() => {
+              setShowPasswordForm(!showPasswordForm);
+              setPasswordMsg(null);
+              setPasswordForm({ currentPassword: '', newPassword: '', confirmPassword: '' });
+            }}
             className="text-sm"
           >
-            {showPasswordForm ? `${t('cancel')}` : `${t('change')}`}
+            {showPasswordForm ? t('cancel') : t('change')}
           </Button>
         </div>
+
+        <InlineMsg msg={passwordMsg} />
 
         {showPasswordForm && (
           <div className="mt-4 space-y-4">
@@ -184,7 +282,7 @@ function SettingsPage() {
             <Input
               label={t('newPassword')}
               type="password"
-              placeholder="Enter new password"
+              placeholder="Enter new password (min 6 characters)"
               value={passwordForm.newPassword}
               onChange={(e) => handlePasswordChange('newPassword', e.target.value)}
             />
@@ -196,13 +294,10 @@ function SettingsPage() {
               onChange={(e) => handlePasswordChange('confirmPassword', e.target.value)}
             />
             <div className="flex gap-3">
-              <Button variant="primary" onClick={handleSavePassword}>
-                {t('updatePassword')}
+              <Button variant="primary" onClick={handleSavePassword} disabled={passwordSaving}>
+                {passwordSaving ? 'Updating…' : t('updatePassword')}
               </Button>
-              <Button
-                variant="secondary"
-                onClick={() => setShowPasswordForm(false)}
-              >
+              <Button variant="secondary" onClick={() => { setShowPasswordForm(false); setPasswordMsg(null); }}>
                 {t('cancel')}
               </Button>
             </div>
@@ -260,7 +355,12 @@ function SettingsPage() {
             <option value="ta" className="bg-slate-950 text-slate-200">🇮🇳 தமிழ்</option>
           </select>
           <p className="text-xs text-slate-400 mt-3">
-            {t('langDesc', { lang: i18n.language === 'en' ? 'English' : i18n.language === 'ta' ? 'தமிழ்' : 'हिन्दी' })}
+            {t('langDesc', {
+              lang:
+                i18n.language === 'en' ? 'English'
+                : i18n.language === 'ta' ? 'தமிழ்'
+                : 'हिन्दी',
+            })}
           </p>
         </div>
       </section>
@@ -305,9 +405,7 @@ function SettingsPage() {
       {/* Danger Zone - Logout */}
       <section className="rounded-3xl border border-red-500/20 bg-red-500/5 p-6">
         <h2 className="text-xl font-semibold text-red-400 mb-2">{t('dangerZone')}</h2>
-        <p className="text-sm text-slate-400 mb-4">
-          {t('logoutDesc')}
-        </p>
+        <p className="text-sm text-slate-400 mb-4">{t('logoutDesc')}</p>
         <Button
           variant="secondary"
           onClick={handleLogout}

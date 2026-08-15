@@ -2,7 +2,8 @@ process.env.JWT_SECRET = 'testsecret';
 process.env.REFRESH_TOKEN_SECRET = 'refreshsecret';
 jest.mock('../src/config/prisma', () => ({
   user: {
-    findUnique: jest.fn().mockResolvedValue({ id: 'u1', email: 'bob@example.com', password: '$2b$10$e', roleId: 1 })
+    findUnique: jest.fn().mockResolvedValue({ id: 'u1', email: 'bob@example.com', password: '$2b$10$e', roleId: 1, isActive: true }),
+    update:     jest.fn().mockResolvedValue({})
   }
 }));
 
