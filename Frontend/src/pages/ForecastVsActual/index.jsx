@@ -227,29 +227,6 @@ export default function ForecastVsActualPage() {
           </p>
         </div>
 
-        {/* Demo state controllers for grading/review */}
-        <div className="flex flex-wrap gap-2">
-          <button
-            onClick={() => setErrorState(!errorState)}
-            className={`px-3 py-1.5 rounded-xl text-xs font-semibold border transition ${
-              errorState
-                ? 'bg-rose-500/20 text-rose-300 border-rose-500/40'
-                : 'bg-white/5 text-slate-400 border-white/10 hover:bg-white/10'
-            }`}
-          >
-            Simulate Error State
-          </button>
-          <button
-            onClick={() => setEmptyState(!emptyState)}
-            className={`px-3 py-1.5 rounded-xl text-xs font-semibold border transition ${
-              emptyState
-                ? 'bg-amber-500/20 text-amber-300 border-amber-500/40'
-                : 'bg-white/5 text-slate-400 border-white/10 hover:bg-white/10'
-            }`}
-          >
-            Simulate Empty State
-          </button>
-        </div>
       </section>
 
       {/* Filter Component */}
