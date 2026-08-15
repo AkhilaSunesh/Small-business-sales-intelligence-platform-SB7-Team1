@@ -15,7 +15,7 @@ function DashboardPage() {
 
   // Filter state
   const [filters, setFilters] = useState({
-    dateRange: '30d',
+    dateRange: '1y',
     category: 'all',
     startDate: '',
     endDate: '',
@@ -42,7 +42,7 @@ function DashboardPage() {
 
   const handleResetFilters = () => {
     setFilters({
-      dateRange: '30d',
+      dateRange: '1y',
       category: 'all',
       startDate: '',
       endDate: '',

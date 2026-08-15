@@ -15,8 +15,8 @@ function buildWhereClause(req) {
         until.setUTCHours(23, 59, 59, 999);
     } else {
         const rangeMap = { "7d": 7, "30d": 30, "90d": 90, "3m": 90, "6m": 180, "1y": 365 };
-        const days = rangeMap[range] || (range === "today" ? 1 : 30);
-        
+        const days = rangeMap[range] || (range === "today" ? 1 : 365);
+
         since = new Date();
         if (range === "today") {
             since.setUTCHours(0, 0, 0, 0);

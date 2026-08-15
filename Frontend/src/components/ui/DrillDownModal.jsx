@@ -9,7 +9,7 @@ export default function DrillDownModal({
   title = 'Detailed Logs',
   drillDownType = 'general', // 'kpi' | 'product' | 'date'
   drillDownId = '', // e.g. "Total Orders" or "Widget A" or "2026-07-25"
-  filters = { dateRange: '30d', category: 'all', startDate: '', endDate: '' },
+  filters = { dateRange: '1y', category: 'all', startDate: '', endDate: '' },
 }) {
   const [search, setSearch] = useState('');
   const [data, setData] = useState([]);
