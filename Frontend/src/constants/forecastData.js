@@ -72,8 +72,8 @@ export const FORECAST_DATA_BY_RANGE = {
 };
 
 export const FILTER_OPTIONS = [
-  { id: '7d', label: 'Last 7 Days' },
-  { id: '30d', label: 'Last 30 Days' },
-  { id: '6m', label: 'Last 6 Months' },
-  { id: '1y', label: 'Last Year' },
+  { id: '7d', label: 'Next 7 Days' },
+  { id: '30d', label: 'Next 30 Days' },
+  { id: '6m', label: 'Next 6 Months' },
+  { id: '1y', label: 'Next Year' },
 ];
