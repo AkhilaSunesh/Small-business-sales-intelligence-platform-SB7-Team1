@@ -23,6 +23,9 @@ const forward = async (req, res, backendPath) => {
     }
 };
 
+// GET /api/products/with-stock — products + current inventory quantity
+router.get("/with-stock", (req, res) => forward(req, res, "/products/with-stock"));
+
 // GET /api/products
 router.get("/", (req, res) => forward(req, res, "/products"));
 
