@@ -1,5 +1,43 @@
 const prisma = require("../config/prisma");
 
+function sanitizeDailyRevenueSeries(series) {
+    if (!Array.isArray(series) || series.length < 4) {
+        return [...series];
+    }
+
+    const values = series
+        .map((value) => Number(value))
+        .filter((value) => Number.isFinite(value));
+
+    if (values.length < 4) {
+        return [...series];
+    }
+
+    const sorted = [...values].sort((a, b) => a - b);
+    const q1 = sorted[Math.floor((sorted.length - 1) * 0.25)];
+    const q3 = sorted[Math.floor((sorted.length - 1) * 0.75)];
+    const iqr = q3 - q1;
+    const lowerBound = q1 - (1.5 * iqr);
+    const upperBound = q3 + (1.5 * iqr);
+
+    return series.map((value) => {
+        const numeric = Number(value);
+        if (!Number.isFinite(numeric)) {
+            return value;
+        }
+
+        if (numeric < lowerBound) {
+            return lowerBound;
+        }
+
+        if (numeric > upperBound) {
+            return upperBound;
+        }
+
+        return numeric;
+    });
+}
+
 // Helper to parse filters into Prisma where clause
 function buildWhereClause(req) {
     const { range, category, startDate, endDate } = req.query;
@@ -132,6 +170,8 @@ exports.getTopProducts = async (req, res) => {
     }
 };
 
+exports.sanitizeDailyRevenueSeries = sanitizeDailyRevenueSeries;
+
 // ─── GET /api/dashboard/sales-trend ──────────────────────────────────────────
 exports.getSalesTrend = async (req, res) => {
     try {
@@ -156,6 +196,13 @@ exports.getSalesTrend = async (req, res) => {
             b.quantity     += tx.quantity;
         }
 
+        const rawDailyRevenue = Array.from(buckets.values()).map((bucket) => Number(bucket.revenue ?? 0));
+        const sanitizedDailyRevenue = sanitizeDailyRevenueSeries(rawDailyRevenue);
+        const sanitizedByDate = new Map();
+        Array.from(buckets.entries()).forEach(([date, bucket], index) => {
+            sanitizedByDate.set(date, Number(sanitizedDailyRevenue[index] ?? Number(bucket.revenue ?? 0)));
+        });
+
         // Build a contiguous daily series (fill missing days with 0)
         // Get number of days in range for padding
         const start = where.transactionDate?.gte || new Date(new Date().setDate(new Date().getDate() - 30));
@@ -168,9 +215,11 @@ exports.getSalesTrend = async (req, res) => {
             d.setDate(d.getDate() - i);
             const key = d.toISOString().slice(0, 10);
             const val = buckets.get(key) || { date: key, revenue: 0, transactions: 0, quantity: 0 };
+            const sanitizedRevenue = Number(sanitizedByDate.get(key) ?? Number(val.revenue ?? 0));
+
             trend.push({
                 date:         val.date,
-                revenue:      parseFloat(val.revenue.toFixed(2)),
+                revenue:      parseFloat(sanitizedRevenue.toFixed(2)),
                 transactions: val.transactions,
                 quantity:     val.quantity
             });
