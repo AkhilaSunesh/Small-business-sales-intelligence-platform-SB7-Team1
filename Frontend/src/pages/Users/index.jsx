@@ -42,6 +42,7 @@ function Banner({ msg }) {
 
 function UsersPage() {
   usePageTitle('User Management');
+  const { t } = useTranslation();
 
   // ── API state ───────────────────────────────────────────────────────────────
   const [users, setUsers]           = useState([]);
