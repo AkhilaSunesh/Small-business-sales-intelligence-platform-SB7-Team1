@@ -1,4 +1,5 @@
 import { useState, useEffect, useCallback, useRef } from 'react';
+import { useTranslation } from 'react-i18next';
 import { usePageTitle } from '../../hooks/usePageTitle';
 import {
   FiTrendingUp,
@@ -29,6 +30,8 @@ import { exportCSV, exportPDF } from '../../utils/exportUtils';
 import StatCard from '../../components/common/StatCard';
 
 function ForecastReportsPage() {
+  const { t } = useTranslation();
+
   usePageTitle('Forecast Reports');
 
   // Filter & State Management
@@ -142,7 +145,7 @@ function ForecastReportsPage() {
       {/* Page Header with Export Dropdown */}
       <section className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 rounded-3xl border border-white/10 bg-slate-950/80 p-6 md:p-8 backdrop-blur">
         <div>
-          <h1 className="text-3xl font-bold tracking-tight text-white">Forecast Reports</h1>
+          <h1 className="text-3xl font-bold tracking-tight text-white">{t('forecast reports')}</h1>
           <p className="mt-1.5 text-sm text-slate-400">
             View predicted sales trends using forecasting analytics.
           </p>

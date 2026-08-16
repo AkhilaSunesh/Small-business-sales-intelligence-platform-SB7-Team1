@@ -1,4 +1,5 @@
 import { useState, useEffect, useRef } from 'react';
+import { useTranslation } from 'react-i18next';
 import { usePageTitle } from '../../hooks/usePageTitle';
 import { FiPlus, FiTrash2, FiFileText, FiRefreshCw, FiX, FiCheck, FiPrinter, FiAlertTriangle } from 'react-icons/fi';
 import { useToast } from '../../components/common/Toast';
@@ -11,6 +12,8 @@ import productService from '../../services/productService';
 import invoiceService from '../../services/invoiceService';
 
 function CreateInvoicePage() {
+  const { t } = useTranslation();
+
   usePageTitle('Create Invoice');
   const toast = useToast();
   const navigate = useNavigate();
@@ -428,8 +431,8 @@ function CreateInvoicePage() {
       {/* Top Title Section */}
       <section className="print:hidden rounded-3xl border border-white/10 bg-slate-950/80 p-6 md:p-8 backdrop-blur flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
         <div>
-          <h1 className="text-3xl font-bold tracking-tight text-white">Create Invoice</h1>
-          <p className="mt-1.5 text-sm text-slate-400">Generate fresh sales transactions and calculate totals instantly.</p>
+          <h1 className="text-3xl font-bold tracking-tight text-white">{t('create invoice')}</h1>
+          <p className="mt-1.5 text-sm text-slate-400">{t('createInvoiceDesc')}</p>
         </div>
         <div className="flex items-center gap-2.5">
           <Button variant="secondary" onClick={handleResetForm} className="gap-2">
@@ -585,7 +588,7 @@ function CreateInvoicePage() {
                           <td className="py-2 text-center">
                             {/* Unit price is read-only — sourced from database, cannot be modified */}
                             <span className="inline-block w-24 rounded-xl border border-white/5 bg-white/3 px-2 py-1.5 text-center text-sm text-slate-300 cursor-not-allowed select-none">
-                              ₹{Number(item.unitPrice).toFixed(2)}
+                              ${Number(item.unitPrice).toFixed(2)}
                             </span>
                           </td>
                           <td className="py-2 text-center">
@@ -648,7 +651,7 @@ function CreateInvoicePage() {
                   <option value="">-- Choose Catalog Product --</option>
                   {products.map((prod) => (
                     <option key={prod.id} value={prod.id}>
-                      {prod.name} — ₹{Number(prod.price).toFixed(2)} (Stock: {prod.quantity ?? 0})
+                      {prod.name} — ${Number(prod.price).toFixed(2)} (Stock: {prod.quantity ?? 0})
                     </option>
                   ))}
                 </select>
@@ -669,14 +672,14 @@ function CreateInvoicePage() {
 
               <div>
                 <label className="block text-xs font-semibold uppercase tracking-wider text-slate-400 mb-2">
-                  Unit Price (₹) — from database
+                  Unit Price ($) — from database
                 </label>
                 <input
                   type="text"
                   readOnly
                   disabled
                   className="w-full rounded-2xl border border-white/5 bg-white/3 px-4 py-3 text-sm text-slate-300 outline-none cursor-not-allowed select-none"
-                  value={itemPrice !== '' ? `₹${Number(itemPrice).toFixed(2)}` : 'Select a product'}
+                  value={itemPrice !== '' ? `$${Number(itemPrice).toFixed(2)}` : 'Select a product'}
                   aria-label="Unit price (read-only, sourced from database)"
                 />
                 <p className="mt-1 text-[10px] text-slate-500">Price is retrieved from the product database and cannot be edited.</p>
@@ -932,6 +935,9 @@ function CreateInvoicePage() {
                   <h4 className="text-slate-400 uppercase font-semibold tracking-wider mb-2">Payment Terms:</h4>
                   <div className="text-slate-200 space-y-1">
                     <p><strong className="text-slate-400">Method:</strong> {paymentMethod}</p>
+                    {paymentMethod === 'UPI' && transactionId && <p><strong className="text-slate-400">Txn ID:</strong> {transactionId}</p>}
+                    {paymentMethod === 'Card' && cardNumber && <p><strong className="text-slate-400">Card No:</strong> {cardNumber}</p>}
+                    {paymentMethod === 'Bank Transfer' && bankDetails && <p><strong className="text-slate-400">Ref:</strong> {bankDetails}</p>}
                     <p><strong className="text-slate-400">Due:</strong> On Receipt</p>
                   </div>
                 </div>

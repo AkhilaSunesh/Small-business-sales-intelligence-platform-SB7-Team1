@@ -1,4 +1,5 @@
 import { useState, useMemo, useEffect, useCallback } from 'react';
+import { useTranslation } from 'react-i18next';
 import { usePageTitle } from '../../hooks/usePageTitle';
 import StatCard from '../../components/common/StatCard';
 import Button from '../../components/ui/Button';
@@ -9,6 +10,8 @@ import invoiceService from '../../services/invoiceService';
 import { jsPDF } from 'jspdf';
 
 function ReportsPage() {
+  const { t } = useTranslation();
+
   usePageTitle('Reports');
   const { isAuthenticated } = useAppContext();
 
@@ -289,7 +292,7 @@ function ReportsPage() {
       {/* Page Header */}
       <section className="rounded-3xl border border-white/10 bg-slate-950/80 p-8 flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
         <div>
-          <h1 className="text-3xl font-semibold text-white">Sales Reports</h1>
+          <h1 className="text-3xl font-semibold text-white">{t('reportsTitle')}</h1>
           <p className="mt-2 text-sm text-slate-400">
             Analyze your sales performance with detailed reports and insights.
           </p>

@@ -1,10 +1,13 @@
 import { useState, useEffect, useMemo, useCallback } from 'react';
+import { useTranslation } from 'react-i18next';
 import { usePageTitle } from '../../hooks/usePageTitle';
 import { FiSearch, FiAlertTriangle, FiAlertCircle, FiInfo, FiCheckCircle, FiCheckSquare, FiRefreshCw } from 'react-icons/fi';
 import Button from '../../components/ui/Button';
 import alertService from '../../services/alertService';
 
 function AnomalyAlertsPage() {
+  const { t } = useTranslation();
+
   usePageTitle('Anomaly Alerts');
 
   // State Management
@@ -102,8 +105,8 @@ function AnomalyAlertsPage() {
       {/* Header & Subtitle */}
       <section className="rounded-3xl border border-white/10 bg-slate-950/80 p-6 md:p-8 backdrop-blur flex flex-col md:flex-row md:items-center justify-between gap-6">
         <div>
-          <h1 className="text-3xl font-bold tracking-tight text-white">Anomaly Alerts</h1>
-          <p className="mt-1.5 text-sm text-slate-400">Monitor unusual business activities.</p>
+          <h1 className="text-3xl font-bold tracking-tight text-white">{t('anomaly alerts')}</h1>
+          <p className="mt-1.5 text-sm text-slate-400">{t('anomalyAlertsDesc')}</p>
         </div>
 
         {/* Search alerts by title */}

@@ -1,4 +1,5 @@
 import { useState, useMemo, useEffect, useCallback } from 'react';
+import { useTranslation } from 'react-i18next';
 import { usePageTitle } from '../../hooks/usePageTitle';
 import { useNavigate } from 'react-router-dom';
 import { useToast } from '../../components/common/Toast';
@@ -24,6 +25,7 @@ import { jsPDF } from 'jspdf';
 // Helper function to map backend invoice structures to what frontend tables expect
 const mapBackendInvoice = (inv) => {
   const method = inv.payments && inv.payments.length > 0 ? inv.payments[0].method : 'UPI';
+  const reference = inv.payments && inv.payments.length > 0 ? inv.payments[0].reference : '';
   const date = inv.createdAt ? inv.createdAt.split('T')[0] : '';
   const dueDate = inv.dueDate ? inv.dueDate.split('T')[0] : '';
 
@@ -45,6 +47,7 @@ const mapBackendInvoice = (inv) => {
     date,
     dueDate,
     method,
+    reference,
     tax: inv.taxAmount || 0,
     discount: inv.discountAmount || 0,
     amount: inv.totalAmount || 0,
@@ -55,6 +58,8 @@ const mapBackendInvoice = (inv) => {
 };
 
 function InvoiceListPage() {
+  const { t } = useTranslation();
+
   usePageTitle('Invoice List');
   const navigate = useNavigate();
   const { show: showToast } = useToast();
@@ -252,6 +257,10 @@ function InvoiceListPage() {
       doc.setFontSize(11);
       doc.text(`Billed To: ${invoice.customer}`, 14, y);
       doc.text(`Payment Method: ${invoice.method}`, pageWidth - 14, y, { align: 'right' });
+      if (invoice.reference && invoice.reference !== 'MANUAL_DASHBOARD') {
+        y += 8;
+        doc.text(`Ref/Txn ID: ${invoice.reference}`, pageWidth - 14, y, { align: 'right' });
+      }
       y += 8;
       doc.text(`Due Date: ${invoice.dueDate}`, 14, y);
       doc.text(`Status: ${invoice.status}`, pageWidth - 14, y, { align: 'right' });
@@ -309,6 +318,7 @@ function InvoiceListPage() {
           <div class="row">
             <div><strong>Billed To:</strong> ${invoice.customer}</div>
             <div><strong>Method:</strong> ${invoice.method}</div>
+            ${invoice.reference && invoice.reference !== 'MANUAL_DASHBOARD' ? `<div><strong>Ref/Txn ID:</strong> ${invoice.reference}</div>` : ''}
           </div>
           <div class="row">
             <div><strong>Due Date:</strong> ${invoice.dueDate}</div>
@@ -357,8 +367,8 @@ function InvoiceListPage() {
       {/* HEADER SECTION */}
       <section className="rounded-3xl border border-white/10 bg-slate-950/80 p-6 md:p-8 backdrop-blur flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
         <div>
-          <h1 className="text-3xl font-bold tracking-tight text-white">Invoice List</h1>
-          <p className="mt-1.5 text-sm text-slate-400">View, search, and manage issued customer sales invoices.</p>
+          <h1 className="text-3xl font-bold tracking-tight text-white">{t('invoice list')}</h1>
+          <p className="mt-1.5 text-sm text-slate-400">{t('invoiceListDesc')}</p>
         </div>
         <Button 
           onClick={() => navigate('/create-invoice')} 
@@ -490,6 +500,12 @@ function InvoiceListPage() {
                 <span className="text-slate-400">Payment Method:</span>
                 <span className="bg-white/5 px-2 py-0.5 rounded border border-white/5 text-[10px]">{viewInvoice.method}</span>
               </div>
+              {viewInvoice.reference && viewInvoice.reference !== 'MANUAL_DASHBOARD' && (
+                <div className="flex justify-between items-center">
+                  <span className="text-slate-400">Ref/Txn ID:</span>
+                  <span className="font-mono text-cyan-300 font-bold">{viewInvoice.reference}</span>
+                </div>
+              )}
               <div className="flex justify-between items-center">
                 <span className="text-slate-400">Tax Billed:</span>
                 <span className="font-mono">${viewInvoice.tax.toFixed(2)}</span>

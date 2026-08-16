@@ -1,4 +1,5 @@
 import { useState, useEffect, useMemo, useCallback } from 'react';
+import { useTranslation } from 'react-i18next';
 import { usePageTitle } from '../../hooks/usePageTitle';
 import { FiSearch, FiZap, FiShoppingBag, FiArrowRight, FiAlertTriangle, FiCheckSquare, FiRefreshCw } from 'react-icons/fi';
 import Input from '../../components/ui/Input';
@@ -6,6 +7,8 @@ import Button from '../../components/ui/Button';
 import recommendationService from '../../services/recommendationService';
 
 function RecommendationsPage() {
+  const { t } = useTranslation();
+
   usePageTitle('Recommendations');
 
   // State Management
@@ -76,8 +79,8 @@ function RecommendationsPage() {
       {/* Header & Subtitle */}
       <section className="rounded-3xl border border-white/10 bg-slate-950/80 p-6 md:p-8 backdrop-blur flex flex-col md:flex-row md:items-center justify-between gap-6">
         <div>
-          <h1 className="text-3xl font-bold tracking-tight text-white">Recommendations</h1>
-          <p className="mt-1.5 text-sm text-slate-400">AI-powered product recommendations.</p>
+          <h1 className="text-3xl font-bold tracking-tight text-white">{t('recommendations')}</h1>
+          <p className="mt-1.5 text-sm text-slate-400">{t('recommendationsDesc')}</p>
         </div>
 
         {/* Search bar */}

@@ -1,4 +1,5 @@
 import { useState, useEffect, useCallback } from 'react';
+import { useTranslation } from 'react-i18next';
 import { usePageTitle } from '../../hooks/usePageTitle';
 import { FiUsers, FiUserCheck, FiAward, FiPieChart, FiList, FiAlertTriangle, FiCheckSquare, FiRefreshCw } from 'react-icons/fi';
 import { ResponsiveContainer, PieChart, Pie, Cell, Tooltip, Legend } from 'recharts';
@@ -7,6 +8,8 @@ import Button from '../../components/ui/Button';
 import customerService from '../../services/customerService';
 
 function CustomerInsightsPage() {
+  const { t } = useTranslation();
+
   usePageTitle('Customer Insights');
 
   // State Management
@@ -56,7 +59,7 @@ function CustomerInsightsPage() {
       <section className="rounded-3xl border border-white/10 bg-slate-950/80 p-6 md:p-8 backdrop-blur">
         <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
           <div>
-            <h1 className="text-3xl font-bold tracking-tight text-white">Customer Insights</h1>
+            <h1 className="text-3xl font-bold tracking-tight text-white">{t('customer insights')}</h1>
             <p className="mt-1.5 text-sm text-slate-400">
               Analyze customer segments, buying habits, and distribution metrics across your customer base.
             </p>

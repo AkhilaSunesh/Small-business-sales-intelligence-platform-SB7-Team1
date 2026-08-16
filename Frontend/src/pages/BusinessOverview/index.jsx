@@ -1,4 +1,5 @@
 import { useState, useEffect, useCallback } from 'react';
+import { useTranslation } from 'react-i18next';
 import { usePageTitle } from '../../hooks/usePageTitle';
 import StatCard from '../../components/common/StatCard';
 import SectionCard from '../../components/common/SectionCard';
@@ -22,6 +23,8 @@ const COLORS = ['#22d3ee', '#34d399', '#6366f1', '#fbbf24', '#f472b6'];
 
 
 export default function BusinessOverviewPage() {
+  const { t } = useTranslation();
+
   usePageTitle('Business Overview');
 
   // Presentation States
@@ -265,8 +268,8 @@ export default function BusinessOverviewPage() {
       {/* Header Banner */}
       <section className="rounded-3xl border border-white/10 bg-slate-950/80 p-6 md:p-8 backdrop-blur flex flex-col md:flex-row md:items-center justify-between gap-4">
         <div>
-          <h1 className="text-3xl font-bold tracking-tight text-white">Business Overview</h1>
-          <p className="mt-1.5 text-sm text-slate-400">Executive metrics, predictive analytics, and system alerts.</p>
+          <h1 className="text-3xl font-bold tracking-tight text-white">{t('business overview')}</h1>
+          <p className="mt-1.5 text-sm text-slate-400">{t('businessOverviewDesc')}</p>
         </div>
         
         <div className="flex items-center gap-2 self-start flex-wrap">
