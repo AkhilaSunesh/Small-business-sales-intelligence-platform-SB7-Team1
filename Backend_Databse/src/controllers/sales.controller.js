@@ -287,6 +287,7 @@ exports.uploadSales = async (req, res) => {
                                     discountAmount: discountAmt,
                                     totalAmount: finalTotal,
                                     status: "UNPAID",
+                                    createdAt: new Date(row.TransactionDate),
                                     dueDate,
                                     createdById: requestUserId ?? null,
                                     lineItems: [{

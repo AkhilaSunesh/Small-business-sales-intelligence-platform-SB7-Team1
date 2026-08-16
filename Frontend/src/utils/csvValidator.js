@@ -49,7 +49,7 @@ function splitCSVLine(line) {
   return result;
 }
 
-export function validateCSVHeaders(headers, required = ['date', 'product', 'quantity', 'revenue']) {
+export function validateCSVHeaders(headers, required = ['CustomerID', 'ProductID', 'Quantity', 'Price', 'TransactionDate']) {
   const missing = [];
   const lower = headers.map((h) => h.toLowerCase());
   required.forEach((r) => {

@@ -63,7 +63,8 @@ export default function UploadPage() {
     setCsvData(parsed);
 
     // validation
-    const missing = validateCSVHeaders(parsed.headers);
+    const requiredCols = ['CustomerID', 'ProductID', 'Quantity', 'Price', 'TransactionDate'];
+    const missing = validateCSVHeaders(parsed.headers, requiredCols);
     if (missing.length > 0) {
       setErrors(missing.map((m) => `Missing column: ${m}`));
     }
@@ -71,10 +72,14 @@ export default function UploadPage() {
 
   // demo: mock CSV if user wants quick demo
   const loadMock = async () => {
-    const mock = `date,product,quantity,revenue\n2026-07-01,Widget A,10,250.00\n2026-07-02,Widget B,5,120.00\n2026-07-03,Widget A,8,200.00\n2026-07-04,Widget C,2,40.00\n2026-07-05,Widget B,7,168.00`;
+    const mock = `CustomerID,ProductID,Quantity,Price,TransactionDate,DiscountApplied
+CUST-101,PROD-A1,2,15.00,2026-08-01T10:00:00Z,0
+CUST-102,PROD-B2,1,45.50,2026-08-01T11:30:00Z,5
+CUST-103,PROD-A1,5,15.00,2026-08-02T09:15:00Z,10`;
     const parsed = parseCSV(mock, 5);
     setCsvData(parsed);
-    const missing = validateCSVHeaders(parsed.headers);
+    const requiredCols = ['CustomerID', 'ProductID', 'Quantity', 'Price', 'TransactionDate'];
+    const missing = validateCSVHeaders(parsed.headers, requiredCols);
     setErrors(missing.map((m) => `Missing column: ${m}`));
     if (missing.length === 0) {
       toast.show('CSV validation passed (mock)', 'info');
@@ -84,8 +89,8 @@ export default function UploadPage() {
   return (
     <main className="min-h-screen px-4 py-6 sm:px-6 lg:px-8">
       <div className="mx-auto max-w-4xl">
-        <h1 className="text-2xl font-semibold text-white">Sales Data Upload</h1>
-        <p className="mt-2 text-sm text-slate-400">Upload CSV files containing sales records.</p>
+        <h1 className="text-2xl font-semibold text-white">Bulk Receipts / Sales Upload</h1>
+        <p className="mt-2 text-sm text-slate-400">Upload bulk digital receipts or sales CSV files. Uploaded receipts will automatically generate invoices.</p>
 
         <section className="mt-6 space-y-4">
           <FileDropzone onFileLoad={handleFileLoad} />
@@ -109,7 +114,8 @@ export default function UploadPage() {
                 }
 
                 // simple client-side check before upload
-                const missing = validateCSVHeaders(csvData.headers);
+                const requiredCols = ['CustomerID', 'ProductID', 'Quantity', 'Price', 'TransactionDate'];
+                const missing = validateCSVHeaders(csvData.headers, requiredCols);
                 if (missing.length > 0) {
                   setErrors(missing.map((m) => `Missing column: ${m}`));
                   return;
