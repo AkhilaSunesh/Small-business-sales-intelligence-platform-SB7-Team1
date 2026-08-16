@@ -1,4 +1,5 @@
 import { useState, useEffect, useCallback } from 'react';
+import { useTranslation } from 'react-i18next';
 import { usePageTitle } from '../../hooks/usePageTitle';
 import {
   FiTrendingUp,
@@ -33,6 +34,8 @@ import forecastService from '../../services/forecastService';
 
 
 export default function ForecastVsActualPage() {
+  const { t } = useTranslation();
+
   usePageTitle('Forecast vs Actual');
 
   // Filter state
@@ -221,7 +224,7 @@ export default function ForecastVsActualPage() {
       {/* Page Header */}
       <section className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 rounded-3xl border border-white/10 bg-slate-950/80 p-6 md:p-8 backdrop-blur">
         <div>
-          <h1 className="text-3xl font-bold tracking-tight text-white">Forecast vs Actual</h1>
+          <h1 className="text-3xl font-bold tracking-tight text-white">{t('forecast vs actual')}</h1>
           <p className="mt-1.5 text-sm text-slate-400">
             Compare AI predicted sales with actual recorded sales in one interactive view.
           </p>

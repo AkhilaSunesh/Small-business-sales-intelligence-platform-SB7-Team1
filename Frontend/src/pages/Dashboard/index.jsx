@@ -1,4 +1,5 @@
 import { useState } from 'react';
+import { useTranslation } from 'react-i18next';
 import { usePageTitle } from '../../hooks/usePageTitle';
 import StatCard from '../../components/common/StatCard';
 import SalesTrendChart from '../../components/ui/SalesTrendChart';
@@ -11,6 +12,8 @@ import DashboardFilters from '../../components/ui/DashboardFilters';
 import DrillDownModal from '../../components/ui/DrillDownModal';
 
 function DashboardPage() {
+  const { t } = useTranslation();
+
   usePageTitle('Dashboard');
 
   // Filter state
@@ -54,8 +57,8 @@ function DashboardPage() {
       {/* Header Banner */}
       <section className="rounded-3xl border border-white/10 bg-slate-950/80 p-6 md:p-8 backdrop-blur flex flex-col sm:flex-row sm:items-center justify-between gap-4">
         <div>
-          <h1 className="text-3xl font-bold tracking-tight text-white">Dashboard</h1>
-          <p className="mt-1.5 text-sm text-slate-400">Monitor sales performance and business insights in real time.</p>
+          <h1 className="text-3xl font-bold tracking-tight text-white">{t('dashboard')}</h1>
+          <p className="mt-1.5 text-sm text-slate-400">{t('dashboardDesc')}</p>
         </div>
         {error && (
           <Button onClick={refetch} variant="secondary" className="gap-2 self-start py-2.5 px-5 rounded-xl text-xs font-bold">

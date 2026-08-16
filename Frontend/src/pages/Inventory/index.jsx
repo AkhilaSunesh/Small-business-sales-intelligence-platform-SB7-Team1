@@ -1,4 +1,5 @@
 import { useState, useEffect, useCallback } from 'react';
+import { useTranslation } from 'react-i18next';
 import { FiAlertTriangle, FiPackage, FiInbox, FiRefreshCw } from 'react-icons/fi';
 import { usePageTitle } from '../../hooks/usePageTitle';
 import SectionCard from '../../components/common/SectionCard';
@@ -18,6 +19,7 @@ function getStockStatus(stock, threshold = 10) {
 import api from '../../services/api';
 
 function InventoryPage() {
+  const { t } = useTranslation();
   usePageTitle('Inventory');
 
   const [inventoryRows, setInventoryRows] = useState([]);
