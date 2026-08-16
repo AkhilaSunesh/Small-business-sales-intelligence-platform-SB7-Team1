@@ -82,7 +82,21 @@ const resources = {
       anomalyAlertsDesc: 'Detect unusual sales patterns and business anomalies.',
       forecastReportsDesc: 'Predict future sales trends using AI forecasting.',
       forecastVsActualDesc: 'Compare AI predicted sales with actual recorded sales.',
-      settingsDesc: 'Manage account preferences, security, notifications, and application settings.'
+      settingsDesc: 'Manage account preferences, security, notifications, and application settings.',
+      loginTitle: 'Login',
+      loginSubtitle: 'Access the dashboard',
+      loginDesc: 'Sign in with your role to continue.',
+      loginEmail: 'Email address',
+      loginPassword: 'Password',
+      loginRole: 'User role',
+      loginSelectRole: 'Select user role',
+      loginSecurity: 'Security Verification',
+      loginEnterCode: 'Enter the code shown above',
+      loginBtnLoading: 'Signing in…',
+      loginBtn: 'Continue to dashboard',
+      loginNoAccount: 'Don\'t have an account?',
+      loginSignUp: 'Sign Up',
+      languageSelect: 'Select Language'
     }
   },
   hi: {
@@ -165,7 +179,21 @@ const resources = {
       anomalyAlertsDesc: 'अअसामान्य बिक्री पैटर्न और व्यावसायिक विसंगतियों का पता लगाएं।',
       forecastReportsDesc: 'एआई पूर्वानुमान का उपयोग करके भविष्य की बिक्री प्रवृत्तियों की भविष्यवाणी करें।',
       forecastVsActualDesc: 'पूर्वानुमानित बिक्री और वास्तविक बिक्री की आपस में तुलना करें।',
-      settingsDesc: 'खाता प्राथमिकताएं, सुरक्षा, सूचनाएं और एप्लिकेशन सेटिंग्स प्रबंधित करें।'
+      settingsDesc: 'खाता प्राथमिकताएं, सुरक्षा, सूचनाएं और एप्लिकेशन सेटिंग्स प्रबंधित करें।',
+      loginTitle: 'लॉग इन',
+      loginSubtitle: 'डैशबोर्ड तक पहुंचें',
+      loginDesc: 'जारी रखने के लिए अपनी भूमिका के साथ साइन इन करें।',
+      loginEmail: 'ईमेल पता',
+      loginPassword: 'पासवर्ड',
+      loginRole: 'उपयोगकर्ता भूमिका',
+      loginSelectRole: 'उपयोगकर्ता भूमिका चुनें',
+      loginSecurity: 'सुरक्षा सत्यापन',
+      loginEnterCode: 'ऊपर दिखाया गया कोड दर्ज करें',
+      loginBtnLoading: 'साइन इन कर रहा है…',
+      loginBtn: 'डैशबोर्ड पर जारी रखें',
+      loginNoAccount: 'क्या आपके पास खाता नहीं है?',
+      loginSignUp: 'साइन अप करें',
+      languageSelect: 'भाषा चुनें'
     }
   },
   ta: {
@@ -248,7 +276,21 @@ const resources = {
       anomalyAlertsDesc: 'அசாதாரண விற்பனை முறைகள் மற்றும் வணிக முரண்பாடுகளைக் கண்டறியவும்.',
       forecastReportsDesc: 'ஏஐ முன்கணிப்பைப் பயன்படுத்தி எதிர்கால விற்பனைப் போக்குகளைக் கணிக்கவும்.',
       forecastVsActualDesc: 'முன்னறிவிக்கப்பட்ட விற்பனையை உண்மையான விற்பனையுடன் ஒப்பிடுங்கள்.',
-      settingsDesc: 'கணக்கு விருப்பத்தேர்வுகள், பாதுகாப்பு, அறிவிப்புகள் மற்றும் பயன்பாட்டு அமைப்புகளை நிர்வகிக்கவும்.'
+      settingsDesc: 'கணக்கு விருப்பத்தேர்வுகள், பாதுகாப்பு, அறிவிப்புகள் மற்றும் பயன்பாட்டு அமைப்புகளை நிர்வகிக்கவும்.',
+      loginTitle: 'உள்நுழைக',
+      loginSubtitle: 'டாஷ்போர்டை அணுகவும்',
+      loginDesc: 'தொடர உங்கள் பாத்திரத்துடன் உள்நுழையவும்.',
+      loginEmail: 'மின்னஞ்சல் முகவரி',
+      loginPassword: 'கடவுச்சொல்',
+      loginRole: 'பயனர் பங்கு',
+      loginSelectRole: 'பயனர் பாத்திரத்தைத் தேர்ந்தெடுக்கவும்',
+      loginSecurity: 'பாதுகாப்பு சரிபார்ப்பு',
+      loginEnterCode: 'மேலே காட்டப்பட்டுள்ள குறியீட்டை உள்ளிடவும்',
+      loginBtnLoading: 'உள்நுழைகிறது…',
+      loginBtn: 'டாஷ்போர்டைத் தொடரவும்',
+      loginNoAccount: 'கணக்கு இல்லையா?',
+      loginSignUp: 'பதிவு செய்யவும்',
+      languageSelect: 'மொழியைத் தேர்ந்தெடுக்கவும்'
     }
   }
 };

@@ -39,6 +39,11 @@ function CreateInvoicePage() {
   const [invoiceStatus, setInvoiceStatus] = useState('Paid');
   const [notes, setNotes] = useState('');
 
+  // Payment Details
+  const [transactionId, setTransactionId] = useState('');
+  const [cardNumber, setCardNumber] = useState('');
+  const [bankDetails, setBankDetails] = useState('');
+
   // Dropdown UI States
   const [custSearchFocused, setCustSearchFocused] = useState(false);
   const [filteredCusts, setFilteredCusts] = useState([]);
@@ -274,6 +279,9 @@ function CreateInvoicePage() {
     setPaymentMethod('UPI');
     setInvoiceStatus('Paid');
     setNotes('');
+    setTransactionId('');
+    setCardNumber('');
+    setBankDetails('');
     setInvoiceItems([]);
     setSelectedProdId('');
     setItemQty(1);
@@ -294,6 +302,19 @@ function CreateInvoicePage() {
     }
     if (invoiceItems.length === 0) {
       toast.show('Please add at least one product item.', 'error');
+      return;
+    }
+
+    if (paymentMethod === 'UPI' && !transactionId.trim()) {
+      toast.show('Transaction ID is required for UPI payments.', 'error');
+      return;
+    }
+    if (paymentMethod === 'Card' && !cardNumber.trim()) {
+      toast.show('Card Number is required for Card payments.', 'error');
+      return;
+    }
+    if (paymentMethod === 'Bank Transfer' && !bankDetails.trim()) {
+      toast.show('Bank details are required for Bank Transfer.', 'error');
       return;
     }
 
@@ -322,10 +343,16 @@ function CreateInvoicePage() {
       if (res && res.success) {
         if (invoiceStatus === 'Paid' || invoiceStatus === 'Partially Paid') {
           const paidAmount = invoiceStatus === 'Paid' ? Number(grandTotal) : Number(grandTotal) / 2;
+          
+          let paymentRef = 'MANUAL_DASHBOARD';
+          if (paymentMethod === 'UPI') paymentRef = transactionId;
+          else if (paymentMethod === 'Card') paymentRef = cardNumber;
+          else if (paymentMethod === 'Bank Transfer') paymentRef = bankDetails;
+          
           await invoiceService.recordPayment(res.data.id, {
             amount: paidAmount,
             method: paymentMethod.toUpperCase(),
-            reference: 'MANUAL_DASHBOARD',
+            reference: paymentRef,
             note: 'Manual invoice entry payment'
           });
         }
@@ -742,6 +769,52 @@ function CreateInvoicePage() {
                 ))}
               </div>
             </div>
+
+            {/* Conditional Payment Details */}
+            {paymentMethod === 'UPI' && (
+              <div>
+                <label className="block text-xs font-semibold uppercase tracking-wider text-slate-400 mb-2">
+                  Transaction ID <span className="text-rose-500">*</span>
+                </label>
+                <input
+                  type="text"
+                  placeholder="Enter UPI Transaction ID"
+                  className="w-full rounded-xl border border-white/10 bg-white/5 px-3 py-2 text-xs text-white placeholder-slate-500 outline-none transition focus:border-cyan-400/50"
+                  value={transactionId}
+                  onChange={(e) => setTransactionId(e.target.value)}
+                />
+              </div>
+            )}
+            
+            {paymentMethod === 'Card' && (
+              <div>
+                <label className="block text-xs font-semibold uppercase tracking-wider text-slate-400 mb-2">
+                  Card Number <span className="text-rose-500">*</span>
+                </label>
+                <input
+                  type="text"
+                  placeholder="Last 4 digits or full card number"
+                  className="w-full rounded-xl border border-white/10 bg-white/5 px-3 py-2 text-xs text-white placeholder-slate-500 outline-none transition focus:border-cyan-400/50"
+                  value={cardNumber}
+                  onChange={(e) => setCardNumber(e.target.value)}
+                />
+              </div>
+            )}
+            
+            {paymentMethod === 'Bank Transfer' && (
+              <div>
+                <label className="block text-xs font-semibold uppercase tracking-wider text-slate-400 mb-2">
+                  Bank Transfer Details / UTR <span className="text-rose-500">*</span>
+                </label>
+                <input
+                  type="text"
+                  placeholder="Enter UTR or Bank Reference"
+                  className="w-full rounded-xl border border-white/10 bg-white/5 px-3 py-2 text-xs text-white placeholder-slate-500 outline-none transition focus:border-cyan-400/50"
+                  value={bankDetails}
+                  onChange={(e) => setBankDetails(e.target.value)}
+                />
+              </div>
+            )}
 
             <div>
               <label className="block text-xs font-semibold uppercase tracking-wider text-slate-400 mb-2">
