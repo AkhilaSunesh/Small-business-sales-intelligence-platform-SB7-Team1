@@ -10,7 +10,7 @@ const api = axios.create({
 // Request interceptor: attach token from localStorage
 api.interceptors.request.use((config) => {
   try {
-    const token = localStorage.getItem('authToken');
+    const token = localStorage.getItem('authToken') || sessionStorage.getItem('authToken');
     if (token) {
       config.headers = config.headers || {};
       config.headers.Authorization = `Bearer ${token}`;
@@ -29,9 +29,10 @@ api.interceptors.response.use(
     if (status === 401) {
       // Remove token and notify the app without forcing a hard reload, but only if the token exists.
       try {
-        const token = localStorage.getItem('authToken');
+        const token = localStorage.getItem('authToken') || sessionStorage.getItem('authToken');
         if (token) {
           localStorage.removeItem('authToken');
+          sessionStorage.removeItem('authToken');
           window.dispatchEvent(new Event('marketmind:auth-expired'));
         }
       } catch (e) {}
