@@ -29,7 +29,7 @@ app.add_middleware(
 
 # ── Model loading ─────────────────────────────────────────────────────────────
 _BASE  = os.path.dirname(os.path.abspath(__file__))
-_MODEL = os.path.join(_BASE, "..", "..", "models", "improved_sales_forecast.pkl")
+_MODEL = os.path.join(_BASE, "..", "..", "models", "prophet_sales_forecast.pkl")
 
 try:
     model = joblib.load(_MODEL)

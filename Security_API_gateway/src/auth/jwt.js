@@ -11,6 +11,8 @@ const jwt = require("jsonwebtoken");
 
 const ACCESS_TOKEN_EXPIRES_IN  = "1h";
 const REFRESH_TOKEN_EXPIRES_IN = "7d";
+const DEFAULT_JWT_SECRET       = "supersecretjwtkey123!";
+const DEFAULT_REFRESH_SECRET   = "supersecretrefreshkey123!";
 
 /**
  * Create a signed access token.
@@ -19,9 +21,10 @@ const REFRESH_TOKEN_EXPIRES_IN = "7d";
  * @returns {string}
  */
 function createAccessToken(user) {
+    const secret = process.env.JWT_SECRET || DEFAULT_JWT_SECRET;
     return jwt.sign(
         { id: user.id, email: user.email, roleId: user.roleId },
-        process.env.JWT_SECRET,
+        secret,
         { expiresIn: ACCESS_TOKEN_EXPIRES_IN }
     );
 }
@@ -33,9 +36,10 @@ function createAccessToken(user) {
  * @returns {string}
  */
 function createRefreshToken(user) {
+    const secret = process.env.REFRESH_TOKEN_SECRET || process.env.JWT_SECRET || DEFAULT_REFRESH_SECRET;
     return jwt.sign(
         { id: user.id },
-        process.env.REFRESH_TOKEN_SECRET,
+        secret,
         { expiresIn: REFRESH_TOKEN_EXPIRES_IN }
     );
 }
@@ -47,7 +51,8 @@ function createRefreshToken(user) {
  * @returns {object}
  */
 function verifyAccessToken(token) {
-    return jwt.verify(token, process.env.JWT_SECRET);
+    const secret = process.env.JWT_SECRET || DEFAULT_JWT_SECRET;
+    return jwt.verify(token, secret);
 }
 
 /**
@@ -56,7 +61,8 @@ function verifyAccessToken(token) {
  * @returns {object}
  */
 function verifyRefreshToken(token) {
-    return jwt.verify(token, process.env.REFRESH_TOKEN_SECRET);
+    const secret = process.env.REFRESH_TOKEN_SECRET || process.env.JWT_SECRET || DEFAULT_REFRESH_SECRET;
+    return jwt.verify(token, secret);
 }
 
 module.exports = {

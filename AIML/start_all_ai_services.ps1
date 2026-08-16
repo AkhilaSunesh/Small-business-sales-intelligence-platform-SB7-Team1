@@ -36,11 +36,7 @@ function Start-AIService {
     )
     Write-Host "Starting $Name on port $Port ..." -ForegroundColor Green
     $fullDir = Join-Path $api $Dir
-    Start-Process powershell -ArgumentList `
-        "-NoExit", `
-        "-Command", `
-        "cd '$fullDir'; Write-Host '[$Name] Starting on port $Port' -ForegroundColor Cyan; $Command" `
-        -WindowStyle Normal
+    Start-Process powershell -ArgumentList "-NoExit", "-Command", "cd '$fullDir'; Write-Host '[$Name] Starting on port $Port' -ForegroundColor Cyan; $Command" -WindowStyle Normal
     Start-Sleep -Milliseconds 500
 }
 

@@ -235,8 +235,21 @@ async function main() {
         const qty         = Number(row.Quantity)   || 0;
         const unitPrice   = Number(row.Price)       || 0;
         const kaggleTotalAmount = Number(row.TotalAmount) || 0;
-        const totalAmount = kaggleTotalAmount > 0 ? kaggleTotalAmount : qty * unitPrice;
-        const txDate      = row.TransactionDate ? new Date(row.TransactionDate) : new Date();
+        const rawDate = row.TransactionDate ? new Date(row.TransactionDate) : new Date();
+        // Shift transactions forward so 2023 becomes 2025 and 2024 becomes 2026
+        const txDate = new Date(rawDate);
+        if (txDate.getFullYear() < 2025) {
+            const origMonth = rawDate.getMonth();
+            const origDay = rawDate.getDate();
+            const targetYear = rawDate.getFullYear() + 2;
+            
+            // If original date was Feb 29 in leap year 2024, set to Feb 28 in non-leap year 2026
+            if (origMonth === 1 && origDay === 29) {
+                txDate.setFullYear(targetYear, 1, 28);
+            } else {
+                txDate.setFullYear(targetYear);
+            }
+        }
 
         // ── Invoice calculations ─────────────────────────────────────────────
         const discountPct  = Number(row["DiscountApplied(%)"]) || 0;

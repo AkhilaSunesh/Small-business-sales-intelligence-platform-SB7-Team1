@@ -25,13 +25,23 @@ export async function getForecastReportsData(range = '6m', category = 'all') {
 
   if (response.data && response.data.success && Array.isArray(response.data.forecast)) {
     const forecastList = response.data.forecast;
-    const totalSales = forecastList.reduce((sum, item) => sum + Math.round(item.forecastTransactions || 0), 0);
-    const totalRevenue = forecastList.reduce((sum, item) => sum + Math.round(item.forecastRevenue || 0), 0);
+    
+    // Derive transactions/sales from revenue if not provided (assume avg order value ~$30)
+    const mapForecastItem = (item) => ({
+      ...item,
+      forecastRevenue: item.forecastRevenue || 0,
+      forecastTransactions: item.forecastTransactions || Math.round((item.forecastRevenue || 0) / 30),
+      predictedSales: item.predictedSales || Math.round((item.forecastRevenue || 0) / 30),
+    });
+    const enrichedForecastList = forecastList.map(mapForecastItem);
+
+    const totalSales = enrichedForecastList.reduce((sum, item) => sum + Math.round(item.forecastTransactions || 0), 0);
+    const totalRevenue = enrichedForecastList.reduce((sum, item) => sum + Math.round(item.forecastRevenue || 0), 0);
 
     let growthRate = 0;
-    if (forecastList.length > 1) {
-      const startVal = forecastList[0].forecastRevenue || 1;
-      const endVal = forecastList[forecastList.length - 1].forecastRevenue || 1;
+    if (enrichedForecastList.length > 1) {
+      const startVal = enrichedForecastList[0].forecastRevenue || 1;
+      const endVal = enrichedForecastList[enrichedForecastList.length - 1].forecastRevenue || 1;
       growthRate = ((endVal - startVal) / startVal) * 100;
     }
     if (isNaN(growthRate) || !isFinite(growthRate)) {
@@ -39,8 +49,8 @@ export async function getForecastReportsData(range = '6m', category = 'all') {
     }
 
     const averageConfidence = response.data.confidence ??
-      (forecastList.length > 0
-        ? forecastList.reduce((sum, item) => sum + (item.confidence || 0), 0) / forecastList.length
+      (enrichedForecastList.length > 0
+        ? enrichedForecastList.reduce((sum, item) => sum + (item.confidence || 0), 0) / enrichedForecastList.length
         : 0);
     const predictionAccuracyLabel = !isNaN(averageConfidence) && isFinite(averageConfidence)
       ? `${averageConfidence.toFixed(1)}%`
@@ -58,7 +68,7 @@ export async function getForecastReportsData(range = '6m', category = 'all') {
         forecastGrowth: `${growthRate >= 0 ? '+' : ''}${growthRate.toFixed(1)}%`,
         predictionAccuracy: predictionAccuracyLabel,
       },
-      forecast: forecastList.map((item, idx, arr) => {
+      forecast: enrichedForecastList.map((item, idx, arr) => {
         // Start from tomorrow
         const tomorrow = new Date();
         tomorrow.setDate(tomorrow.getDate() + 1 + idx);
