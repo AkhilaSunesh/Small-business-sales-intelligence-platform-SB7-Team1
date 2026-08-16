@@ -56,7 +56,7 @@ export const ROLE_NAV = {
 export function AppProvider({ children }) {
   const [user, setUser] = useState(() => {
     try {
-      const storedUser = localStorage.getItem('marketmindUser');
+      const storedUser = localStorage.getItem('marketmindUser') || sessionStorage.getItem('marketmindUser');
       return storedUser ? JSON.parse(storedUser) : null;
     } catch (error) {
       return null;
@@ -93,7 +93,7 @@ export function AppProvider({ children }) {
     root.style.colorScheme = theme;
   }, [theme]);
 
-  const login = useCallback(({ id, email, role, name }) => {
+  const login = useCallback(({ id, email, role, name, staySignedIn }) => {
     const newUser = {
       id,
       email,
@@ -101,10 +101,25 @@ export function AppProvider({ children }) {
       // Prefer the real name from the API; fall back to email prefix
       displayName: name || (email ? email.split('@')[0] : role),
     };
-    // eslint-disable-next-line no-console
-    console.debug('[Auth] login:', { id: newUser.id, email: newUser.email, role: newUser.role });
+
+    // Determine whether to use local or session storage
+    let useLocal = false;
+    if (staySignedIn === true) {
+      useLocal = true;
+    } else if (staySignedIn === false) {
+      useLocal = false;
+    } else {
+      useLocal = !!localStorage.getItem('marketmindUser');
+    }
+
     try {
-      localStorage.setItem('marketmindUser', JSON.stringify(newUser));
+      if (useLocal) {
+        localStorage.setItem('marketmindUser', JSON.stringify(newUser));
+        sessionStorage.removeItem('marketmindUser');
+      } else {
+        sessionStorage.setItem('marketmindUser', JSON.stringify(newUser));
+        localStorage.removeItem('marketmindUser');
+      }
     } catch (error) {
       // ignore storage failures
     }
@@ -114,7 +129,11 @@ export function AppProvider({ children }) {
   const logout = useCallback(() => {
     try {
       localStorage.removeItem('marketmindUser');
+      sessionStorage.removeItem('marketmindUser');
       localStorage.removeItem('authToken');
+      sessionStorage.removeItem('authToken');
+      localStorage.removeItem('refreshToken');
+      sessionStorage.removeItem('refreshToken');
     } catch (error) {
       // ignore storage failures
     }

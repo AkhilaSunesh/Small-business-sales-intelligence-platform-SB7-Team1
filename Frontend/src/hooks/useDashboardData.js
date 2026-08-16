@@ -10,7 +10,7 @@ export default function useDashboardData(filters) {
 
   const hasAuthToken = () => {
     try {
-      return Boolean(localStorage.getItem('authToken'));
+      return Boolean(localStorage.getItem('authToken') || sessionStorage.getItem('authToken'));
     } catch (err) {
       return false;
     }

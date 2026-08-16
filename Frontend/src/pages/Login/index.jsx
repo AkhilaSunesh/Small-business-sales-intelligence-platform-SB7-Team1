@@ -17,6 +17,7 @@ function LoginPage() {
   const [error, setError] = useState('');
   const [isLoading, setIsLoading] = useState(false);
   const [showPassword, setShowPassword] = useState(false);
+  const [staySignedIn, setStaySignedIn] = useState(false);
   usePageTitle(t('loginTitle') || 'Login');
 
   const generateCaptcha = useCallback(() => {
@@ -78,9 +79,16 @@ function LoginPage() {
       const data = await loginUser(form.email, form.password);
 
       // Store the JWT so api.js interceptor picks it up for all future requests
-      localStorage.setItem('authToken', data.accessToken);
-      if (data.refreshToken) {
-        localStorage.setItem('refreshToken', data.refreshToken);
+      if (staySignedIn) {
+        localStorage.setItem('authToken', data.accessToken);
+        if (data.refreshToken) {
+          localStorage.setItem('refreshToken', data.refreshToken);
+        }
+      } else {
+        sessionStorage.setItem('authToken', data.accessToken);
+        if (data.refreshToken) {
+          sessionStorage.setItem('refreshToken', data.refreshToken);
+        }
       }
 
       // Update AppContext with id, name, email and the role the user selected on the form
@@ -89,14 +97,19 @@ function LoginPage() {
         name:  data.user?.name,
         email: form.email,
         role:  form.role,
+        staySignedIn,
       });
 
       navigate('/dashboard');
     } catch (err) {
       // Offline fallback: if the backend is unreachable, use mock token and proceed
       if (err.message.includes('Unable to reach') || err.message.includes('Backend is offline') || err.message.includes('offline or unreachable')) {
-        localStorage.setItem('authToken', 'offline-mock-token');
-        login({ email: form.email, role: form.role, id: null, name: null });
+        if (staySignedIn) {
+          localStorage.setItem('authToken', 'offline-mock-token');
+        } else {
+          sessionStorage.setItem('authToken', 'offline-mock-token');
+        }
+        login({ email: form.email, role: form.role, id: null, name: null, staySignedIn });
         navigate('/dashboard');
         return;
       }
@@ -238,6 +251,19 @@ function LoginPage() {
             </div>
 
             {error ? <p className="text-sm text-rose-455">{error}</p> : null}
+
+            <div className="flex items-center space-x-2 text-sm text-slate-300 pb-2">
+              <input
+                type="checkbox"
+                id="staySignedIn"
+                checked={staySignedIn}
+                onChange={(e) => setStaySignedIn(e.target.checked)}
+                className="h-4 w-4 rounded border-white/10 bg-white/5 text-cyan-400 focus:ring-cyan-400 focus:ring-offset-slate-900"
+              />
+              <label htmlFor="staySignedIn" className="select-none cursor-pointer">
+                Stay signed in
+              </label>
+            </div>
 
             <Button type="submit" className="w-full" disabled={isLoading}>
               {isLoading ? t('loginBtnLoading') : t('loginBtn')}
