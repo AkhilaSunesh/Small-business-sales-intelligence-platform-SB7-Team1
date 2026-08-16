@@ -109,7 +109,23 @@ function UsersPage() {
         u.name?.toLowerCase().includes(term) || u.email?.toLowerCase().includes(term)
       );
     }
-    if (roleFilter)   result = result.filter(u => u.role === roleFilter);
+    if (roleFilter) {
+      result = result.filter(u => {
+        if (roleFilter === 'Owner' || roleFilter === 'Business Owner') {
+          return u.role === 'Owner' || u.role === 'Business Owner' || u.roleId === 1;
+        }
+        if (roleFilter === 'Store Manager') {
+          return u.role === 'Store Manager' || u.roleId === 2;
+        }
+        if (roleFilter === 'Sales Executive') {
+          return u.role === 'Sales Executive' || u.roleId === 3;
+        }
+        if (roleFilter === 'Admin' || roleFilter === 'System Administrator') {
+          return u.role === 'Admin' || u.role === 'System Administrator' || u.roleId === 4;
+        }
+        return u.role === roleFilter;
+      });
+    }
     if (statusFilter) result = result.filter(u => u.status === statusFilter);
     result.sort((a, b) => {
       let aVal = a[sortField] ?? '';
