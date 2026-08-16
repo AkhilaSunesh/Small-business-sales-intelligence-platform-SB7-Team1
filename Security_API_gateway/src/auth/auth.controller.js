@@ -5,15 +5,18 @@ const { logEvent } = require("../middleware/auditLogger");
 
 const ACCESS_TOKEN_EXPIRES_IN = "1h";
 const REFRESH_TOKEN_EXPIRES_IN = "7d";
+const DEFAULT_JWT_SECRET = "supersecretjwtkey123!";
+const DEFAULT_REFRESH_SECRET = "supersecretrefreshkey123!";
 
 function createAccessToken(user) {
+    const secret = process.env.JWT_SECRET || DEFAULT_JWT_SECRET;
     return jwt.sign(
         {
             id: user.id,
             email: user.email,
             roleId: user.roleId
         },
-        process.env.JWT_SECRET,
+        secret,
         {
             expiresIn: ACCESS_TOKEN_EXPIRES_IN
         }
@@ -21,11 +24,12 @@ function createAccessToken(user) {
 }
 
 function createRefreshToken(user) {
+    const secret = process.env.REFRESH_TOKEN_SECRET || process.env.JWT_SECRET || DEFAULT_REFRESH_SECRET;
     return jwt.sign(
         {
             id: user.id
         },
-        process.env.REFRESH_TOKEN_SECRET,
+        secret,
         {
             expiresIn: REFRESH_TOKEN_EXPIRES_IN
         }
@@ -33,10 +37,11 @@ function createRefreshToken(user) {
 }
 
 function respondServerError(res, error) {
-    console.error(error);
+    console.error("[authController] Internal Server Error:", error);
     return res.status(500).json({
         success: false,
-        message: "Internal Server Error"
+        message: "Internal Server Error",
+        details: process.env.NODE_ENV !== "production" ? (error?.message || String(error)) : undefined
     });
 }
 
@@ -186,7 +191,8 @@ exports.refreshToken = async (req, res) => {
 
         let decoded;
         try {
-            decoded = jwt.verify(refreshToken, process.env.REFRESH_TOKEN_SECRET);
+            const secret = process.env.REFRESH_TOKEN_SECRET || process.env.JWT_SECRET || DEFAULT_REFRESH_SECRET;
+            decoded = jwt.verify(refreshToken, secret);
         } catch (error) {
             return res.status(403).json({
                 success: false,

@@ -237,7 +237,7 @@ services:
       context: ../
       dockerfile: Devops_Integration/Dockerfile.frontend
       args:
-        VITE_API_BASE_URL: ${VITE_API_BASE_URL:-http://localhost:7000}
+        VITE_API_BASE_URL: ${VITE_API_BASE_URL:-}
     container_name: mmind-frontend
     restart: always
     ports:
@@ -246,6 +246,7 @@ services:
       - mmind-network
     depends_on:
       - backend
+      - security-gateway
 
 volumes:
   postgres_data:
