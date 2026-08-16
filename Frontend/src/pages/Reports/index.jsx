@@ -4,8 +4,9 @@ import StatCard from '../../components/common/StatCard';
 import Button from '../../components/ui/Button';
 import Input from '../../components/ui/Input';
 import { useAppContext } from '../../context/AppContext';
-import { FiAlertTriangle, FiRefreshCw, FiInbox, FiFileText } from 'react-icons/fi';
+import { FiAlertTriangle, FiRefreshCw, FiInbox, FiFileText, FiX, FiDownload } from 'react-icons/fi';
 import invoiceService from '../../services/invoiceService';
+import { jsPDF } from 'jspdf';
 
 function ReportsPage() {
   usePageTitle('Reports');
@@ -23,6 +24,11 @@ function ReportsPage() {
   const [reportsData, setReportsData] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
+
+  const [showExportModal, setShowExportModal] = useState(false);
+  const [exportType, setExportType] = useState('csv');
+  const [exportStartDate, setExportStartDate] = useState('');
+  const [exportEndDate, setExportEndDate] = useState('');
 
   const fetchReports = useCallback(async () => {
     setLoading(true);
@@ -158,55 +164,119 @@ function ReportsPage() {
 
   const totalPages = Math.ceil(sortedData.length / itemsPerPage);
 
-  // Export to CSV
-  const handleExportCSV = () => {
-    const headers = ['Invoice ID', 'Product Name', 'Category', 'Quantity', 'Amount', 'Date', 'Status'];
-    const rows = sortedData.map((item) => [
-      item.id,
-      item.product,
-      item.category,
-      item.quantity,
-      item.amount,
-      item.date,
-      item.status,
-    ]);
-
-    const csv = [headers, ...rows].map((row) => row.join(',')).join('\n');
-    const blob = new Blob([csv], { type: 'text/csv' });
-    const url = window.URL.createObjectURL(blob);
-    const a = document.createElement('a');
-    a.href = url;
-    a.download = `sales-report-${new Date().toISOString().slice(0, 10)}.csv`;
-    a.click();
+  // Trigger Export Modal
+  const handleOpenExportModal = (type) => {
+    setExportType(type);
+    setShowExportModal(true);
   };
 
-  // Export to PDF (simple text-based)
-  const handleExportPDF = () => {
-    const content = `
-SALES REPORT
-Generated: ${new Date().toLocaleDateString()}
+  // Perform Export based on Modal Input
+  const executeExport = () => {
+    let dataToExport = reportsData;
+    if (exportStartDate || exportEndDate) {
+      dataToExport = reportsData.filter((item) => {
+        const itemDate = new Date(item.date);
+        const start = exportStartDate ? new Date(exportStartDate) : null;
+        const end = exportEndDate ? new Date(exportEndDate) : null;
+        if (start && itemDate < start) return false;
+        if (end && itemDate > end) return false;
+        return true;
+      });
+    }
 
-SUMMARY
-Total Revenue: ${stats.totalRevenue}
-Total Sales: ${stats.totalSales}
-Total Orders: ${stats.totalOrders}
-Top Selling Product: ${stats.topSellingProduct}
+    if (exportType === 'csv') {
+      const headers = ['Invoice ID', 'Product Name', 'Category', 'Quantity', 'Amount', 'Date', 'Status'];
+      const rows = dataToExport.map((item) => [
+        item.id,
+        item.product,
+        item.category,
+        item.quantity,
+        item.amount,
+        item.date,
+        item.status,
+      ]);
 
-SALES DATA
-${sortedData
-  .map(
-    (item) =>
-      `${item.id} | ${item.product} | ${item.category} | Qty: ${item.quantity} | ${item.amount} | ${item.date} | ${item.status}`
-  )
-  .join('\n')}
-    `;
+      const csv = [headers, ...rows].map((row) => row.join(',')).join('\n');
+      const blob = new Blob([csv], { type: 'text/csv' });
+      const url = window.URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = `sales-report-${new Date().toISOString().slice(0, 10)}.csv`;
+      a.click();
+    } else if (exportType === 'pdf') {
+      const doc = new jsPDF();
+      const pageWidth = doc.internal.pageSize.getWidth();
 
-    const blob = new Blob([content], { type: 'text/plain' });
-    const url = window.URL.createObjectURL(blob);
-    const a = document.createElement('a');
-    a.href = url;
-    a.download = `sales-report-${new Date().toISOString().slice(0, 10)}.txt`;
-    a.click();
+      doc.setFillColor(15, 23, 42);
+      doc.rect(0, 0, pageWidth, 42, 'F');
+      
+      doc.setTextColor(255, 255, 255);
+      doc.setFontSize(22);
+      doc.setFont('helvetica', 'bold');
+      doc.text('MarketMind AI', 14, 18);
+
+      doc.setFontSize(12);
+      doc.setFont('helvetica', 'normal');
+      doc.setTextColor(148, 163, 184);
+      doc.text('Sales Report', 14, 28);
+      
+      const currentDate = new Date().toLocaleDateString();
+      doc.setFontSize(10);
+      doc.setTextColor(203, 213, 225);
+      doc.text(`Generated: ${currentDate}`, pageWidth - 14, 28, { align: 'right' });
+
+      let y = 54;
+      doc.setTextColor(15, 23, 42);
+      doc.setFontSize(13);
+      doc.setFont('helvetica', 'bold');
+      doc.text('Sales Data Table', 14, y);
+
+      y += 4;
+      doc.setLineWidth(0.5);
+      doc.setDrawColor(226, 232, 240);
+      doc.line(14, y, pageWidth - 14, y);
+
+      y += 8;
+      doc.setFillColor(241, 245, 249);
+      doc.rect(14, y, pageWidth - 28, 10, 'F');
+      
+      doc.setFontSize(9);
+      doc.setFont('helvetica', 'bold');
+      doc.setTextColor(51, 65, 85);
+
+      const headers = ['ID', 'Product', 'Qty', 'Amount', 'Date', 'Status'];
+      const colX = [16, 45, 95, 115, 145, 175];
+
+      headers.forEach((h, i) => doc.text(h, colX[i], y + 6.5));
+      y += 10;
+      doc.setFont('helvetica', 'normal');
+      doc.setFontSize(9);
+      doc.setTextColor(15, 23, 42);
+
+      dataToExport.forEach((item, index) => {
+        if (index % 2 === 0) {
+          doc.setFillColor(248, 250, 252);
+          doc.rect(14, y, pageWidth - 28, 9, 'F');
+        }
+        
+        doc.text(String(item.id).substring(0, 10), colX[0], y + 6);
+        doc.text(String(item.product).substring(0, 20), colX[1], y + 6);
+        doc.text(String(item.quantity), colX[2], y + 6);
+        doc.text(String(item.amount), colX[3], y + 6);
+        doc.text(String(item.date), colX[4], y + 6);
+        doc.text(String(item.status), colX[5], y + 6);
+
+        y += 9;
+        if (y > 270) {
+          doc.addPage();
+          y = 20;
+        }
+      });
+      
+      doc.save(`sales-report-${new Date().toISOString().slice(0, 10)}.pdf`);
+    }
+
+    setShowExportModal(false);
   };
 
   // Print function
@@ -374,10 +444,10 @@ ${sortedData
 
           {/* Export Buttons */}
           <section className="flex flex-wrap gap-3">
-            <Button variant="primary" onClick={handleExportCSV} disabled={sortedData.length === 0}>
+            <Button variant="primary" onClick={() => handleOpenExportModal('csv')} disabled={sortedData.length === 0}>
               📥 Export CSV
             </Button>
-            <Button variant="secondary" onClick={handleExportPDF} disabled={sortedData.length === 0}>
+            <Button variant="secondary" onClick={() => handleOpenExportModal('pdf')} disabled={sortedData.length === 0}>
               📄 Export PDF
             </Button>
             <Button variant="secondary" onClick={handlePrint} disabled={sortedData.length === 0}>
@@ -525,6 +595,62 @@ ${sortedData
             </>
           )}
         </>
+      )}
+
+      {/* Export Modal */}
+      {showExportModal && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-950/80 backdrop-blur-md">
+          <div className="relative w-full max-w-md rounded-3xl border border-white/10 bg-slate-900 p-6 shadow-2xl text-slate-100 animate-in fade-in zoom-in-95 duration-150">
+            <div className="flex justify-between items-center border-b border-white/5 pb-3 mb-4">
+              <h3 className="text-base font-bold text-white">Download Range</h3>
+              <button 
+                onClick={() => setShowExportModal(false)} 
+                className="text-slate-400 hover:text-white transition"
+              >
+                <FiX className="text-lg" />
+              </button>
+            </div>
+            
+            <p className="text-xs text-slate-400 mb-4">
+              Select the date range for your download. The end date can be up to one week from today.
+            </p>
+
+            <div className="space-y-4">
+              <div>
+                <label className="block text-xs font-medium text-slate-300 mb-2">Start Date</label>
+                <input
+                  type="date"
+                  value={exportStartDate}
+                  onChange={(e) => setExportStartDate(e.target.value)}
+                  className="w-full rounded-2xl border border-white/10 bg-slate-950 px-3 py-2 text-sm text-white outline-none transition focus:border-cyan-400/50"
+                />
+              </div>
+
+              <div>
+                <label className="block text-xs font-medium text-slate-300 mb-2">End Date (Max 1 week from today)</label>
+                <input
+                  type="date"
+                  value={exportEndDate}
+                  max={new Date(Date.now() + 7 * 86400000).toISOString().split('T')[0]}
+                  onChange={(e) => setExportEndDate(e.target.value)}
+                  className="w-full rounded-2xl border border-white/10 bg-slate-950 px-3 py-2 text-sm text-white outline-none transition focus:border-cyan-400/50"
+                />
+              </div>
+            </div>
+
+            <div className="mt-6 flex justify-end gap-2 border-t border-white/5 pt-4">
+              <Button onClick={() => setShowExportModal(false)} variant="secondary" className="py-2 text-xs rounded-xl">
+                Cancel
+              </Button>
+              <button
+                onClick={executeExport}
+                className="flex items-center gap-1.5 px-3 py-2 rounded-xl text-xs bg-cyan-600 hover:bg-cyan-500 text-white font-semibold transition"
+              >
+                <FiDownload /> Download {exportType.toUpperCase()}
+              </button>
+            </div>
+          </div>
+        </div>
       )}
     </div>
   );

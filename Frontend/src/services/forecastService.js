@@ -59,8 +59,12 @@ export async function getForecastReportsData(range = '6m', category = 'all') {
         predictionAccuracy: predictionAccuracyLabel,
       },
       forecast: forecastList.map((item, idx, arr) => {
-        const dateObj = new Date(item.date + 'T00:00:00Z');
-        const monthLabel = dateObj.toLocaleDateString('default', { month: 'short', day: 'numeric', timeZone: 'UTC' });
+        // Start from tomorrow
+        const tomorrow = new Date();
+        tomorrow.setDate(tomorrow.getDate() + 1 + idx);
+        
+        const dateStr = tomorrow.toISOString().split('T')[0];
+        const monthLabel = tomorrow.toLocaleDateString('default', { month: 'short', day: 'numeric', timeZone: 'UTC' });
 
         let itemGrowth = '+0.0%';
         if (idx > 0) {
@@ -72,7 +76,7 @@ export async function getForecastReportsData(range = '6m', category = 'all') {
         }
 
         return {
-          date: item.date,
+          date: dateStr,
           month: monthLabel,
           predictedSales: Math.round(item.predictedSales),
           forecastRevenue: Math.round(item.forecastRevenue),

@@ -43,7 +43,7 @@ function InventoryPage() {
         stock:  inv.quantity ?? 0,
         status: getStockStatus(inv.quantity ?? 0, inv.lowStockThreshold ?? 10),
         threshold: inv.lowStockThreshold ?? 10,
-        price:  inv.product?.price != null ? `₹${Number(inv.product.price).toFixed(2)}` : '—',
+        price:  inv.product?.price != null ? `$${Number(inv.product.price).toFixed(2)}` : '—',
       }));
 
       setInventoryRows(mapped);

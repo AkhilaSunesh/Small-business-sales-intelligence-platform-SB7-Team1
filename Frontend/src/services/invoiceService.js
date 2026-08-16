@@ -59,6 +59,17 @@ export async function checkOverdue() {
   return response.data;
 }
 
+/**
+ * Update the status of one or more invoices.
+ * @param {string[]} ids - Array of Invoice IDs (UUIDs)
+ * @param {string} status - New status (e.g., "PAID", "UNPAID", "CANCELLED")
+ * @returns {Promise<Object>} Update result
+ */
+export async function updateInvoiceStatus(ids, status) {
+  const response = await api.patch('/api/invoices/bulk', { ids, status });
+  return response.data;
+}
+
 export default {
   getInvoices,
   getInvoiceById,
@@ -66,4 +77,5 @@ export default {
   recordPayment,
   getRevenueSummary,
   checkOverdue,
+  updateInvoiceStatus,
 };

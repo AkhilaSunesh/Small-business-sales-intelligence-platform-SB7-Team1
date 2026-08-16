@@ -19,6 +19,7 @@ import DeleteConfirmationModal from './components/DeleteConfirmationModal';
 import EditInvoiceModal from './components/EditInvoiceModal';
 
 import invoiceService from '../../services/invoiceService';
+import { jsPDF } from 'jspdf';
 
 // Helper function to map backend invoice structures to what frontend tables expect
 const mapBackendInvoice = (inv) => {
@@ -192,12 +193,24 @@ function InvoiceListPage() {
     setEditInvoice(invoice);
   };
 
-  const handleSaveEdit = (updatedInvoice) => {
-    setInvoices((prev) =>
-      prev.map((inv) => (inv.id === updatedInvoice.id ? updatedInvoice : inv))
-    );
-    showToast(`Invoice ${updatedInvoice.id} successfully updated locally.`, 'success');
-    setEditInvoice(null);
+  const handleSaveEdit = async (updatedInvoice) => {
+    try {
+      let backendStatus = 'UNPAID';
+      if (updatedInvoice.status === 'Paid') backendStatus = 'PAID';
+      else if (updatedInvoice.status === 'Partially Paid') backendStatus = 'PARTIALLY_PAID';
+      else if (updatedInvoice.status === 'Overdue') backendStatus = 'OVERDUE';
+      else if (updatedInvoice.status === 'Cancelled') backendStatus = 'CANCELLED';
+
+      await invoiceService.updateInvoiceStatus([updatedInvoice.dbId], backendStatus);
+      
+      setInvoices((prev) =>
+        prev.map((inv) => (inv.id === updatedInvoice.id ? updatedInvoice : inv))
+      );
+      showToast(`Invoice ${updatedInvoice.id} successfully updated.`, 'success');
+      setEditInvoice(null);
+    } catch (err) {
+      showToast(`Failed to update invoice: ${err.message}`, 'error');
+    }
   };
 
   const handleDelete = (invoice) => {
@@ -210,32 +223,55 @@ function InvoiceListPage() {
     setDeleteInvoice(null);
   };
 
-  const handleDownload = async (invoice) => {
+  const handleDownload = (invoice) => {
     showToast(`Preparing invoice ${invoice.id} for download…`, 'info');
     try {
-      const response = await import('../../services/api').then(m => m.default.get(
-        `/api/invoices/${invoice.dbId}/download`,
-        { responseType: 'blob' }
-      ));
+      const doc = new jsPDF();
+      const pageWidth = doc.internal.pageSize.getWidth();
 
-      // Create a temporary anchor to trigger the browser download
-      const blob = new Blob([response.data], {
-        type: response.headers['content-type'] || 'text/plain',
-      });
-      const url = URL.createObjectURL(blob);
-      const link = document.createElement('a');
-      link.href = url;
+      doc.setFillColor(15, 23, 42);
+      doc.rect(0, 0, pageWidth, 42, 'F');
+      
+      doc.setTextColor(255, 255, 255);
+      doc.setFontSize(22);
+      doc.setFont('helvetica', 'bold');
+      doc.text('INVOICE', 14, 18);
 
-      // Derive filename from Content-Disposition or fall back to invoice ID
-      const contentDisposition = response.headers['content-disposition'] || '';
-      const match = contentDisposition.match(/filename="?([^";\n]+)"?/i);
-      link.download = match?.[1] || `invoice-${invoice.id}.txt`;
+      doc.setFontSize(12);
+      doc.setFont('helvetica', 'normal');
+      doc.setTextColor(148, 163, 184);
+      doc.text(`MarketMind AI`, 14, 28);
+      
+      doc.setFontSize(10);
+      doc.setTextColor(203, 213, 225);
+      doc.text(`ID: ${invoice.id}`, pageWidth - 14, 18, { align: 'right' });
+      doc.text(`Date: ${invoice.date}`, pageWidth - 14, 28, { align: 'right' });
 
-      document.body.appendChild(link);
-      link.click();
-      document.body.removeChild(link);
-      URL.revokeObjectURL(url);
+      let y = 54;
+      doc.setTextColor(15, 23, 42);
+      doc.setFontSize(11);
+      doc.text(`Billed To: ${invoice.customer}`, 14, y);
+      doc.text(`Payment Method: ${invoice.method}`, pageWidth - 14, y, { align: 'right' });
+      y += 8;
+      doc.text(`Due Date: ${invoice.dueDate}`, 14, y);
+      doc.text(`Status: ${invoice.status}`, pageWidth - 14, y, { align: 'right' });
 
+      y += 16;
+      doc.setLineWidth(0.5);
+      doc.setDrawColor(226, 232, 240);
+      doc.line(14, y, pageWidth - 14, y);
+
+      y += 12;
+      doc.setFontSize(10);
+      doc.text(`Tax: $${invoice.tax.toFixed(2)}`, pageWidth - 14, y, { align: 'right' });
+      y += 8;
+      doc.text(`Discount: -$${invoice.discount.toFixed(2)}`, pageWidth - 14, y, { align: 'right' });
+      y += 10;
+      doc.setFont('helvetica', 'bold');
+      doc.setFontSize(14);
+      doc.text(`Total: $${invoice.amount.toFixed(2)}`, pageWidth - 14, y, { align: 'right' });
+
+      doc.save(`invoice-${invoice.id}.pdf`);
       showToast(`Invoice ${invoice.id} downloaded successfully.`, 'success');
     } catch (err) {
       console.error('Download failed:', err);
@@ -244,12 +280,62 @@ function InvoiceListPage() {
   };
 
   const handlePrint = (invoice) => {
-    showToast(`Preparing printable layout for ${invoice.id}...`, 'info');
-    
-    // Simulate printing
+    const printWindow = window.open('', '', 'height=600,width=800');
+    printWindow.document.write(`
+      <html>
+        <head>
+          <title>Print Invoice - ${invoice.id}</title>
+          <style>
+            body { font-family: sans-serif; padding: 40px; color: #111827; }
+            .header { border-bottom: 2px solid #e5e7eb; padding-bottom: 20px; margin-bottom: 30px; display: flex; justify-content: space-between; }
+            .title { font-size: 24px; font-weight: bold; }
+            .subtitle { color: #6b7280; font-size: 14px; margin-top: 5px; }
+            .row { display: flex; justify-content: space-between; margin-bottom: 10px; font-size: 14px; }
+            .totals { margin-top: 30px; border-top: 1px solid #e5e7eb; padding-top: 20px; text-align: right; }
+            .total { font-size: 18px; font-weight: bold; margin-top: 10px; }
+          </style>
+        </head>
+        <body>
+          <div class="header">
+            <div>
+              <div class="title">INVOICE</div>
+              <div class="subtitle">MarketMind AI</div>
+            </div>
+            <div style="text-align: right;">
+              <div style="font-weight: bold;">ID: ${invoice.id}</div>
+              <div class="subtitle">Date: ${invoice.date}</div>
+            </div>
+          </div>
+          <div class="row">
+            <div><strong>Billed To:</strong> ${invoice.customer}</div>
+            <div><strong>Method:</strong> ${invoice.method}</div>
+          </div>
+          <div class="row">
+            <div><strong>Due Date:</strong> ${invoice.dueDate}</div>
+            <div><strong>Status:</strong> ${invoice.status}</div>
+          </div>
+          <div class="totals">
+            <div class="row" style="justify-content: flex-end; gap: 20px;">
+              <span>Tax:</span>
+              <span>$${invoice.tax.toFixed(2)}</span>
+            </div>
+            <div class="row" style="justify-content: flex-end; gap: 20px;">
+              <span>Discount:</span>
+              <span>-$${invoice.discount.toFixed(2)}</span>
+            </div>
+            <div class="total">
+              Total: $${invoice.amount.toFixed(2)}
+            </div>
+          </div>
+        </body>
+      </html>
+    `);
+    printWindow.document.close();
+    printWindow.focus();
     setTimeout(() => {
-      window.print();
-    }, 1000);
+      printWindow.print();
+      printWindow.close();
+    }, 250);
   };
 
   const handleClearFilters = () => {

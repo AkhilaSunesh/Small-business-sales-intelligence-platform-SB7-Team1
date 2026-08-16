@@ -1,5 +1,6 @@
 import { useState, useEffect, useCallback } from 'react';
 import { useNavigate, Link } from 'react-router-dom';
+import { useTranslation } from 'react-i18next';
 import { usePageTitle } from '../../hooks/usePageTitle';
 import { useAppContext } from '../../context/AppContext';
 import Button from '../../components/ui/Button';
@@ -10,12 +11,13 @@ import { loginUser } from '../../services/authService';
 function LoginPage() {
   const navigate = useNavigate();
   const { login, availableRoles } = useAppContext();
+  const { t, i18n } = useTranslation();
   const [form, setForm] = useState({ email: '', password: '', role: '', captchaInput: '' });
   const [captcha, setCaptcha] = useState('');
   const [error, setError] = useState('');
   const [isLoading, setIsLoading] = useState(false);
   const [showPassword, setShowPassword] = useState(false);
-  usePageTitle('Login');
+  usePageTitle(t('loginTitle') || 'Login');
 
   const generateCaptcha = useCallback(() => {
     const chars = 'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789';
@@ -108,7 +110,22 @@ function LoginPage() {
   };
 
   return (
-    <main className="min-h-screen px-4 py-8 sm:px-6 lg:px-8">
+    <main className="min-h-screen px-4 py-8 sm:px-6 lg:px-8 relative">
+      <div className="absolute top-4 right-4 sm:top-8 sm:right-8">
+        <select
+          value={i18n.language}
+          onChange={(e) => {
+            i18n.changeLanguage(e.target.value);
+            localStorage.setItem('marketmindLang', e.target.value);
+          }}
+          className="rounded-2xl border border-white/10 bg-slate-950/80 px-4 py-2 text-sm text-slate-200 outline-none transition focus:border-cyan-300"
+          aria-label={t('languageSelect')}
+        >
+          <option value="en">🇬🇧 English</option>
+          <option value="hi">🇮🇳 हिन्दी</option>
+          <option value="ta">🇮🇳 தமிழ்</option>
+        </select>
+      </div>
       <div className="mx-auto grid min-h-[calc(100vh-4rem)] max-w-6xl items-center gap-8 lg:grid-cols-[1.2fr_0.8fr]">
         <section className="space-y-6">
           <div className="space-y-4">
@@ -116,23 +133,23 @@ function LoginPage() {
               MarketMind AI
             </h1>
             <p className="max-w-xl text-base leading-7 text-slate-350 sm:text-lg">
-              Select your role and sign in to continue.
+              {t('loginDesc')}
             </p>
           </div>
         </section>
 
         <section className="glass-panel rounded-[2rem] p-6 sm:p-8">
           <div className="mb-8">
-            <p className="text-sm uppercase tracking-[0.32em] text-cyan-300/80">Login</p>
-            <h2 className="mt-2 text-2xl font-semibold text-white">Access the dashboard</h2>
+            <p className="text-sm uppercase tracking-[0.32em] text-cyan-300/80">{t('loginTitle')}</p>
+            <h2 className="mt-2 text-2xl font-semibold text-white">{t('loginSubtitle')}</h2>
             <p className="mt-2 text-sm leading-6 text-slate-400">
-              Sign in with your role to continue.
+              {t('loginDesc')}
             </p>
           </div>
 
           <form className="space-y-4" onSubmit={handleSubmit}>
             <Input
-              label="Email address"
+              label={t('loginEmail')}
               name="email"
               type="email"
               value={form.email}
@@ -142,7 +159,7 @@ function LoginPage() {
             {/* Password field with show/hide toggle */}
             <div className="relative">
               <Input
-                label="Password"
+                label={t('loginPassword')}
                 name="password"
                 type={showPassword ? 'text' : 'password'}
                 value={form.password}
@@ -161,7 +178,7 @@ function LoginPage() {
             </div>
             <div>
               <label htmlFor="role" className="mb-2 block text-sm font-medium text-slate-200">
-                User role
+                {t('loginRole')}
               </label>
               <select
                 id="role"
@@ -171,7 +188,7 @@ function LoginPage() {
                 className="w-full rounded-2xl border border-white/10 bg-slate-950/80 px-4 py-3 text-sm text-slate-200 outline-none transition focus:border-cyan-300"
               >
                 <option value="" disabled>
-                  Select user role
+                  {t('loginSelectRole')}
                 </option>
                 {availableRoles.map((role) => (
                   <option key={role.value} value={role.value}>
@@ -184,7 +201,7 @@ function LoginPage() {
             {/* Captcha Verification — unchanged */}
             <div className="space-y-2">
               <label className="block text-sm font-medium text-slate-200">
-                Security Verification
+                {t('loginSecurity')}
               </label>
               <div className="flex gap-3 items-center">
                 <div
@@ -214,7 +231,7 @@ function LoginPage() {
                 type="text"
                 value={form.captchaInput}
                 onChange={handleChange}
-                placeholder="Enter the code shown above"
+                placeholder={t('loginEnterCode')}
                 autoComplete="off"
                 aria-label="CAPTCHA Input Code"
               />
@@ -223,7 +240,7 @@ function LoginPage() {
             {error ? <p className="text-sm text-rose-455">{error}</p> : null}
 
             <Button type="submit" className="w-full" disabled={isLoading}>
-              {isLoading ? 'Signing in…' : 'Continue to dashboard'}
+              {isLoading ? t('loginBtnLoading') : t('loginBtn')}
             </Button>
 
             {/* Quick Demo Autofill Credentials */}
@@ -248,9 +265,9 @@ function LoginPage() {
             </div>
 
             <div className="text-center text-sm text-slate-400 mt-4">
-              Don&apos;t have an account?{' '}
+              {t('loginNoAccount')}{' '}
               <Link to="/signup" className="font-semibold text-cyan-300 hover:text-cyan-200">
-                Sign Up
+                {t('loginSignUp')}
               </Link>
             </div>
           </form>
