@@ -6,7 +6,7 @@ const rowSchema = Joi.object({
   ProductID: Joi.string().trim().required(),
   Quantity: Joi.number().integer().min(1).required(),
   Price: Joi.number().positive().required(),
-  TransactionDate: Joi.date().iso().required()
-});
+  TransactionDate: Joi.date().required()
+}).unknown(true);
 
 module.exports = { rowSchema };

@@ -1,0 +1,4 @@
+CustomerID,ProductID,Quantity,Price,TransactionDate,PaymentMethod,DiscountApplied(%)
+109318,C,7,80.08,08/16/2026 10:00,Cash,18.68
+993229,C,4,75.20,08/16/2026 10:05,Card,14.12
+109318,C,2,10.00,08/16/2026 10:10,Cash,5.00
