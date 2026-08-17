@@ -235,6 +235,7 @@ async function main() {
         const qty         = Number(row.Quantity)   || 0;
         const unitPrice   = Number(row.Price)       || 0;
         const kaggleTotalAmount = Number(row.TotalAmount) || 0;
+        const totalAmount = kaggleTotalAmount || (qty * unitPrice);
         const rawDate = row.TransactionDate ? new Date(row.TransactionDate) : new Date();
         // Shift transactions forward so 2023 becomes 2025 and 2024 becomes 2026
         const txDate = new Date(rawDate);
