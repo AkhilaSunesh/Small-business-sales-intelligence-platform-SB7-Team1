@@ -414,8 +414,11 @@ __marimo__/
 
 # Streamlit
 node_modules/
+**/node_modules/
 
-# Temporary audit outputs
+# Temporary audit and test scripts
 secret-scan-results.txt
 tracked-secret-scan.txt
 tracked-secret-scan-final.txt
+AIML/notebooks/run_*.py
+*.xlsx
