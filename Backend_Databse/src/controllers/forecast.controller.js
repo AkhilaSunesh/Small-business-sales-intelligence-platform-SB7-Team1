@@ -41,6 +41,7 @@ exports.getForecast = async (req, res) => {
             period:      result.period,
             lookback:    result.lookback,
             smaWindow:   result.smaWindow,
+            confidence:  result.confidence,
             generatedAt: result.generatedAt,
             forecast:    result.forecast,
             historical:  result.historical
