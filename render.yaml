@@ -45,6 +45,11 @@ services:
           type: web
           name: marketmind-backend
           property: host
+      - key: FORECAST_API_URL
+        fromService:
+          type: web
+          name: marketmind-ai-service
+          property: host
       - key: RECOMMENDATION_URL
         fromService:
           type: web
