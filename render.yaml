@@ -71,9 +71,11 @@ services:
     name: marketmind-ai-service
     env: python
     plan: free
-    buildCommand: pip install -r Devops_Integration/ai_requirements.txt
+    buildCommand: pip install --upgrade pip && pip install -r Devops_Integration/ai_requirements.txt
     startCommand: uvicorn Devops_Integration.ai_service:app --host 0.0.0.0 --port $PORT
     envVars:
+      - key: PYTHON_VERSION
+        value: 3.11.9
       - key: PORT
         value: 5001
 
@@ -85,6 +87,8 @@ services:
     buildCommand: pip install --upgrade pip && pip install -r AIML/api/recommendation/requirements.txt
     startCommand: python AIML/api/recommendation/app.py
     envVars:
+      - key: PYTHON_VERSION
+        value: 3.11.9
       - key: PORT
         value: 5012
 
@@ -96,6 +100,8 @@ services:
     buildCommand: pip install --upgrade pip && pip install -r AIML/api/segmentation/requirements.txt
     startCommand: python AIML/api/segmentation/app.py
     envVars:
+      - key: PYTHON_VERSION
+        value: 3.11.9
       - key: PORT
         value: 5010
 
@@ -107,6 +113,8 @@ services:
     buildCommand: pip install --upgrade pip && pip install -r AIML/api/churn/requirements.txt
     startCommand: python AIML/api/churn/app.py
     envVars:
+      - key: PYTHON_VERSION
+        value: 3.11.9
       - key: PORT
         value: 5011
 
@@ -118,6 +126,8 @@ services:
     buildCommand: pip install --upgrade pip && pip install -r AIML/api/anomaly/requirements.txt
     startCommand: python AIML/api/anomaly/app.py
     envVars:
+      - key: PYTHON_VERSION
+        value: 3.11.9
       - key: PORT
         value: 5013
 
