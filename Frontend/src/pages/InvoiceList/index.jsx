@@ -113,12 +113,21 @@ function InvoiceListPage() {
         sortOrder: sortConfig.direction
       });
 
-      if (res && res.success) {
-        const mapped = Array.isArray(res.data) ? res.data.map(mapBackendInvoice) : [];
+      if (res) {
+        let rawList = [];
+        if (Array.isArray(res.data)) {
+          rawList = res.data;
+        } else if (Array.isArray(res)) {
+          rawList = res;
+        } else if (res.invoices && Array.isArray(res.invoices)) {
+          rawList = res.invoices;
+        }
+        const mapped = rawList.map(mapBackendInvoice);
         setInvoices(mapped);
-        setPagination(res.pagination || { total: 0, page: 1, pageSize: 10, totalPages: 1 });
+        setPagination(res.pagination || { total: mapped.length, page: currentPage, pageSize: rowsPerPage, totalPages: Math.ceil(mapped.length / rowsPerPage) || 1 });
       } else {
-        throw new Error('Invalid response schema.');
+        setInvoices([]);
+        setPagination({ total: 0, page: 1, pageSize: 10, totalPages: 1 });
       }
     } catch (err) {
       console.error("Failed to retrieve invoice records:", err.message);
