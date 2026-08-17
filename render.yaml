@@ -37,10 +37,7 @@ services:
           name: marketmind-db
           property: connectionString
       - key: JWT_SECRET
-        fromService:
-          type: web
-          name: marketmind-backend
-          property: envVar:JWT_SECRET
+        generateValue: true
       - key: REFRESH_TOKEN_SECRET
         generateValue: true
       - key: BACKEND_API_URL
@@ -146,4 +143,4 @@ databases:
   - name: marketmind-db
     plan: free
     databaseName: marketmind_db
-    user: postgres
+    user: marketmind_user
