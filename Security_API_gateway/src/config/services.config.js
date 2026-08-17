@@ -12,18 +12,17 @@ function normalizeUrl(rawUrl, defaultPort, defaultPath = "") {
 
     let url = rawUrl.trim();
 
-    // Prepend http:// if no protocol scheme provided
-    if (!/^https?:\/\//i.test(url)) {
-        url = `http://${url}`;
+    // If bare service name without dot and running on Render in production, map to onrender.com
+    if (!url.includes(".") && !url.includes("localhost") && !url.includes("127.0.0.1") && process.env.NODE_ENV === "production") {
+        url = `https://${url}.onrender.com`;
+    } else if (!/^https?:\/\//i.test(url)) {
+        url = (process.env.NODE_ENV === "production" && url.includes("onrender.com")) ? `https://${url}` : `http://${url}`;
     }
 
     // Strip trailing slashes
     url = url.replace(/\/+$/, "");
 
-    // If hostname does not have a port and is a local / private service host (not an external domain like render.com)
-    // and defaultPort is specified, append port if needed.
-    // Note: Render service-to-service hostnames look like "marketmind-backend" or "srv-xxx".
-    // Render private networking resolves internal service names on their listening ports.
+    // If local dev or private host without dot and not onrender.com
     try {
         const parsed = new URL(url);
         if (!parsed.port && defaultPort && !parsed.hostname.includes(".")) {
