@@ -147,8 +147,18 @@ CUST-103,PROD-A1,5,15.00,2026-08-02T09:15:00Z,10`;
           {uploadError && <ErrorMessage messages={[uploadError]} title="Upload error" />}
 
           {uploadSuccess && (
-            <div className="mt-4">
-              <div className="rounded-md bg-emerald-900/5 p-3 text-sm text-emerald-300">{uploadSuccess}</div>
+            <div className="mt-4 rounded-2xl border border-emerald-500/20 bg-emerald-500/10 p-4 text-sm text-emerald-300 flex flex-col sm:flex-row justify-between items-start sm:items-center gap-3">
+              <div>
+                <p className="font-semibold text-white">Upload Completed Successfully!</p>
+                <p className="text-xs text-emerald-300/80 mt-0.5">{uploadSuccess}</p>
+              </div>
+              <button
+                type="button"
+                onClick={() => window.location.href = '/invoices'}
+                className="shrink-0 px-4 py-2 rounded-xl bg-cyan-400 hover:bg-cyan-300 text-slate-950 font-bold text-xs shadow-md transition"
+              >
+                View in Invoice List →
+              </button>
             </div>
           )}
 
