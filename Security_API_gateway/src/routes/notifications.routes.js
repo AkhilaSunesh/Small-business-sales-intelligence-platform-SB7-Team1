@@ -12,10 +12,11 @@ const { logEvent } = require("../middleware/auditLogger");
 const { BACKEND_API_URL } = require("../config/services.config");
 
 const forward = async (req, res, backendPath) => {
+    const targetUrl = `${BACKEND_API_URL}${backendPath}`;
     try {
         const response = await axios({
             method:  req.method,
-            url:     `${BACKEND_API_URL}${backendPath}`,
+            url:     targetUrl,
             params:  req.query,
             data:    req.body,
             headers: {
@@ -26,6 +27,12 @@ const forward = async (req, res, backendPath) => {
         });
         res.status(response.status).json(response.data);
     } catch (error) {
+        console.error(`[notifications.routes] Proxy error to ${targetUrl}:`, {
+            status: error.response?.status,
+            data: error.response?.data,
+            message: error.message,
+            code: error.code
+        });
         const status = error.response?.status || 500;
         res.status(status).json(
             error.response?.data || { success: false, message: error.message }
