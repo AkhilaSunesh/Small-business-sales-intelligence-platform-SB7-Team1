@@ -1,9 +1,14 @@
 import axios from 'axios';
 
 const getApiBaseUrl = () => {
-  const envUrl = import.meta.env.VITE_API_BASE_URL;
-  if (!envUrl) return '';
+  let envUrl = import.meta.env.VITE_API_BASE_URL;
+  if (!envUrl || typeof envUrl !== 'string') return '';
+  envUrl = envUrl.trim();
   if (envUrl.startsWith('http://') || envUrl.startsWith('https://')) return envUrl;
+  // If bare host without dot (e.g. marketmind-security-gateway or srv-xxx), append .onrender.com
+  if (!envUrl.includes('.') && !envUrl.includes('localhost')) {
+    return `https://${envUrl}.onrender.com`;
+  }
   return `https://${envUrl}`;
 };
 
