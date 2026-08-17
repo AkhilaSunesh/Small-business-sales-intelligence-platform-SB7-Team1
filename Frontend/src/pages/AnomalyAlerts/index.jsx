@@ -22,9 +22,9 @@ function AnomalyAlertsPage() {
     setError(null);
     try {
       const res = await alertService.getAnomalyAlerts();
-      if (res && res.success && Array.isArray(res.data)) {
+      const rawList = Array.isArray(res?.data) ? res.data : Array.isArray(res?.anomalies) ? res.anomalies : Array.isArray(res) ? res : []; 
         // Map backend transaction-level anomaly data to UI-friendly alerts
-        const mappedAlerts = res.data.map((item, idx) => {
+        const mappedAlerts = rawList.map((item, idx) => {
           const isAnomaly = String(item.Anomaly).toLowerCase() === 'anomaly' || 
                             String(item.Anomaly).toLowerCase() === 'true' || 
                             String(item.Anomaly) === '1' ||
@@ -68,9 +68,6 @@ function AnomalyAlertsPage() {
           };
         });
         setAlerts(mappedAlerts);
-      } else {
-        throw new Error('Invalid anomalies response format.');
-      }
     } catch (err) {
       console.error("Failed to load anomalies:", err.message);
       setError(err?.message || 'Unable to load anomaly alerts. Please try again.');
