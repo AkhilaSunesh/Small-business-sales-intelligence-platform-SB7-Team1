@@ -23,8 +23,16 @@ export async function getForecastReportsData(range = '6m', category = 'all') {
     },
   });
 
-  if (response.data && response.data.success && Array.isArray(response.data.forecast)) {
-    const forecastList = response.data.forecast;
+  const rawData = response.data?.data || response.data || {};
+  const forecastList = Array.isArray(rawData.forecast)
+    ? rawData.forecast
+    : Array.isArray(response.data?.forecast)
+    ? response.data.forecast
+    : Array.isArray(rawData)
+    ? rawData
+    : [];
+
+  if (forecastList.length >= 0 && (response.data?.success || rawData.forecast || Array.isArray(rawData))) {
     
     // Derive transactions/sales from revenue if not provided (assume avg order value ~$30)
     const mapForecastItem = (item) => ({

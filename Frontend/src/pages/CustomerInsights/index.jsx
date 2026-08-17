@@ -25,13 +25,27 @@ function CustomerInsightsPage() {
     setError(null);
     try {
       const res = await customerService.getCustomerSegments();
-      if (res && res.success) {
-        setSummaryData(res.summary || { loyalCount: 0, occasionalCount: 0, highValueCount: 0 });
-        setDistributionData(Array.isArray(res.distribution) ? res.distribution : []);
-        setCustomers(Array.isArray(res.customers) ? res.customers : []);
-      } else {
-        throw new Error('Invalid segmentation data format.');
-      }
+      const rawData = res?.data || res || {};
+      const customersList = Array.isArray(rawData.customers)
+        ? rawData.customers
+        : Array.isArray(rawData)
+        ? rawData
+        : Array.isArray(res?.customers)
+        ? res.customers
+        : [];
+      const distList = Array.isArray(rawData.distribution)
+        ? rawData.distribution
+        : Array.isArray(res?.distribution)
+        ? res.distribution
+        : [];
+
+      setSummaryData(rawData.summary || res?.summary || {
+        loyalCount: customersList.filter(c => c.category === 'Loyal').length,
+        occasionalCount: customersList.filter(c => c.category === 'Occasional').length,
+        highValueCount: customersList.filter(c => c.category === 'High-Value').length
+      });
+      setDistributionData(distList);
+      setCustomers(customersList);
     } catch (err) {
       console.error("Failed to load customer segments:", err.message);
       setError(err?.message || 'Unable to load customer insights data. Please try again.');
