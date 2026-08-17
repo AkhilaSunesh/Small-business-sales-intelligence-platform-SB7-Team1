@@ -7,11 +7,7 @@ const express = require("express");
 const axios   = require("axios");
 const router  = express.Router();
 
-// Each AI service has its own port. Falls back to legacy AI_API_URL if not set.
-const SERVICE_URL =
-    process.env.CUSTOMER_SEGMENTATION_URL ||
-    process.env.AI_API_URL                ||
-    "http://127.0.0.1:5010";
+const { CUSTOMER_SEGMENTATION_URL: SERVICE_URL } = require("../config/services.config");
 
 const forward = async (req, res, path) => {
     const target = `${SERVICE_URL}${path}`;

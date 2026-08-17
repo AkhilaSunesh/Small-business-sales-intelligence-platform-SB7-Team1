@@ -6,7 +6,7 @@ const { validateAdd, validateUpdate, validateDelete } = require("../validations/
 const { validateBulkInventory } = require("../validations/notification.validation");
 const router  = express.Router();
 
-const BACKEND_API_URL = process.env.BACKEND_API_URL || "http://localhost:5000/api";
+const { BACKEND_API_URL } = require("../config/services.config");
 
 // ─── shared forward helper ────────────────────────────────────────────────────
 const forwardRequest = async (req, res, backendPath) => {

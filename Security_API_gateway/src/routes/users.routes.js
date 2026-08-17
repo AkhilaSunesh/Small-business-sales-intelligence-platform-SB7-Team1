@@ -10,7 +10,7 @@ const express = require("express");
 const axios   = require("axios");
 const router  = express.Router();
 
-const BACKEND_API_URL = process.env.BACKEND_API_URL || "http://127.0.0.1:5000/api";
+const { BACKEND_API_URL } = require("../config/services.config");
 
 const forward = async (req, res, backendPath) => {
     const target = `${BACKEND_API_URL}${backendPath}`;

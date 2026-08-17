@@ -11,8 +11,7 @@ const express = require("express");
 const axios   = require("axios");
 const router  = express.Router();
 
-const AI_FORECAST_URL = process.env.FORECAST_API_URL || "http://127.0.0.1:5014";
-const BACKEND_API_URL = process.env.BACKEND_API_URL  || "http://127.0.0.1:5000/api";
+const { FORECAST_API_URL: AI_FORECAST_URL, BACKEND_API_URL } = require("../config/services.config");
 
 const forward = async (req, res, primaryPath, fallbackPath) => {
     const primaryTarget  = `${AI_FORECAST_URL}${primaryPath}`;

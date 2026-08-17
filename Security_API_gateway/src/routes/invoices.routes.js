@@ -5,7 +5,7 @@ const { validateBulkInvoice } = require("../validations/notification.validation"
 const router  = express.Router();
 const { auditSuccessfulAction } = require("../middleware/auditLogger");
 
-const BACKEND_API_URL = process.env.BACKEND_API_URL || "http://localhost:5000/api";
+const { BACKEND_API_URL } = require("../config/services.config");
 
 const forward = async (req, res, backendPath) => {
     try {
