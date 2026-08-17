@@ -23,8 +23,8 @@ function RecommendationsPage() {
     setError(null);
     try {
       const res = await recommendationService.getRecommendations();
-      if (res && res.success && Array.isArray(res.data)) {
-        const mappedRecommendations = res.data.map((item, idx) => {
+      const rawList = Array.isArray(res?.data) ? res.data : Array.isArray(res?.recommendations) ? res.recommendations : Array.isArray(res) ? res : []; 
+        const mappedRecommendations = rawList.map((item, idx) => {
           const fromProduct = item.productId || item.ProductID || 'Unknown';
           const toProduct = item.recommendedProduct || item.RecommendedProduct || `Product ${fromProduct}`;
           const coPurchaseCount = item.coPurchaseCount ?? item.CoPurchaseCount ?? item.purchaseCount ?? 0;
@@ -41,9 +41,6 @@ function RecommendationsPage() {
           };
         });
         setRecommendations(mappedRecommendations);
-      } else {
-        throw new Error('Invalid recommendations response format.');
-      }
     } catch (err) {
       console.error("Failed to load recommendations:", err.message);
       setError(err?.message || 'Unable to load recommendations. Please try again.');
