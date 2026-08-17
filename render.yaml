@@ -75,9 +75,8 @@ services:
   - type: web
     name: marketmind-ai-service
     env: python
-    plan: free
     buildCommand: pip install --upgrade pip && pip install -r Devops_Integration/ai_requirements.txt
-    startCommand: uvicorn Devops_Integration.ai_service:app --host 0.0.0.0 --port $PORT
+    startCommand: python -m uvicorn Devops_Integration.ai_service:app --host 0.0.0.0 --port ${PORT:-5001}
     envVars:
       - key: PYTHON_VERSION
         value: 3.11.9
