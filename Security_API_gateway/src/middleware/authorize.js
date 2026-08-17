@@ -25,7 +25,7 @@ const permissions = {
         products:             ["GET", "POST", "PUT", "PATCH"],
         customers:            ["GET"],
         sales:                ["GET"],
-        invoices:             ["GET", "POST", "PATCH"],
+        invoices:             ["GET", "POST", "PATCH", "DELETE"],
         payments:             ["GET", "POST"],
 
         // Dashboard sub-resources

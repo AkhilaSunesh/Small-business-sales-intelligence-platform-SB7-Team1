@@ -70,6 +70,16 @@ export async function updateInvoiceStatus(ids, status) {
   return response.data;
 }
 
+/**
+ * Delete an invoice by its database UUID.
+ * @param {string} id - Invoice ID (UUID)
+ * @returns {Promise<Object>} Delete result
+ */
+export async function deleteInvoice(id) {
+  const response = await api.delete(`/api/invoices/${id}`);
+  return response.data;
+}
+
 export default {
   getInvoices,
   getInvoiceById,
@@ -78,4 +88,5 @@ export default {
   getRevenueSummary,
   checkOverdue,
   updateInvoiceStatus,
+  deleteInvoice,
 };

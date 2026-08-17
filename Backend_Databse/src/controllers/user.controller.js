@@ -220,3 +220,102 @@ exports.updateUserProfile = async (req, res) => {
         return res.status(500).json({ success: false, message: error.message });
     }
 };
+
+// ─── PUT / PATCH /api/users/:id ──────────────────────────────────────────────
+// Updates user details: name, roleId/role, status (isActive/isPending), email
+exports.updateUser = async (req, res) => {
+    try {
+        const { name, email, role, roleId, status } = req.body;
+
+        const existing = await prisma.user.findUnique({
+            where:  { id: req.params.id },
+            select: { id: true, email: true }
+        });
+
+        if (!existing) {
+            return res.status(404).json({ success: false, message: "User not found." });
+        }
+
+        const dataToUpdate = {};
+
+        if (name !== undefined) {
+            if (typeof name !== "string" || name.trim().length < 2) {
+                return res.status(400).json({
+                    success: false,
+                    message: "A valid name (min 2 characters) is required."
+                });
+            }
+            dataToUpdate.name = name.trim();
+        }
+
+        if (email !== undefined && email.trim() !== existing.email) {
+            const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+            if (!emailRegex.test(email.trim())) {
+                return res.status(400).json({
+                    success: false,
+                    message: "Please provide a valid email address."
+                });
+            }
+            const duplicate = await prisma.user.findUnique({
+                where: { email: email.trim().toLowerCase() }
+            });
+            if (duplicate && duplicate.id !== req.params.id) {
+                return res.status(409).json({
+                    success: false,
+                    message: "Email address is already in use by another user."
+                });
+            }
+            dataToUpdate.email = email.trim().toLowerCase();
+        }
+
+        // Role update by roleId (number) or role name (string)
+        if (roleId !== undefined) {
+            const parsedRoleId = parseInt(roleId, 10);
+            if (!isNaN(parsedRoleId)) {
+                dataToUpdate.roleId = parsedRoleId;
+            }
+        } else if (role !== undefined) {
+            const roleMap = {
+                'Owner': 1,
+                'Business Owner': 1,
+                'Store Manager': 2,
+                'Sales Executive': 3,
+                'Admin': 4,
+                'System Administrator': 4,
+                'System Admin': 4
+            };
+            if (roleMap[role]) {
+                dataToUpdate.roleId = roleMap[role];
+            }
+        }
+
+        // Status update
+        if (status !== undefined) {
+            if (status === 'Active') {
+                dataToUpdate.isActive = true;
+                dataToUpdate.isPending = false;
+            } else if (status === 'Inactive') {
+                dataToUpdate.isActive = false;
+                dataToUpdate.isPending = false;
+            } else if (status === 'Pending') {
+                dataToUpdate.isActive = false;
+                dataToUpdate.isPending = true;
+            }
+        }
+
+        const updated = await prisma.user.update({
+            where:  { id: req.params.id },
+            data:   dataToUpdate,
+            select: SAFE_SELECT
+        });
+
+        return res.status(200).json({
+            success: true,
+            message: "User updated successfully.",
+            data:    mapUser(updated)
+        });
+    } catch (error) {
+        console.error("[user.controller] updateUser:", error);
+        return res.status(500).json({ success: false, message: error.message });
+    }
+};

@@ -222,10 +222,22 @@ function InvoiceListPage() {
     setDeleteInvoice(invoice);
   };
 
-  const handleConfirmDelete = (id) => {
-    setInvoices((prev) => prev.filter((inv) => inv.id !== id));
-    showToast(`Invoice ${id} permanently deleted.`, 'success');
-    setDeleteInvoice(null);
+  const handleConfirmDelete = async (invoiceOrId) => {
+    const target = deleteInvoice || (typeof invoiceOrId === 'object' ? invoiceOrId : invoices.find(i => i.id === invoiceOrId));
+    const targetDbId = target?.dbId || (typeof invoiceOrId === 'string' ? invoiceOrId : target?.id);
+    const displayId = target?.id || invoiceOrId;
+
+    try {
+      if (targetDbId) {
+        await invoiceService.deleteInvoice(targetDbId);
+      }
+      setInvoices((prev) => prev.filter((inv) => inv.id !== displayId && inv.dbId !== targetDbId));
+      showToast(`Invoice ${displayId} permanently deleted.`, 'success');
+      setDeleteInvoice(null);
+      fetchLiveInvoices();
+    } catch (err) {
+      showToast(`Failed to delete invoice: ${err.message}`, 'error');
+    }
   };
 
   const handleDownload = (invoice) => {
@@ -315,25 +327,25 @@ function InvoiceListPage() {
               <div class="subtitle">Date: ${invoice.date}</div>
             </div>
           </div>
-          <div class="row">
+          <div className="row">
             <div><strong>Billed To:</strong> ${invoice.customer}</div>
             <div><strong>Method:</strong> ${invoice.method}</div>
             ${invoice.reference && invoice.reference !== 'MANUAL_DASHBOARD' ? `<div><strong>Ref/Txn ID:</strong> ${invoice.reference}</div>` : ''}
           </div>
-          <div class="row">
+          <div className="row">
             <div><strong>Due Date:</strong> ${invoice.dueDate}</div>
             <div><strong>Status:</strong> ${invoice.status}</div>
           </div>
-          <div class="totals">
-            <div class="row" style="justify-content: flex-end; gap: 20px;">
+          <div className="totals">
+            <div className="row" style="justify-content: flex-end; gap: 20px;">
               <span>Tax:</span>
               <span>$${invoice.tax.toFixed(2)}</span>
             </div>
-            <div class="row" style="justify-content: flex-end; gap: 20px;">
+            <div className="row" style="justify-content: flex-end; gap: 20px;">
               <span>Discount:</span>
               <span>-$${invoice.discount.toFixed(2)}</span>
             </div>
-            <div class="total">
+            <div className="total">
               Total: $${invoice.amount.toFixed(2)}
             </div>
           </div>
@@ -380,7 +392,6 @@ function InvoiceListPage() {
 
       {/* CORE DISPLAY ROUTING BASED ON CHOSEN STATE */}
       {loading && <LoadingState />}
-
       {!loading && error && (
         <div className="rounded-3xl border border-rose-500/10 bg-slate-950/80 p-8 backdrop-blur text-center space-y-4 max-w-md mx-auto my-8">
           <div className="flex items-center justify-center w-14 h-14 rounded-full bg-rose-500/10 text-rose-400 mx-auto">

@@ -59,6 +59,12 @@ router.get(    "/",               (req, res) => forward(req, res, "/users"));
 // GET    /api/users/:id          — single user by UUID
 router.get(    "/:id",            (req, res) => forward(req, res, `/users/${req.params.id}`));
 
+// PUT    /api/users/:id          — update user details
+router.put(    "/:id",            (req, res) => forward(req, res, `/users/${req.params.id}`));
+
+// PATCH  /api/users/:id          — update user details
+router.patch(  "/:id",            (req, res) => forward(req, res, `/users/${req.params.id}`));
+
 // PATCH  /api/users/:id/profile  — update display name
 router.patch(  "/:id/profile",    (req, res) => forward(req, res, `/users/${req.params.id}/profile`));
 

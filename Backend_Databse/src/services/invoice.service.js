@@ -415,6 +415,22 @@ async function updateOverdueInvoices() {
   return { updatedCount: result.count };
 }
 
+// ─── Delete invoice ───────────────────────────────────────────────────────
+async function deleteInvoice(id) {
+  return await prisma.$transaction(async (tx) => {
+    // Delete associated payments first
+    await tx.payment.deleteMany({
+      where: { invoiceId: id }
+    });
+
+    const deleted = await tx.invoice.delete({
+      where: { id }
+    });
+
+    return deleted;
+  });
+}
+
 module.exports = {
   generateInvoiceNumber,
   listInvoices,
@@ -423,5 +439,6 @@ module.exports = {
   createManualInvoice,
   recordPayment,
   getRevenueSummary,
-  updateOverdueInvoices
+  updateOverdueInvoices,
+  deleteInvoice
 };
