@@ -113,9 +113,10 @@ def predict_churn(customer_id):
 
 
 if __name__ == "__main__":
+    port = int(os.environ.get("PORT", 5011))
     app.run(
         host="0.0.0.0",
-        port=5011,
+        port=port,
         debug=False,
         threaded=True
     )
