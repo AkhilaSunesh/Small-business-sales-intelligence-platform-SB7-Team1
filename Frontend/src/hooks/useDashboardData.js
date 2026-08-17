@@ -45,12 +45,18 @@ export default function useDashboardData(filters) {
         getTopProducts(filters),
       ]);
 
-      setSummary(sumRes?.data || sumRes || null);
-      setTrend(trendRes?.data || trendRes || []);
-      setTopProducts(topRes?.data || topRes || []);
+      const rawSum = sumRes?.data !== undefined ? sumRes.data : sumRes;
+      const rawTrend = trendRes?.data !== undefined ? trendRes.data : trendRes;
+      const rawTop = topRes?.data !== undefined ? topRes.data : topRes;
+
+      setSummary(rawSum && typeof rawSum === 'object' ? rawSum : null);
+      setTrend(Array.isArray(rawTrend) ? rawTrend : []);
+      setTopProducts(Array.isArray(rawTop) ? rawTop : []);
     } catch (err) {
       console.error('[Dashboard API] Error fetching data:', err.message);
       setError(err?.message || 'Failed to fetch dashboard data');
+      setTrend([]);
+      setTopProducts([]);
     } finally {
       setLoading(false);
     }
