@@ -6,6 +6,6 @@ const app = require("./app");
 
 const PORT = process.env.PORT || 6000;
 
-app.listen(PORT, () => {
-    console.log(`🔐 Security API Gateway running on http://localhost:${PORT}`);
+app.listen(PORT, "0.0.0.0", () => {
+    console.log(`🔐 Security API Gateway running on http://0.0.0.0:${PORT}`);
 });
