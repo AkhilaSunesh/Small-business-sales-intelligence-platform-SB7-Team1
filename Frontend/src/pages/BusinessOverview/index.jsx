@@ -91,12 +91,12 @@ export default function BusinessOverviewPage() {
         forecastService.getForecastReportsData(filters.dateRange, filters.category).catch(() => null),
       ]);
 
-      const summary = (summaryRes && summaryRes.data) || {};
-      const trend = (trendRes && trendRes.data) || [];
-      const products = (topRes && topRes.data) || topRes || [];
-      const recsList = (recsRes && recsRes.data) || [];
-      const counts = (countsRes && countsRes.data) || { lowStock: 0, overdueInvoices: 0, total: 0 };
-      const rawAlerts = (alertsRes && alertsRes.data) || [];
+      const summary = (summaryRes && summaryRes.data) || summaryRes || {};
+      const trend = Array.isArray(trendRes?.data) ? trendRes.data : Array.isArray(trendRes) ? trendRes : [];
+      const products = Array.isArray(topRes?.data) ? topRes.data : Array.isArray(topRes) ? topRes : [];
+      const recsList = Array.isArray(recsRes?.data) ? recsRes.data : Array.isArray(recsRes) ? recsRes : [];
+      const counts = (countsRes && countsRes.data) || countsRes || { lowStock: 0, overdueInvoices: 0, total: 0 };
+      const rawAlerts = Array.isArray(alertsRes?.data) ? alertsRes.data : Array.isArray(alertsRes) ? alertsRes : [];
 
       // Set empty state if critical details are missing
       if (!summary.totalRevenue && trend.length === 0 && products.length === 0) {
@@ -108,23 +108,23 @@ export default function BusinessOverviewPage() {
 
       // 1. Map KPI Cards
       setMetrics({
-        totalRevenue: summary.totalRevenue ? `$${summary.totalRevenue.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}` : '$0.00',
-        totalOrders: summary.totalSales ? summary.totalSales.toLocaleString() : '0',
-        totalCustomers: summary.totalCustomers ? summary.totalCustomers.toLocaleString() : '0',
-        totalProducts: summary.activeProducts ? summary.activeProducts.toLocaleString() : '0',
-        lowStockProducts: counts.lowStock ? counts.lowStock.toLocaleString() : '0',
-        pendingInvoices: counts.overdueInvoices ? counts.overdueInvoices.toLocaleString() : '0',
+        totalRevenue: summary.totalRevenue ? `$${Number(summary.totalRevenue).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}` : '$0.00',
+        totalOrders: summary.totalSales ? Number(summary.totalSales).toLocaleString() : '0',
+        totalCustomers: summary.totalCustomers ? Number(summary.totalCustomers).toLocaleString() : '0',
+        totalProducts: summary.activeProducts ? Number(summary.activeProducts).toLocaleString() : '0',
+        lowStockProducts: counts.lowStock ? Number(counts.lowStock).toLocaleString() : '0',
+        pendingInvoices: counts.overdueInvoices ? Number(counts.overdueInvoices).toLocaleString() : '0',
         aiRecommendations: recsList.length ? recsList.length.toLocaleString() : '0',
-        activeAlerts: counts.total ? counts.total.toLocaleString() : '0',
+        activeAlerts: counts.total ? Number(counts.total).toLocaleString() : '0',
       });
 
       // 2. Map Sales Trend Chart
       const mappedTrend = trend.map(t => {
         const dateObj = new Date(t.date + 'T00:00:00Z');
         return {
-          month: dateObj.toLocaleDateString('en-US', { month: 'short', day: 'numeric', timeZone: 'UTC' }),
-          revenue: t.revenue,
-          orders: t.transactions,
+          month: isNaN(dateObj.getTime()) ? (t.date || '') : dateObj.toLocaleDateString('en-US', { month: 'short', day: 'numeric', timeZone: 'UTC' }),
+          revenue: Number(t.revenue) || 0,
+          orders: Number(t.transactions) || 0,
         };
       });
       setRevenueTrend(mappedTrend);
@@ -132,22 +132,22 @@ export default function BusinessOverviewPage() {
       // 3. Map Top Products List
       const mappedProducts = products.map((item, idx) => ({
         rank: idx + 1,
-        name: item.productName,
-        qty: item.quantitySold,
+        name: item.productName || item.product || 'Unknown',
+        qty: item.quantitySold || 0,
         price: item.quantitySold > 0 ? `$${(item.revenue / item.quantitySold).toFixed(2)}` : '$0.00',
-        rev: `$${item.revenue.toLocaleString()}`,
+        rev: `$${(item.revenue || 0).toLocaleString()}`,
         margin: `${60 - idx * 3}%`,
         trend: idx % 2 === 0 ? `+${(12.5 - idx * 2.1).toFixed(1)}%` : `-${(2.1 + idx * 0.8).toFixed(1)}%`,
       }));
       setTopProducts(mappedProducts);
 
       // 4. Category Distribution — from real /api/analytics/categories
-      const rawCategories = (categoryRes && categoryRes.data) || [];
+      const rawCategories = Array.isArray(categoryRes?.data) ? categoryRes.data : Array.isArray(categoryRes) ? categoryRes : [];
       const finalCategoryData = rawCategories.map(c => ({ name: c.name, value: c.value }));
       setCategoryData(finalCategoryData);
 
       // 5. Payment Method Distribution — from real /api/analytics/payment-methods
-      const rawPayments = (paymentRes && paymentRes.data) || [];
+      const rawPayments = Array.isArray(paymentRes?.data) ? paymentRes.data : Array.isArray(paymentRes) ? paymentRes : [];
       const paymentDistData = rawPayments.map(p => ({
         channel: p.method,
         count:   p.count,
@@ -177,7 +177,7 @@ export default function BusinessOverviewPage() {
       setAiRecs(mappedRecs.slice(0, 3));
 
       // 8. Recent Activity from audit log — real entries only
-      const rawAudit = (auditRes && auditRes.data && auditRes.data.recentEntries) || [];
+      const rawAudit = Array.isArray(auditRes?.data?.recentEntries) ? auditRes.data.recentEntries : Array.isArray(auditRes?.recentEntries) ? auditRes.recentEntries : [];
       const mappedActivity = rawAudit.map((entry) => {
         const dateObj = new Date(entry.timestamp);
         const timeStr = isNaN(dateObj.getTime())
