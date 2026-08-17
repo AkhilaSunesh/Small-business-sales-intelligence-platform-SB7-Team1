@@ -1,4 +1,4 @@
-﻿"""
+"""
 Anomaly Detection API
 Port: 5013
 Gateway route: /api/anomaly-detection → http://localhost:5013/anomaly-detection
@@ -188,9 +188,10 @@ def detect_anomaly(customer_id):
 
 
 if __name__ == "__main__":
+    port = int(os.environ.get("PORT", 5013))
     app.run(
         host="0.0.0.0",
-        port=5013,
+        port=port,
         debug=False,
         threaded=True
     )

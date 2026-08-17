@@ -284,9 +284,10 @@ def get_customer_group(customer_id):
 
 
 if __name__ == "__main__":
+    port = int(os.environ.get("PORT", 5010))
     app.run(
         host="0.0.0.0",
-        port=5010,
+        port=port,
         debug=False,
         threaded=True
     )
