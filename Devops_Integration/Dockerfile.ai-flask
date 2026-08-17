@@ -7,7 +7,8 @@ ARG SERVICE_NAME
 
 # Install dependencies for the specific service
 COPY AIML/api/${SERVICE_NAME}/requirements.txt .
-RUN pip install --no-cache-dir -r requirements.txt
+RUN pip install --no-cache-dir --upgrade pip && \
+    pip install --no-cache-dir --default-timeout=100 -r requirements.txt
 
 # Copy the entire AIML folder to preserve relative paths to data/ and models/
 COPY AIML /app/AIML
