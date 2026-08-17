@@ -57,14 +57,24 @@ for (const key of requiredEnv) {
     }
 }
 
+// ── Service URL Configuration ──────────────────────────────────────────────────
+const {
+    BACKEND_API_URL,
+    CUSTOMER_SEGMENTATION_URL,
+    CHURN_PREDICTION_URL,
+    RECOMMENDATION_URL,
+    ANOMALY_DETECTION_URL,
+    FORECAST_API_URL
+} = require("./config/services.config");
+
 // Log the resolved service URLs once on startup
 console.log("[gateway] Service port mapping:");
-console.log(`  Backend              → ${process.env.BACKEND_API_URL            || "http://localhost:5000/api"}`);
-console.log(`  Customer Segmentation→ ${process.env.CUSTOMER_SEGMENTATION_URL  || "http://localhost:5010"}`);
-console.log(`  Churn Prediction     → ${process.env.CHURN_PREDICTION_URL       || "http://localhost:5011"}`);
-console.log(`  Recommendations      → ${process.env.RECOMMENDATION_URL         || "http://localhost:5012"}`);
-console.log(`  Anomaly Detection    → ${process.env.ANOMALY_DETECTION_URL      || "http://localhost:5013"}`);
-console.log(`  Forecast API         → ${process.env.FORECAST_API_URL           || "http://localhost:5014"} (fallback → backend)`);
+console.log(`  Backend              → ${BACKEND_API_URL}`);
+console.log(`  Customer Segmentation→ ${CUSTOMER_SEGMENTATION_URL}`);
+console.log(`  Churn Prediction     → ${CHURN_PREDICTION_URL}`);
+console.log(`  Recommendations      → ${RECOMMENDATION_URL}`);
+console.log(`  Anomaly Detection    → ${ANOMALY_DETECTION_URL}`);
+console.log(`  Forecast API         → ${FORECAST_API_URL} (fallback → backend)`);
 
 // ─── Express app ─────────────────────────────────────────────────────────────
 const app = express();
@@ -85,13 +95,13 @@ app.get("/", (req, res) => {
         version: "2.0",
         message: "Security API Gateway is running 🔐",
         ports: {
-            gateway:              process.env.PORT                        || 7000,
-            backend:              process.env.BACKEND_API_URL             || "http://localhost:5000/api",
-            customerSegmentation: process.env.CUSTOMER_SEGMENTATION_URL  || "http://localhost:5010",
-            churnPrediction:      process.env.CHURN_PREDICTION_URL        || "http://localhost:5011",
-            recommendations:      process.env.RECOMMENDATION_URL          || "http://localhost:5012",
-            anomalyDetection:     process.env.ANOMALY_DETECTION_URL       || "http://localhost:5013",
-            forecast:             process.env.FORECAST_API_URL            || "http://localhost:5014"
+            gateway:              process.env.PORT || 7000,
+            backend:              BACKEND_API_URL,
+            customerSegmentation: CUSTOMER_SEGMENTATION_URL,
+            churnPrediction:      CHURN_PREDICTION_URL,
+            recommendations:      RECOMMENDATION_URL,
+            anomalyDetection:     ANOMALY_DETECTION_URL,
+            forecast:             FORECAST_API_URL
         }
     });
 });

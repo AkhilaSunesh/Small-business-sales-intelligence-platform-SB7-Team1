@@ -7,10 +7,7 @@ const express = require("express");
 const axios   = require("axios");
 const router  = express.Router();
 
-const SERVICE_URL =
-    process.env.ANOMALY_DETECTION_URL ||
-    process.env.AI_API_URL            ||
-    "http://127.0.0.1:5013";
+const { ANOMALY_DETECTION_URL: SERVICE_URL } = require("../config/services.config");
 
 const forward = async (req, res, path) => {
     const target = `${SERVICE_URL}${path}`;

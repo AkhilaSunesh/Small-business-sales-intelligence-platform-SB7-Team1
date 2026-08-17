@@ -15,7 +15,7 @@ if (!fs.existsSync(uploadDir)) {
 }
 
 const upload = multer({ dest: uploadDir, limits: { fileSize: 10 * 1024 * 1024 } });
-const BACKEND_API_URL = process.env.BACKEND_API_URL || "http://localhost:5000/api";
+const { BACKEND_API_URL } = require("../config/services.config");
 
 // ─── GET /api/sales ───────────────────────────────────────────────────────────
 // Query params validated by Joi before forwarding to backend.
