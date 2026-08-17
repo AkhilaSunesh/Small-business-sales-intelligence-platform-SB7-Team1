@@ -9,6 +9,10 @@ router.get("/",    userController.getUsers);
 // GET /api/users/:id          — single user by UUID
 router.get("/:id", userController.getUserById);
 
+// PUT & PATCH /api/users/:id  — update user details (name, email, role, status)
+router.put("/:id",   userController.updateUser);
+router.patch("/:id", userController.updateUser);
+
 // PATCH /api/users/:id/profile — update display name only (email is read-only)
 router.patch("/:id/profile", userController.updateUserProfile);
 

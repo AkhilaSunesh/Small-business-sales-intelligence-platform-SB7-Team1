@@ -33,4 +33,7 @@ router.get("/:id/download", invoiceController.downloadInvoice);
 // GET  /api/invoices/:id             — single invoice by UUID (must be last)
 router.get("/:id", invoiceController.getInvoiceById);
 
+// DELETE /api/invoices/:id          — delete invoice by UUID
+router.delete("/:id", invoiceController.deleteInvoice);
+
 module.exports = router;

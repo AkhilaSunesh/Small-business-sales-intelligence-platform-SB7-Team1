@@ -84,4 +84,7 @@ router.get("/:id/download", async (req, res) => {
 // GET /api/invoices/:id — single invoice
 router.get("/:id", (req, res) => forward(req, res, `/invoices/${req.params.id}`));
 
+// DELETE /api/invoices/:id — delete invoice
+router.delete("/:id", auditSuccessfulAction("Invoice Deleted", "delete"), (req, res) => forward(req, res, `/invoices/${req.params.id}`));
+
 module.exports = router;

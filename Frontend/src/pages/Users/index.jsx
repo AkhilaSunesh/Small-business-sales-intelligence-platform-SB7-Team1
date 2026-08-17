@@ -225,7 +225,24 @@ function UsersPage() {
 
   const handleOpenEditModal = (user) => {
     setSelectedUser(user);
-    setFormData({ name: user.name, email: user.email, role: user.role, status: user.status });
+    // Normalize role to dropdown options: Owner, Store Manager, Sales Executive, Admin
+    let normalizedRole = 'Sales Executive';
+    if (user.role === 'Owner' || user.role === 'Business Owner' || user.roleId === 1) {
+      normalizedRole = 'Owner';
+    } else if (user.role === 'Store Manager' || user.roleId === 2) {
+      normalizedRole = 'Store Manager';
+    } else if (user.role === 'Sales Executive' || user.roleId === 3) {
+      normalizedRole = 'Sales Executive';
+    } else if (user.role === 'Admin' || user.role === 'System Administrator' || user.roleId === 4) {
+      normalizedRole = 'Admin';
+    }
+
+    setFormData({
+      name: user.name || '',
+      email: user.email || '',
+      role: normalizedRole,
+      status: user.status || 'Active'
+    });
     setFormErrors({});
     setActiveModal('edit');
   };
@@ -251,7 +268,7 @@ function UsersPage() {
     return Object.keys(errors).length === 0;
   };
 
-  // Add/Edit modal save — local-only for add; PATCH profile for edit
+  // Add/Edit modal save — local-only for add; PATCH/PUT /api/users/:id for edit
   const handleSaveUser = async (e) => {
     e.preventDefault();
     if (!validateForm()) return;
@@ -264,11 +281,14 @@ function UsersPage() {
       showMsg('success', `User "${formData.name}" added successfully.`);
       setActiveModal(null);
     } else if (activeModal === 'edit' && selectedUser) {
-      // Name update goes to the real API
+      // User update goes to the real API
       setActionBusy(selectedUser.id);
       try {
-        const res = await api.patch(`/api/users/${selectedUser.id}/profile`, {
+        const res = await api.patch(`/api/users/${selectedUser.id}`, {
           name: formData.name.trim(),
+          email: formData.email.trim(),
+          role: formData.role,
+          status: formData.status
         });
         if (res.data?.success) {
           setUsers(prev => prev.map(u =>
@@ -551,8 +571,9 @@ function UsersPage() {
 
       {/* Delete Confirmation Modal */}
       {deleteConfirmId && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-950/80 backdrop-blur-sm">
-          <div className="glass-panel w-full max-w-sm rounded-[2rem] p-6 space-y-5 relative border border-white/10 shadow-2xl">
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-950/80 backdrop-blur-md">
+          <div className="fixed inset-0" onClick={() => setDeleteConfirmId(null)} />
+          <div className="relative w-full max-w-sm rounded-[2rem] bg-slate-900 border border-white/10 p-6 space-y-5 shadow-2xl z-10">
             <button
               onClick={() => setDeleteConfirmId(null)}
               className="absolute top-4 right-4 text-slate-400 hover:text-white"
@@ -595,14 +616,15 @@ function UsersPage() {
 
       {/* View Modal */}
       {activeModal === 'view' && selectedUser && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-950/80 backdrop-blur-sm">
-          <div className="glass-panel w-full max-w-md rounded-[2rem] p-6 space-y-6 relative border border-white/10 shadow-2xl">
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-950/80 backdrop-blur-md">
+          <div className="fixed inset-0" onClick={() => setActiveModal(null)} />
+          <div className="relative w-full max-w-md rounded-[2rem] bg-slate-900 border border-white/10 p-6 space-y-6 shadow-2xl z-10">
             <button onClick={() => setActiveModal(null)} className="absolute top-4 right-4 text-slate-400 hover:text-white">
               <FiX size={20} />
             </button>
             <div>
               <h3 className="text-xl font-semibold text-white">User Details</h3>
-              <p className="text-xs text-slate-400 mt-1 font-mono">{t('usersDesc')}</p>
+              <p className="text-xs text-slate-400 mt-1 font-mono">Detailed system account overview.</p>
             </div>
             <div className="space-y-4">
               <div className="rounded-2xl bg-white/5 p-4">
@@ -635,8 +657,9 @@ function UsersPage() {
 
       {/* Add / Edit Modal */}
       {(activeModal === 'add' || activeModal === 'edit') && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-950/80 backdrop-blur-sm">
-          <div className="glass-panel w-full max-w-md rounded-[2rem] p-6 space-y-6 relative border border-white/10 shadow-2xl">
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-950/80 backdrop-blur-md">
+          <div className="fixed inset-0" onClick={() => setActiveModal(null)} />
+          <div className="relative w-full max-w-md rounded-[2rem] bg-slate-900 border border-white/10 p-6 space-y-6 shadow-2xl z-10">
             <button onClick={() => setActiveModal(null)} className="absolute top-4 right-4 text-slate-400 hover:text-white">
               <FiX size={20} />
             </button>
@@ -671,8 +694,7 @@ function UsersPage() {
                   value={formData.email}
                   onChange={handleFormChange}
                   placeholder="e.g. john@example.com"
-                  disabled={activeModal === 'edit'}
-                  className={`${formErrors.email ? 'border-rose-500/50' : ''} ${activeModal === 'edit' ? 'cursor-not-allowed opacity-60' : ''}`}
+                  className={formErrors.email ? 'border-rose-500/50' : ''}
                 />
                 {formErrors.email && <p className="text-xs text-rose-400 mt-1">{formErrors.email}</p>}
               </div>
@@ -682,7 +704,6 @@ function UsersPage() {
                   name="role"
                   value={formData.role}
                   onChange={handleFormChange}
-                  disabled={activeModal === 'edit'}
                   className="w-full rounded-2xl border border-white/10 bg-slate-950 px-4 py-3 text-slate-200 outline-none transition focus:border-cyan-400/50"
                 >
                   <option value="Owner">Owner</option>
@@ -697,7 +718,6 @@ function UsersPage() {
                   name="status"
                   value={formData.status}
                   onChange={handleFormChange}
-                  disabled={activeModal === 'edit'}
                   className="w-full rounded-2xl border border-white/10 bg-slate-950 px-4 py-3 text-slate-200 outline-none transition focus:border-cyan-400/50"
                 >
                   <option value="Active">Active</option>

@@ -141,7 +141,7 @@ function SignupPage() {
           <div className="space-y-2">
             <h2 className="text-3xl font-semibold text-white">Success!</h2>
             <p className="text-slate-350 text-sm">
-              Your account has been registered successfully. You can now log in with your credentials.
+              Account has been registered successfully. Approval pending.
             </p>
           </div>
           <div className="pt-4">
