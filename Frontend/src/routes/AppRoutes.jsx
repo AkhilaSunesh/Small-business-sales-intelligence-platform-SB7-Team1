@@ -2,6 +2,8 @@ import { Navigate, Route, Routes } from 'react-router-dom';
 import AppLayout from '../layouts/DashboardLayout';
 import LoginPage from '../pages/Login';
 import SignupPage from '../pages/Signup';
+import PrivacyPolicyPage from '../pages/PrivacyPolicy';
+import TermsConditionsPage from '../pages/TermsConditions';
 import DashboardPage from '../pages/Dashboard';
 import BusinessOverviewPage from '../pages/BusinessOverview';
 import UploadPage from '../pages/Upload';
@@ -26,6 +28,8 @@ function AppRoutes() {
       <Route path="/" element={<Navigate to="/login" replace />} />
       <Route path="/login" element={<LoginPage />} />
       <Route path="/signup" element={<SignupPage />} />
+      <Route path="/privacy" element={<PrivacyPolicyPage />} />
+      <Route path="/terms" element={<TermsConditionsPage />} />
       <Route
         element={
           <ProtectedRoute>

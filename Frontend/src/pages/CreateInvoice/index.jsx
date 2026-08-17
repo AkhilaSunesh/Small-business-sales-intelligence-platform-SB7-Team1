@@ -1005,7 +1005,214 @@ function CreateInvoicePage() {
             </div>
 
             <div className="mt-8 flex justify-end gap-3 border-t border-white/10 pt-4">
-              <Button variant="secondary" onClick={() => { window.print(); }} className="gap-2">
+              <Button
+                variant="secondary"
+                onClick={() => {
+                  const printWindow = window.open('', '_blank', 'height=750,width=850');
+                  if (!printWindow) {
+                    toast.show('Popup blocked! Please allow popups to print.', 'error');
+                    return;
+                  }
+
+                  const itemsHtml = invoiceItems.map((item) => {
+                    const itemSub = item.unitPrice * (item.quantity === '' ? 0 : Number(item.quantity));
+                    const itemDiscVal = itemSub * ((item.discountPercent === '' ? 0 : Number(item.discountPercent)) / 100);
+                    const taxable = itemSub - itemDiscVal;
+                    const itemTaxVal = taxable * ((item.taxPercent === '' ? 0 : Number(item.taxPercent)) / 100);
+                    const itemTot = taxable + itemTaxVal;
+
+                    return `
+                      <tr>
+                        <td style="padding: 10px 12px; border-bottom: 1px solid #e5e7eb; font-weight: 500;">${item.productName}</td>
+                        <td style="padding: 10px 12px; border-bottom: 1px solid #e5e7eb; text-align: center;">${item.quantity}</td>
+                        <td style="padding: 10px 12px; border-bottom: 1px solid #e5e7eb; text-align: right;">$${Number(item.unitPrice).toFixed(2)}</td>
+                        <td style="padding: 10px 12px; border-bottom: 1px solid #e5e7eb; text-align: right;">-${item.discountPercent}%</td>
+                        <td style="padding: 10px 12px; border-bottom: 1px solid #e5e7eb; text-align: right;">+${item.taxPercent}%</td>
+                        <td style="padding: 10px 12px; border-bottom: 1px solid #e5e7eb; text-align: right; font-weight: 600;">$${itemTot.toFixed(2)}</td>
+                      </tr>
+                    `;
+                  }).join('');
+
+                  printWindow.document.write(`
+                    <!DOCTYPE html>
+                    <html>
+                      <head>
+                        <meta charset="utf-8">
+                        <title>Invoice - ${invoiceNumber}</title>
+                        <style>
+                          * { box-sizing: border-box; margin: 0; padding: 0; }
+                          body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif; padding: 40px; color: #0f172a; background: #ffffff; }
+                          .invoice-box { max-width: 800px; margin: auto; }
+                          .header { display: flex; justify-content: space-between; align-items: flex-start; border-bottom: 2px solid #0f172a; padding-bottom: 20px; margin-bottom: 24px; }
+                          .logo-area { display: flex; align-items: center; gap: 10px; }
+                          .logo-icon { width: 38px; height: 38px; background: #0f172a; color: #38bdf8; border-radius: 8px; display: flex; align-items: center; justify-content: center; font-size: 20px; font-weight: bold; }
+                          .brand-name { font-size: 20px; font-weight: 800; color: #0f172a; }
+                          .brand-sub { font-size: 11px; color: #64748b; }
+                          .invoice-title-block { text-align: right; }
+                          .invoice-title { font-size: 24px; font-weight: 800; color: #0f172a; letter-spacing: 1px; }
+                          .invoice-id { font-size: 13px; font-family: monospace; color: #0284c7; font-weight: 700; margin-top: 4px; }
+                          .invoice-date { font-size: 12px; color: #64748b; margin-top: 2px; }
+                          
+                          .meta-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 20px; margin-bottom: 24px; background: #f8fafc; padding: 16px 20px; border-radius: 10px; border: 1px solid #e2e8f0; font-size: 13px; }
+                          .meta-col { display: flex; flex-direction: column; gap: 6px; }
+                          .meta-row { display: flex; justify-content: space-between; }
+                          .meta-label { color: #64748b; font-weight: 500; }
+                          .meta-val { color: #0f172a; font-weight: 600; }
+                          
+                          .badge { display: inline-block; padding: 2px 8px; border-radius: 9999px; font-size: 11px; font-weight: 700; text-transform: uppercase; }
+                          .badge-paid { background: #dcfce7; color: #15803d; }
+                          .badge-unpaid { background: #fee2e2; color: #b91c1c; }
+                          .badge-partial { background: #fef3c7; color: #b45309; }
+                          
+                          table { width: 100%; border-collapse: collapse; margin-bottom: 24px; font-size: 12px; }
+                          th { background: #f1f5f9; padding: 10px 12px; font-weight: 700; color: #334155; text-transform: uppercase; letter-spacing: 0.5px; border-bottom: 2px solid #cbd5e1; }
+                          
+                          .summary-wrap { display: flex; justify-content: space-between; align-items: flex-start; margin-top: 20px; }
+                          .notes { max-width: 380px; font-size: 12px; color: #64748b; line-height: 1.5; background: #f8fafc; padding: 12px 16px; border-radius: 8px; border-left: 3px solid #0284c7; }
+                          .totals { min-width: 260px; font-size: 13px; }
+                          .totals-row { display: flex; justify-content: space-between; padding: 6px 0; border-bottom: 1px dashed #e2e8f0; color: #475569; }
+                          .grand-total { display: flex; justify-content: space-between; padding: 10px 0 0; font-size: 18px; font-weight: 800; color: #0f172a; border-top: 2px solid #0f172a; margin-top: 6px; }
+                          
+                          .footer { text-align: center; margin-top: 40px; padding-top: 20px; border-top: 1px solid #e2e8f0; font-size: 11px; color: #94a3b8; }
+                          
+                          @media print {
+                            body { padding: 0; }
+                            @page { margin: 1.5cm; }
+                          }
+                        </style>
+                      </head>
+                      <body>
+                        <div class="invoice-box">
+                          <div class="header">
+                            <div class="logo-area">
+                              <div class="logo-icon">M</div>
+                              <div>
+                                <div class="brand-name">MarketMind AI</div>
+                                <div class="brand-sub">Intelligent Retail Platform</div>
+                              </div>
+                            </div>
+                            <div class="invoice-title-block">
+                              <div class="invoice-title">INVOICE</div>
+                              <div class="invoice-id">${invoiceNumber}</div>
+                              <div class="invoice-date">Issued: ${invoiceDate}</div>
+                            </div>
+                          </div>
+
+                          <div class="meta-grid">
+                            <div class="meta-col">
+                              <div class="meta-row">
+                                <span class="meta-label">Billed To:</span>
+                                <span class="meta-val">${customerName || 'N/A'}</span>
+                              </div>
+                              ${customerEmail ? `
+                                <div class="meta-row">
+                                  <span class="meta-label">Email:</span>
+                                  <span class="meta-val">${customerEmail}</span>
+                                </div>
+                              ` : ''}
+                              ${customerPhone ? `
+                                <div class="meta-row">
+                                  <span class="meta-label">Phone:</span>
+                                  <span class="meta-val">${customerPhone}</span>
+                                </div>
+                              ` : ''}
+                              <div class="meta-row">
+                                <span class="meta-label">Payment Method:</span>
+                                <span class="meta-val">${paymentMethod}</span>
+                              </div>
+                              ${paymentMethod === 'UPI' && transactionId ? `
+                                <div class="meta-row">
+                                  <span class="meta-label">Txn ID:</span>
+                                  <span class="meta-val" style="font-family: monospace;">${transactionId}</span>
+                                </div>
+                              ` : ''}
+                              ${paymentMethod === 'Card' && cardNumber ? `
+                                <div class="meta-row">
+                                  <span class="meta-label">Card No:</span>
+                                  <span class="meta-val" style="font-family: monospace;">${cardNumber}</span>
+                                </div>
+                              ` : ''}
+                              ${paymentMethod === 'Bank Transfer' && bankDetails ? `
+                                <div class="meta-row">
+                                  <span class="meta-label">Ref:</span>
+                                  <span class="meta-val" style="font-family: monospace;">${bankDetails}</span>
+                                </div>
+                              ` : ''}
+                            </div>
+                            <div class="meta-col">
+                              <div class="meta-row">
+                                <span class="meta-label">Payment Terms:</span>
+                                <span class="meta-val">On Receipt</span>
+                              </div>
+                              <div class="meta-row">
+                                <span class="meta-label">Payment Status:</span>
+                                <span>
+                                  <span class="badge ${
+                                    invoiceStatus === 'Paid' ? 'badge-paid' : invoiceStatus === 'Partially Paid' ? 'badge-partial' : 'badge-unpaid'
+                                  }">${invoiceStatus}</span>
+                                </span>
+                              </div>
+                            </div>
+                          </div>
+
+                          <table>
+                            <thead>
+                              <tr>
+                                <th style="text-align: left;">Product / Description</th>
+                                <th style="text-align: center; width: 60px;">Qty</th>
+                                <th style="text-align: right; width: 90px;">Unit Price</th>
+                                <th style="text-align: right; width: 70px;">Disc</th>
+                                <th style="text-align: right; width: 70px;">Tax</th>
+                                <th style="text-align: right; width: 100px;">Total</th>
+                              </tr>
+                            </thead>
+                            <tbody>
+                              ${itemsHtml}
+                            </tbody>
+                          </table>
+
+                          <div class="summary-wrap">
+                            <div class="notes">
+                              <strong>Notes & Terms:</strong>
+                              <p style="margin-top: 4px;">${notes || 'Thank you for your business. No additional terms applied.'}</p>
+                            </div>
+                            <div class="totals">
+                              <div class="totals-row">
+                                <span>Subtotal:</span>
+                                <span>$${subtotal}</span>
+                              </div>
+                              <div class="totals-row">
+                                <span>Discount:</span>
+                                <span style="color: #dc2626;">-$${totalDiscount}</span>
+                              </div>
+                              <div class="totals-row">
+                                <span>Tax:</span>
+                                <span>+$${totalTax}</span>
+                              </div>
+                              <div class="grand-total">
+                                <span>Grand Total:</span>
+                                <span style="color: #0284c7;">$${grandTotal}</span>
+                              </div>
+                            </div>
+                          </div>
+
+                          <div class="footer">
+                            <p>MarketMind AI · 100 Innovation Parkway, Suite 500, Silicon Valley, CA 94025</p>
+                            <p style="margin-top: 2px;">This is a computer-generated sales invoice receipt.</p>
+                          </div>
+                        </div>
+                      </body>
+                    </html>
+                  `);
+                  printWindow.document.close();
+                  printWindow.focus();
+                  setTimeout(() => {
+                    printWindow.print();
+                    printWindow.close();
+                  }, 400);
+                }}
+                className="gap-2"
+              >
                 <FiPrinter /> Print Invoice
               </Button>
               <Button onClick={() => setShowPreview(false)}>

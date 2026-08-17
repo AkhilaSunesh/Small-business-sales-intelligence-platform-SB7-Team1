@@ -6,6 +6,34 @@ import Input from '../../components/ui/Input';
 import { FiEye, FiEyeOff, FiCheckCircle } from 'react-icons/fi';
 import { registerUser } from '../../services/authService';
 
+// Modal Component for displaying Terms or Privacy Policy inline
+function PolicyModal({ isOpen, onClose, title, children }) {
+  if (!isOpen) return null;
+  return (
+    <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-950/80 backdrop-blur-md animate-in fade-in duration-150">
+      <div className="relative w-full max-w-2xl max-h-[85vh] flex flex-col rounded-3xl border border-white/10 bg-slate-900 shadow-2xl text-slate-100 p-6 sm:p-8">
+        <div className="flex justify-between items-center border-b border-white/10 pb-4 mb-4">
+          <h3 className="text-lg font-bold text-white">{title}</h3>
+          <button
+            onClick={onClose}
+            className="text-slate-400 hover:text-white bg-white/5 hover:bg-white/10 p-2 rounded-full transition"
+          >
+            ✕
+          </button>
+        </div>
+        <div className="overflow-y-auto space-y-4 text-xs sm:text-sm text-slate-300 pr-2 leading-relaxed">
+          {children}
+        </div>
+        <div className="mt-6 pt-4 border-t border-white/10 flex justify-end">
+          <Button onClick={onClose} className="py-2 px-5 text-xs">
+            I Understand & Close
+          </Button>
+        </div>
+      </div>
+    </div>
+  );
+}
+
 function SignupPage() {
   usePageTitle('Sign Up');
   const navigate = useNavigate();
@@ -26,6 +54,10 @@ function SignupPage() {
   const [isSuccess, setIsSuccess] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
   const [submitError, setSubmitError] = useState('');
+  
+  // Modal states for Terms & Privacy
+  const [showTermsModal, setShowTermsModal] = useState(false);
+  const [showPrivacyModal, setShowPrivacyModal] = useState(false);
 
   const handleChange = (e) => {
     const { name, value, type, checked } = e.target;
@@ -310,13 +342,27 @@ function SignupPage() {
                 />
                 <span className="text-xs leading-5 text-slate-350 select-none">
                   I agree to the{' '}
-                  <a href="#terms" className="text-cyan-400 hover:underline">
+                  <button
+                    type="button"
+                    onClick={(e) => {
+                      e.preventDefault();
+                      setShowTermsModal(true);
+                    }}
+                    className="text-cyan-400 hover:underline font-semibold"
+                  >
                     Terms & Conditions
-                  </a>{' '}
+                  </button>{' '}
                   and{' '}
-                  <a href="#privacy" className="text-cyan-400 hover:underline">
+                  <button
+                    type="button"
+                    onClick={(e) => {
+                      e.preventDefault();
+                      setShowPrivacyModal(true);
+                    }}
+                    className="text-cyan-400 hover:underline font-semibold"
+                  >
                     Privacy Policy
-                  </a>.
+                  </button>.
                 </span>
               </label>
               {errors.agreeTerms && <p className="text-xs text-rose-400 mt-1">{errors.agreeTerms}</p>}
@@ -337,6 +383,48 @@ function SignupPage() {
           </form>
         </section>
       </div>
+
+      {/* Terms & Conditions Modal */}
+      <PolicyModal
+        isOpen={showTermsModal}
+        onClose={() => setShowTermsModal(false)}
+        title="Terms & Conditions"
+      >
+        <p><strong>1. Account Registration:</strong> You agree to provide accurate, current, and complete registration details and maintain the security of your credentials.</p>
+        <p><strong>2. Authorized Roles:</strong> Users are assigned specific access roles (Business Owner, Store Manager, Sales Executive). Any attempt to bypass RBAC protections is strictly prohibited.</p>
+        <p><strong>3. Invoicing & Billing:</strong> You are responsible for ensuring tax percentages and sales figures generated comply with applicable regional accounting laws.</p>
+        <p><strong>4. Platform Data Ownership:</strong> Your organization maintains full ownership of all transaction databases and invoices uploaded.</p>
+        <div className="pt-2 text-right">
+          <Link
+            to="/terms"
+            target="_blank"
+            className="text-cyan-400 hover:underline text-xs"
+          >
+            Open Full Terms & Conditions Page ↗
+          </Link>
+        </div>
+      </PolicyModal>
+
+      {/* Privacy Policy Modal */}
+      <PolicyModal
+        isOpen={showPrivacyModal}
+        onClose={() => setShowPrivacyModal(false)}
+        title="Privacy Policy"
+      >
+        <p><strong>1. Information We Collect:</strong> We collect contact info, account credentials, and sales transaction metadata necessary for intelligence analytics.</p>
+        <p><strong>2. Usage of Data:</strong> Data is utilized solely to train forecasting models, detect inventory anomalies, and generate sales reports.</p>
+        <p><strong>3. Encryption & Storage:</strong> Passwords are cryptographically hashed and all traffic is secured over TLS/SSL encryption.</p>
+        <p><strong>4. No Third-Party Sale:</strong> We never sell or trade your data with third-party advertisers.</p>
+        <div className="pt-2 text-right">
+          <Link
+            to="/privacy"
+            target="_blank"
+            className="text-cyan-400 hover:underline text-xs"
+          >
+            Open Full Privacy Policy Page ↗
+          </Link>
+        </div>
+      </PolicyModal>
     </main>
   );
 }

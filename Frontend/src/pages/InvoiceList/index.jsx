@@ -264,33 +264,74 @@ function InvoiceListPage() {
       doc.text(`ID: ${invoice.id}`, pageWidth - 14, 18, { align: 'right' });
       doc.text(`Date: ${invoice.date}`, pageWidth - 14, 28, { align: 'right' });
 
-      let y = 54;
+      let y = 52;
       doc.setTextColor(15, 23, 42);
-      doc.setFontSize(11);
+      doc.setFontSize(10);
       doc.text(`Billed To: ${invoice.customer}`, 14, y);
       doc.text(`Payment Method: ${invoice.method}`, pageWidth - 14, y, { align: 'right' });
-      if (invoice.reference && invoice.reference !== 'MANUAL_DASHBOARD') {
-        y += 8;
-        doc.text(`Ref/Txn ID: ${invoice.reference}`, pageWidth - 14, y, { align: 'right' });
-      }
-      y += 8;
+      
+      y += 7;
       doc.text(`Due Date: ${invoice.dueDate}`, 14, y);
-      doc.text(`Status: ${invoice.status}`, pageWidth - 14, y, { align: 'right' });
+      if (invoice.reference && invoice.reference !== 'MANUAL_DASHBOARD') {
+        doc.text(`Ref/Txn ID: ${invoice.reference}`, pageWidth - 14, y, { align: 'right' });
+      } else {
+        doc.text(`Status: ${invoice.status}`, pageWidth - 14, y, { align: 'right' });
+      }
 
-      y += 16;
+      if (invoice.reference && invoice.reference !== 'MANUAL_DASHBOARD') {
+        y += 7;
+        doc.text(`Status: ${invoice.status}`, pageWidth - 14, y, { align: 'right' });
+      }
+
+      // Line Items Table if available
+      const items = Array.isArray(invoice.lineItems) ? invoice.lineItems : [];
+      if (items.length > 0) {
+        y += 12;
+        doc.setFillColor(241, 245, 249);
+        doc.rect(14, y, pageWidth - 28, 8, 'F');
+        doc.setFont('helvetica', 'bold');
+        doc.setFontSize(9);
+        doc.setTextColor(51, 65, 85);
+        doc.text('Item / Product', 18, y + 5.5);
+        doc.text('Qty', 110, y + 5.5, { align: 'center' });
+        doc.text('Unit Price', 145, y + 5.5, { align: 'right' });
+        doc.text('Total', pageWidth - 18, y + 5.5, { align: 'right' });
+
+        doc.setFont('helvetica', 'normal');
+        doc.setTextColor(15, 23, 42);
+
+        items.forEach((item, idx) => {
+          y += 8;
+          if (idx % 2 === 1) {
+            doc.setFillColor(248, 250, 252);
+            doc.rect(14, y, pageWidth - 28, 8, 'F');
+          }
+          const name = item.productName || item.name || item.product?.name || `Item ${idx + 1}`;
+          const qty = item.quantity || 1;
+          const price = item.unitPrice !== undefined ? Number(item.unitPrice) : (item.price !== undefined ? Number(item.price) : 0);
+          const total = item.lineTotal !== undefined ? Number(item.lineTotal) : (price * qty);
+
+          doc.text(String(name).substring(0, 45), 18, y + 5.5);
+          doc.text(String(qty), 110, y + 5.5, { align: 'center' });
+          doc.text(`$${price.toFixed(2)}`, 145, y + 5.5, { align: 'right' });
+          doc.text(`$${total.toFixed(2)}`, pageWidth - 18, y + 5.5, { align: 'right' });
+        });
+      }
+
+      y += 14;
       doc.setLineWidth(0.5);
       doc.setDrawColor(226, 232, 240);
       doc.line(14, y, pageWidth - 14, y);
 
-      y += 12;
-      doc.setFontSize(10);
-      doc.text(`Tax: $${invoice.tax.toFixed(2)}`, pageWidth - 14, y, { align: 'right' });
-      y += 8;
-      doc.text(`Discount: -$${invoice.discount.toFixed(2)}`, pageWidth - 14, y, { align: 'right' });
       y += 10;
+      doc.setFontSize(10);
+      doc.text(`Tax: $${Number(invoice.tax || 0).toFixed(2)}`, pageWidth - 14, y, { align: 'right' });
+      y += 7;
+      doc.text(`Discount: -$${Number(invoice.discount || 0).toFixed(2)}`, pageWidth - 14, y, { align: 'right' });
+      y += 9;
       doc.setFont('helvetica', 'bold');
       doc.setFontSize(14);
-      doc.text(`Total: $${invoice.amount.toFixed(2)}`, pageWidth - 14, y, { align: 'right' });
+      doc.text(`Total: $${Number(invoice.amount || 0).toFixed(2)}`, pageWidth - 14, y, { align: 'right' });
 
       doc.save(`invoice-${invoice.id}.pdf`);
       showToast(`Invoice ${invoice.id} downloaded successfully.`, 'success');
@@ -301,52 +342,180 @@ function InvoiceListPage() {
   };
 
   const handlePrint = (invoice) => {
-    const printWindow = window.open('', '', 'height=600,width=800');
+    const printWindow = window.open('', '_blank', 'height=750,width=850');
+    if (!printWindow) {
+      showToast('Popup blocked! Please allow popups to print invoices.', 'error');
+      return;
+    }
+
+    const items = Array.isArray(invoice.lineItems) ? invoice.lineItems : [];
+    const itemsHtml = items.length > 0
+      ? items.map((item, idx) => {
+          const name = item.productName || item.name || item.product?.name || `Item ${idx + 1}`;
+          const qty = item.quantity || 1;
+          const price = item.unitPrice !== undefined ? Number(item.unitPrice) : (item.price !== undefined ? Number(item.price) : 0);
+          const disc = item.discountPercent !== undefined ? Number(item.discountPercent) : 0;
+          const tax = item.taxPercent !== undefined ? Number(item.taxPercent) : 0;
+          const total = item.lineTotal !== undefined ? Number(item.lineTotal) : ((price * qty) * (1 - disc / 100) * (1 + tax / 100));
+          return `
+            <tr>
+              <td style="padding: 10px 12px; border-bottom: 1px solid #e5e7eb; font-weight: 500;">${name}</td>
+              <td style="padding: 10px 12px; border-bottom: 1px solid #e5e7eb; text-align: center;">${qty}</td>
+              <td style="padding: 10px 12px; border-bottom: 1px solid #e5e7eb; text-align: right;">$${price.toFixed(2)}</td>
+              <td style="padding: 10px 12px; border-bottom: 1px solid #e5e7eb; text-align: right;">${disc > 0 ? `-${disc}%` : '0%'}</td>
+              <td style="padding: 10px 12px; border-bottom: 1px solid #e5e7eb; text-align: right;">${tax > 0 ? `+${tax}%` : '0%'}</td>
+              <td style="padding: 10px 12px; border-bottom: 1px solid #e5e7eb; text-align: right; font-weight: 600;">$${total.toFixed(2)}</td>
+            </tr>
+          `;
+        }).join('')
+      : `
+        <tr>
+          <td colspan="6" style="padding: 14px 12px; border-bottom: 1px solid #e5e7eb; text-align: center; color: #6b7280;">Standard Invoice Items</td>
+        </tr>
+      `;
+
     printWindow.document.write(`
+      <!DOCTYPE html>
       <html>
         <head>
-          <title>Print Invoice - ${invoice.id}</title>
+          <meta charset="utf-8">
+          <title>Invoice - ${invoice.id}</title>
           <style>
-            body { font-family: sans-serif; padding: 40px; color: #111827; }
-            .header { border-bottom: 2px solid #e5e7eb; padding-bottom: 20px; margin-bottom: 30px; display: flex; justify-content: space-between; }
-            .title { font-size: 24px; font-weight: bold; }
-            .subtitle { color: #6b7280; font-size: 14px; margin-top: 5px; }
-            .row { display: flex; justify-content: space-between; margin-bottom: 10px; font-size: 14px; }
-            .totals { margin-top: 30px; border-top: 1px solid #e5e7eb; padding-top: 20px; text-align: right; }
-            .total { font-size: 18px; font-weight: bold; margin-top: 10px; }
+            * { box-sizing: border-box; margin: 0; padding: 0; }
+            body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif; padding: 40px; color: #0f172a; background: #ffffff; }
+            .invoice-box { max-width: 800px; margin: auto; }
+            .header { display: flex; justify-content: space-between; align-items: flex-start; border-bottom: 2px solid #0f172a; padding-bottom: 20px; margin-bottom: 24px; }
+            .logo-area { display: flex; align-items: center; gap: 10px; }
+            .logo-icon { width: 38px; height: 38px; background: #0f172a; color: #38bdf8; border-radius: 8px; display: flex; align-items: center; justify-content: center; font-size: 20px; font-weight: bold; }
+            .brand-name { font-size: 20px; font-weight: 800; color: #0f172a; }
+            .brand-sub { font-size: 11px; color: #64748b; }
+            .invoice-title-block { text-align: right; }
+            .invoice-title { font-size: 24px; font-weight: 800; color: #0f172a; letter-spacing: 1px; }
+            .invoice-id { font-size: 13px; font-family: monospace; color: #0284c7; font-weight: 700; margin-top: 4px; }
+            .invoice-date { font-size: 12px; color: #64748b; margin-top: 2px; }
+            
+            .meta-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 20px; margin-bottom: 24px; background: #f8fafc; padding: 16px 20px; border-radius: 10px; border: 1px solid #e2e8f0; font-size: 13px; }
+            .meta-col { display: flex; flex-direction: column; gap: 6px; }
+            .meta-row { display: flex; justify-content: space-between; }
+            .meta-label { color: #64748b; font-weight: 500; }
+            .meta-val { color: #0f172a; font-weight: 600; }
+            
+            .badge { display: inline-block; padding: 2px 8px; border-radius: 9999px; font-size: 11px; font-weight: 700; text-transform: uppercase; }
+            .badge-paid { background: #dcfce7; color: #15803d; }
+            .badge-unpaid { background: #fee2e2; color: #b91c1c; }
+            .badge-partial { background: #fef3c7; color: #b45309; }
+            
+            table { width: 100%; border-collapse: collapse; margin-bottom: 24px; font-size: 12px; }
+            th { background: #f1f5f9; padding: 10px 12px; font-weight: 700; color: #334155; text-transform: uppercase; letter-spacing: 0.5px; border-bottom: 2px solid #cbd5e1; }
+            
+            .summary-wrap { display: flex; justify-content: space-between; align-items: flex-start; margin-top: 20px; }
+            .notes { max-width: 380px; font-size: 12px; color: #64748b; line-height: 1.5; background: #f8fafc; padding: 12px 16px; border-radius: 8px; border-left: 3px solid #0284c7; }
+            .totals { min-width: 260px; font-size: 13px; }
+            .totals-row { display: flex; justify-content: space-between; padding: 6px 0; border-bottom: 1px dashed #e2e8f0; color: #475569; }
+            .grand-total { display: flex; justify-content: space-between; padding: 10px 0 0; font-size: 18px; font-weight: 800; color: #0f172a; border-top: 2px solid #0f172a; margin-top: 6px; }
+            
+            .footer { text-align: center; margin-top: 40px; padding-top: 20px; border-top: 1px solid #e2e8f0; font-size: 11px; color: #94a3b8; }
+            
+            @media print {
+              body { padding: 0; }
+              @page { margin: 1.5cm; }
+            }
           </style>
         </head>
         <body>
-          <div class="header">
-            <div>
-              <div class="title">INVOICE</div>
-              <div class="subtitle">MarketMind AI</div>
+          <div class="invoice-box">
+            <div class="header">
+              <div class="logo-area">
+                <div class="logo-icon">M</div>
+                <div>
+                  <div class="brand-name">MarketMind AI</div>
+                  <div class="brand-sub">Intelligent Retail Platform</div>
+                </div>
+              </div>
+              <div class="invoice-title-block">
+                <div class="invoice-title">INVOICE</div>
+                <div class="invoice-id">${invoice.id}</div>
+                <div class="invoice-date">Issued: ${invoice.date || 'N/A'}</div>
+              </div>
             </div>
-            <div style="text-align: right;">
-              <div style="font-weight: bold;">ID: ${invoice.id}</div>
-              <div class="subtitle">Date: ${invoice.date}</div>
+
+            <div class="meta-grid">
+              <div class="meta-col">
+                <div class="meta-row">
+                  <span class="meta-label">Billed To:</span>
+                  <span class="meta-val">${invoice.customer || 'Unknown Client'}</span>
+                </div>
+                <div class="meta-row">
+                  <span class="meta-label">Payment Method:</span>
+                  <span class="meta-val">${invoice.method || 'UPI'}</span>
+                </div>
+                ${invoice.reference && invoice.reference !== 'MANUAL_DASHBOARD' ? `
+                  <div class="meta-row">
+                    <span class="meta-label">Ref/Txn ID:</span>
+                    <span class="meta-val" style="font-family: monospace;">${invoice.reference}</span>
+                  </div>
+                ` : ''}
+              </div>
+              <div class="meta-col">
+                <div class="meta-row">
+                  <span class="meta-label">Due Date:</span>
+                  <span class="meta-val">${invoice.dueDate || 'On Receipt'}</span>
+                </div>
+                <div class="meta-row">
+                  <span class="meta-label">Payment Status:</span>
+                  <span>
+                    <span class="badge ${
+                      invoice.status === 'Paid' ? 'badge-paid' : invoice.status === 'Partially Paid' ? 'badge-partial' : 'badge-unpaid'
+                    }">${invoice.status || 'Unpaid'}</span>
+                  </span>
+                </div>
+                <div class="meta-row">
+                  <span class="meta-label">Last Database Sync:</span>
+                  <span class="meta-val" style="font-size: 11px; font-family: monospace; color: #64748b;">${invoice.lastUpdated || 'N/A'}</span>
+                </div>
+              </div>
             </div>
-          </div>
-          <div className="row">
-            <div><strong>Billed To:</strong> ${invoice.customer}</div>
-            <div><strong>Method:</strong> ${invoice.method}</div>
-            ${invoice.reference && invoice.reference !== 'MANUAL_DASHBOARD' ? `<div><strong>Ref/Txn ID:</strong> ${invoice.reference}</div>` : ''}
-          </div>
-          <div className="row">
-            <div><strong>Due Date:</strong> ${invoice.dueDate}</div>
-            <div><strong>Status:</strong> ${invoice.status}</div>
-          </div>
-          <div className="totals">
-            <div className="row" style="justify-content: flex-end; gap: 20px;">
-              <span>Tax:</span>
-              <span>$${invoice.tax.toFixed(2)}</span>
+
+            <table>
+              <thead>
+                <tr>
+                  <th style="text-align: left;">Product / Description</th>
+                  <th style="text-align: center; width: 60px;">Qty</th>
+                  <th style="text-align: right; width: 90px;">Unit Price</th>
+                  <th style="text-align: right; width: 70px;">Disc</th>
+                  <th style="text-align: right; width: 70px;">Tax</th>
+                  <th style="text-align: right; width: 100px;">Total</th>
+                </tr>
+              </thead>
+              <tbody>
+                ${itemsHtml}
+              </tbody>
+            </table>
+
+            <div class="summary-wrap">
+              <div class="notes">
+                <strong>Notes & Terms:</strong>
+                <p style="margin-top: 4px;">Thank you for your business. For any queries concerning this invoice, please contact support@marketmind.ai.</p>
+              </div>
+              <div class="totals">
+                <div class="totals-row">
+                  <span>Tax:</span>
+                  <span>$${Number(invoice.tax || 0).toFixed(2)}</span>
+                </div>
+                <div class="totals-row">
+                  <span>Discount:</span>
+                  <span style="color: #dc2626;">-$${Number(invoice.discount || 0).toFixed(2)}</span>
+                </div>
+                <div class="grand-total">
+                  <span>Grand Total:</span>
+                  <span style="color: #0284c7;">$${Number(invoice.amount || 0).toFixed(2)}</span>
+                </div>
+              </div>
             </div>
-            <div className="row" style="justify-content: flex-end; gap: 20px;">
-              <span>Discount:</span>
-              <span>-$${invoice.discount.toFixed(2)}</span>
-            </div>
-            <div className="total">
-              Total: $${invoice.amount.toFixed(2)}
+
+            <div class="footer">
+              <p>MarketMind AI · 100 Innovation Parkway, Suite 500, Silicon Valley, CA 94025</p>
+              <p style="margin-top: 2px;">This is a computer-generated sales invoice receipt.</p>
             </div>
           </div>
         </body>
@@ -357,7 +526,7 @@ function InvoiceListPage() {
     setTimeout(() => {
       printWindow.print();
       printWindow.close();
-    }, 250);
+    }, 400);
   };
 
   const handleClearFilters = () => {
