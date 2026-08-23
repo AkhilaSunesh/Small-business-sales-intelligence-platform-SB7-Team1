@@ -8,18 +8,23 @@ class ForecastService:
     def __init__(self):
         self.prophet_model_path = MODELS_DIR / "prophet_sales_forecast.pkl"
         self.sales_model_path = MODELS_DIR / "improved_sales_forecast.pkl"
-        self.model = self._load_model()
+        self._model = None
+        self._tried_loading = False
 
-    def _load_model(self):
-        for p in [self.prophet_model_path, self.sales_model_path]:
-            if p.exists():
-                try:
-                    m = joblib.load(p)
-                    print(f"[ForecastService] Loaded model from {p.name}")
-                    return m
-                except Exception as exc:
-                    print(f"[ForecastService] Error loading model {p.name}: {exc}")
-        return None
+    @property
+    def model(self):
+        if not self._tried_loading and self._model is None:
+            self._tried_loading = True
+            for p in [self.prophet_model_path, self.sales_model_path]:
+                if p.exists():
+                    try:
+                        self._model = joblib.load(p)
+                        print(f"[ForecastService] Loaded model from {p.name}")
+                        break
+                    except Exception as exc:
+                        print(f"[ForecastService] Error loading model {p.name}: {exc}")
+        return self._model
+
 
     def generate_prophet_forecast(self, days: int = 30) -> Optional[Dict[str, Any]]:
         if self.model is None or not hasattr(self.model, "make_future_dataframe"):
