@@ -3,6 +3,7 @@ from typing import Dict, Any, List, Optional
 from datetime import datetime, timedelta
 
 # Exact product definitions according to the Kaggle Retail Dataset
+# Products A, B, C, D with structured shapes supporting both .name and .product.name
 PRODUCTS_CATALOG = [
     {
         "id": "prod-001",
@@ -12,7 +13,14 @@ PRODUCTS_CATALOG = [
         "price": 54.94,
         "stock": 123412,
         "quantity": 123412,
-        "lowStockThreshold": 100
+        "lowStockThreshold": 100,
+        "product": {
+            "id": "prod-001",
+            "productCode": "A",
+            "name": "Product A",
+            "category": "Electronics",
+            "price": 54.94
+        }
     },
     {
         "id": "prod-002",
@@ -22,7 +30,14 @@ PRODUCTS_CATALOG = [
         "price": 55.05,
         "stock": 124430,
         "quantity": 124430,
-        "lowStockThreshold": 100
+        "lowStockThreshold": 100,
+        "product": {
+            "id": "prod-002",
+            "productCode": "B",
+            "name": "Product B",
+            "category": "Clothing",
+            "price": 55.05
+        }
     },
     {
         "id": "prod-003",
@@ -32,7 +47,14 @@ PRODUCTS_CATALOG = [
         "price": 55.15,
         "stock": 125405,
         "quantity": 125405,
-        "lowStockThreshold": 100
+        "lowStockThreshold": 100,
+        "product": {
+            "id": "prod-003",
+            "productCode": "C",
+            "name": "Product C",
+            "category": "Books",
+            "price": 55.15
+        }
     },
     {
         "id": "prod-004",
@@ -42,7 +64,14 @@ PRODUCTS_CATALOG = [
         "price": 55.10,
         "stock": 125005,
         "quantity": 125005,
-        "lowStockThreshold": 100
+        "lowStockThreshold": 100,
+        "product": {
+            "id": "prod-004",
+            "productCode": "D",
+            "name": "Product D",
+            "category": "Home Decor",
+            "price": 55.10
+        }
     }
 ]
 

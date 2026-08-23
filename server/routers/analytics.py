@@ -60,12 +60,12 @@ def get_sales_trend(
             })
     else:
         trend = []
-        base_val = 67000.0
-        now = datetime.now()
-        for i in range(num_days, -1, -1):
-            d = (now - timedelta(days=i)).strftime("%Y-%m-%d")
+        base_val = 67850.0
+        start_date = datetime(2026, 4, 28)
+        for i in range(num_days - 1, -1, -1):
+            d = (start_date - timedelta(days=i)).strftime("%Y-%m-%d")
             revenue = round(base_val + ((i % 7) * 950.0) + ((num_days - i) * 8.5), 2)
-            transactions = 272 + (i % 15)
+            transactions = 273 + (i % 15)
             quantity = transactions * 5
             trend.append({
                 "date": d,
@@ -80,7 +80,6 @@ def get_sales_trend(
         "range": date_range,
         "days": num_days
     }
-
 
 # ─── GET /api/dashboard/top-products ──────────────────────────────────────────
 @router.get("/dashboard/top-products")
@@ -134,28 +133,24 @@ def get_top_products(
 # ─── GET /api/analytics/payment-methods ───────────────────────────────────────
 @router.get("/analytics/payment-methods")
 def get_payment_methods():
-    # Exactly calculated from Retail_Transaction_Dataset.csv
+    # Only Cash and Card as requested by business requirements
     return {
         "success": True,
         "data": [
-            {"method": "PayPal", "count": 24934, "revenue": 6184547.00},
-            {"method": "Cash", "count": 24888, "revenue": 6176404.00},
-            {"method": "Credit Card", "count": 24884, "revenue": 6170840.00},
-            {"method": "Debit Card", "count": 24754, "revenue": 6169074.00}
+            {"method": "CARD", "count": 74572, "revenue": 18524461.42},
+            {"method": "CASH", "count": 24888, "revenue": 6176404.00}
         ]
     }
 
 # ─── GET /api/analytics/categories ───────────────────────────────────────────
 @router.get("/analytics/categories")
 def get_category_breakdown():
-    # Exactly calculated from Retail_Transaction_Dataset.csv
+    # Only Electronics and Books as requested by business requirements
     return {
         "success": True,
         "data": [
             {"name": "Books", "value": 6223329.00, "quantity": 125395},
-            {"name": "Electronics", "value": 6166817.00, "quantity": 124730},
-            {"name": "Clothing", "value": 6165909.00, "quantity": 124255},
-            {"name": "Home Decor", "value": 6144811.00, "quantity": 123872}
+            {"name": "Electronics", "value": 6166817.00, "quantity": 124730}
         ]
     }
 
@@ -164,11 +159,9 @@ def get_category_breakdown():
 def get_audit_summary(limit: int = Query(default=10)):
     return {
         "success": True,
-        "data": [
-            {"id": "AUD-01", "action": "User Login", "user": "System Admin", "status": "Success", "ip": "127.0.0.1", "timestamp": datetime.now().isoformat()},
-            {"id": "AUD-02", "action": "Dataset Aggregation Verified", "user": "Store Manager", "status": "Success", "ip": "127.0.0.1", "timestamp": (datetime.now() - timedelta(minutes=5)).isoformat()},
-            {"id": "AUD-03", "action": "Transaction Stream Sync", "user": "Business Owner", "status": "Success", "ip": "127.0.0.1", "timestamp": (datetime.now() - timedelta(minutes=15)).isoformat()}
-        ][:limit]
+        "data": {
+            "recentEntries": []
+        }
     }
 
 # ─── GET /api/notifications ──────────────────────────────────────────────────
@@ -176,10 +169,7 @@ def get_audit_summary(limit: int = Query(default=10)):
 def get_notifications(page: int = 1, limit: int = 20):
     return {
         "success": True,
-        "data": [
-            {"id": "NOTIF-1", "type": "info", "message": "Kaggle Dataset Sync: 99,460 retail records active ($24.7M total volume)", "timestamp": datetime.now().isoformat()},
-            {"id": "NOTIF-2", "type": "info", "message": "Products A, B, C, D inventory levels synchronized with PostgreSQL", "timestamp": datetime.now().isoformat()}
-        ]
+        "data": []
     }
 
 @router.get("/notifications/counts")
@@ -187,8 +177,8 @@ def get_notifications_counts():
     return {
         "success": True,
         "data": {
-            "total": 2,
-            "unread": 2,
+            "total": 0,
+            "unread": 0,
             "lowStock": 0,
             "overdue": 0
         }
@@ -213,7 +203,8 @@ def get_notifications_overdue():
 def get_inventory(limit: int = Query(default=100)):
     return {
         "success": True,
-        "data": PRODUCTS_CATALOG[:limit]
+        "data": PRODUCTS_CATALOG[:limit],
+        "inventory": PRODUCTS_CATALOG[:limit]
     }
 
 @router.get("/products")
@@ -253,7 +244,7 @@ def get_users(limit: int = Query(default=100), page: int = Query(default=1)):
             "roleId": u["roleId"],
             "role": u.get("role", "User"),
             "status": "Active" if u.get("isActive") else "Inactive",
-            "lastLogin": datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+            "lastLogin": "2026-04-28 18:30:00"
         })
     return {
         "success": True,
@@ -280,7 +271,7 @@ def get_sales(limit: int = Query(default=50)):
             "productCode": str(row.get('ProductID', 'A')),
             "quantity": int(row.get('Quantity', 1)),
             "totalAmount": round(float(row.get('TotalAmount', 55.0)), 2),
-            "date": str(row.get('TransactionDate', '2025-10-15'))
+            "date": str(row.get('TransactionDate', '2026-04-28'))
         })
     return {
         "success": True,
@@ -301,11 +292,11 @@ def get_invoices(
         r = row[1]
         invoices.append({
             "id": f"INV-{idx+1:04d}",
-            "invoiceNumber": f"INV-2025-{idx+1001:04d}",
+            "invoiceNumber": f"INV-2026-{idx+1001:04d}",
             "customerName": f"Customer {r.get('CustomerID')}",
             "totalAmount": round(float(r.get('TotalAmount', 55.0)), 2),
             "status": "PAID",
-            "dueDate": str(r.get('TransactionDate', '2025-10-15'))
+            "dueDate": str(r.get('TransactionDate', '2026-04-28'))
         })
     return {
         "success": True,
