@@ -1,8 +1,8 @@
-import builtins
 from fastapi import APIRouter, Query, HTTPException
 from typing import Optional, Dict, Any, List
 from datetime import datetime, timedelta
-import random
+
+from server.services.recommendation_service import PRODUCTS_CATALOG
 
 router = APIRouter(prefix="/api", tags=["Dashboard & Analytics & System"])
 
@@ -18,14 +18,13 @@ def get_dashboard_summary(
         "success": True,
         "data": {
             "totalRevenue": 284520.50,
-            "totalOrders": 1845,
-            "totalSales": 1845,
+            "totalOrders": 30201,
+            "totalSales": 30201,
             "totalCustomers": 94724,
-            "avgOrderValue": 154.21,
-            "activeProducts": 48
+            "avgOrderValue": 9.42,
+            "activeProducts": len(PRODUCTS_CATALOG)
         }
     }
-
 
 # ─── GET /api/dashboard/total-revenue ─────────────────────────────────────────
 @router.get("/dashboard/total-revenue")
@@ -53,7 +52,6 @@ def get_sales_trend(
     now = datetime.now()
 
     for i in range(num_days, -1, -1):
-
         d = (now - timedelta(days=i)).strftime("%Y-%m-%d")
         revenue = round(base_val + (i % 7 * 45.0) + ((num_days - i) * 12.0), 2)
         transactions = 15 + (i % 5)
@@ -78,17 +76,48 @@ def get_top_products(
     date_range: str = Query(default="30d", alias="range"),
     limit: int = Query(default=5)
 ):
+    # Only Product A, Product B, Product C, and Product D exist in dataset
     return {
         "success": True,
         "data": [
-            {"productId": "P-101", "product": "Wireless Headphones", "productName": "Wireless Headphones", "category": "Electronics", "quantitySold": 340, "revenue": 50966.0},
-            {"productId": "P-102", "product": "Mechanical Keyboard", "productName": "Mechanical Keyboard", "category": "Electronics", "quantitySold": 210, "revenue": 18795.0},
-            {"productId": "P-103", "product": "Organic Cotton Tee", "productName": "Organic Cotton Tee", "category": "Apparel", "quantitySold": 580, "revenue": 13920.0},
-            {"productId": "P-104", "product": "Thermal Bottle", "productName": "Thermal Bottle", "category": "Accessories", "quantitySold": 410, "revenue": 8179.5},
-            {"productId": "P-105", "product": "Smart Fitness Band", "productName": "Smart Fitness Band", "category": "Electronics", "quantitySold": 190, "revenue": 9481.0}
+            {
+                "productId": "prod-001",
+                "productCode": "A",
+                "product": "Product A",
+                "productName": "Product A",
+                "category": "Electronics",
+                "quantitySold": 8200,
+                "revenue": 115200.00
+            },
+            {
+                "productId": "prod-002",
+                "productCode": "B",
+                "product": "Product B",
+                "productName": "Product B",
+                "category": "Apparel",
+                "quantitySold": 7650,
+                "revenue": 76500.00
+            },
+            {
+                "productId": "prod-003",
+                "productCode": "C",
+                "product": "Product C",
+                "productName": "Product C",
+                "category": "Home & Kitchen",
+                "quantitySold": 6920,
+                "revenue": 55360.00
+            },
+            {
+                "productId": "prod-004",
+                "productCode": "D",
+                "product": "Product D",
+                "productName": "Product D",
+                "category": "Accessories",
+                "quantitySold": 5120,
+                "revenue": 37460.50
+            }
         ][:limit]
     }
-
 
 # ─── GET /api/analytics/payment-methods ───────────────────────────────────────
 @router.get("/analytics/payment-methods")
@@ -96,10 +125,10 @@ def get_payment_methods():
     return {
         "success": True,
         "data": [
-            {"method": "CARD", "count": 850, "revenue": 145000.0},
-            {"method": "ONLINE", "count": 520, "revenue": 89000.0},
-            {"method": "CASH", "count": 310, "revenue": 34500.0},
-            {"method": "BANK_TRANSFER", "count": 165, "revenue": 16020.5}
+            {"method": "CARD", "count": 12500, "revenue": 118000.00},
+            {"method": "ONLINE", "count": 8900, "revenue": 84500.00},
+            {"method": "CASH", "count": 5200, "revenue": 49200.00},
+            {"method": "BANK_TRANSFER", "count": 3601, "revenue": 32820.50}
         ]
     }
 
@@ -109,11 +138,10 @@ def get_category_breakdown():
     return {
         "success": True,
         "data": [
-            {"name": "Electronics", "value": 115000.0, "quantity": 1240},
-            {"name": "Apparel", "value": 68000.0, "quantity": 2800},
-            {"name": "Accessories", "value": 45000.0, "quantity": 1950},
-            {"name": "Home & Kitchen", "value": 36000.0, "quantity": 890},
-            {"name": "Books", "value": 20520.5, "quantity": 1120}
+            {"name": "Electronics", "value": 115200.00, "quantity": 8200},
+            {"name": "Apparel", "value": 76500.00, "quantity": 7650},
+            {"name": "Home & Kitchen", "value": 55360.00, "quantity": 6920},
+            {"name": "Accessories", "value": 37460.50, "quantity": 5120}
         ]
     }
 
@@ -124,8 +152,8 @@ def get_audit_summary(limit: int = Query(default=10)):
         "success": True,
         "data": [
             {"id": "AUD-01", "action": "User Login", "user": "System Admin", "status": "Success", "ip": "127.0.0.1", "timestamp": datetime.now().isoformat()},
-            {"id": "AUD-02", "action": "AI Report Requested", "user": "Store Manager", "status": "Success", "ip": "127.0.0.1", "timestamp": (datetime.now() - timedelta(minutes=5)).isoformat()},
-            {"id": "AUD-03", "action": "Forecast Model Loaded", "user": "System", "status": "Success", "ip": "127.0.0.1", "timestamp": (datetime.now() - timedelta(minutes=15)).isoformat()}
+            {"id": "AUD-02", "action": "Stock Inspection (Product A, B, C, D)", "user": "Store Manager", "status": "Success", "ip": "127.0.0.1", "timestamp": (datetime.now() - timedelta(minutes=5)).isoformat()},
+            {"id": "AUD-03", "action": "Sales Intelligence Query", "user": "Business Owner", "status": "Success", "ip": "127.0.0.1", "timestamp": (datetime.now() - timedelta(minutes=15)).isoformat()}
         ][:limit]
     }
 
@@ -135,8 +163,8 @@ def get_notifications(page: int = 1, limit: int = 20):
     return {
         "success": True,
         "data": [
-            {"id": "NOTIF-1", "type": "warning", "message": "Low stock alert: Ergonomic Mechanical Keyboard (5 remaining)", "timestamp": datetime.now().isoformat()},
-            {"id": "NOTIF-2", "type": "info", "message": "Prophet model updated with latest weekly batch", "timestamp": datetime.now().isoformat()}
+            {"id": "NOTIF-1", "type": "info", "message": "Catalog verified: 4 standard product lines (Product A, B, C, D)", "timestamp": datetime.now().isoformat()},
+            {"id": "NOTIF-2", "type": "info", "message": "AI models synchronized with PostgreSQL and Kaggle datasets", "timestamp": datetime.now().isoformat()}
         ]
     }
 
@@ -147,7 +175,7 @@ def get_notifications_counts():
         "data": {
             "total": 2,
             "unread": 2,
-            "lowStock": 1,
+            "lowStock": 0,
             "overdue": 0
         }
     }
@@ -156,9 +184,7 @@ def get_notifications_counts():
 def get_notifications_low_stock():
     return {
         "success": True,
-        "data": [
-            {"id": "PROD-002", "name": "Ergonomic Mechanical Keyboard", "stock": 5, "lowStockThreshold": 10}
-        ]
+        "data": []
     }
 
 @router.get("/notifications/overdue-invoices")
@@ -168,27 +194,27 @@ def get_notifications_overdue():
         "data": []
     }
 
-# ─── GET /api/inventory ───────────────────────────────────────────────────────
+# ─── GET /api/inventory & /api/products ───────────────────────────────────────
 @router.get("/inventory")
 def get_inventory(limit: int = Query(default=100)):
     return {
         "success": True,
-        "data": [
-            {"id": "PROD-001", "productCode": "P-101", "name": "Wireless Noise Cancelling Headphones", "category": "Electronics", "price": 149.99, "stock": 42, "quantity": 42, "lowStockThreshold": 10},
-            {"id": "PROD-002", "productCode": "P-102", "name": "Ergonomic Mechanical Keyboard", "category": "Electronics", "price": 89.50, "stock": 5, "quantity": 5, "lowStockThreshold": 10},
-            {"id": "PROD-003", "productCode": "P-103", "name": "Organic Cotton Crewneck T-Shirt", "category": "Apparel", "price": 24.00, "stock": 120, "quantity": 120, "lowStockThreshold": 20},
-            {"id": "PROD-004", "productCode": "P-104", "name": "Stainless Steel Thermal Water Bottle", "category": "Accessories", "price": 19.95, "stock": 8, "quantity": 8, "lowStockThreshold": 15}
-        ]
+        "data": PRODUCTS_CATALOG[:limit]
     }
 
-# ─── GET /api/products ────────────────────────────────────────────────────────
 @router.get("/products")
 def get_products():
-    return get_inventory()
+    return {
+        "success": True,
+        "data": PRODUCTS_CATALOG
+    }
 
 @router.get("/products/with-stock")
 def get_products_with_stock():
-    return get_inventory()
+    return {
+        "success": True,
+        "data": PRODUCTS_CATALOG
+    }
 
 # ─── GET /api/customers ───────────────────────────────────────────────────────
 @router.get("/customers")
@@ -232,20 +258,36 @@ def get_sales(limit: int = Query(default=50)):
     return {
         "success": True,
         "data": [
-            {"id": "TX-001", "invoiceNo": "INV-1001", "customer": "Customer 1024", "product": "Wireless Headphones", "quantity": 2, "totalAmount": 299.98, "date": "2024-05-12"},
-            {"id": "TX-002", "invoiceNo": "INV-1002", "customer": "Customer 2056", "product": "Mechanical Keyboard", "quantity": 1, "totalAmount": 89.50, "date": "2024-05-13"}
+            {"id": "TX-001", "invoiceNo": "INV-1001", "customer": "Customer C1001", "product": "Product A", "productCode": "A", "quantity": 2, "totalAmount": 90.00, "date": "2024-05-12"},
+            {"id": "TX-002", "invoiceNo": "INV-1002", "customer": "Customer C1002", "product": "Product B", "productCode": "B", "quantity": 1, "totalAmount": 25.00, "date": "2024-05-13"},
+            {"id": "TX-003", "invoiceNo": "INV-1003", "customer": "Customer C1003", "product": "Product C", "productCode": "C", "quantity": 3, "totalAmount": 105.00, "date": "2024-05-14"},
+            {"id": "TX-004", "invoiceNo": "INV-1004", "customer": "Customer C1004", "product": "Product D", "productCode": "D", "quantity": 4, "totalAmount": 60.00, "date": "2024-05-15"}
         ]
     }
 
 # ─── GET /api/invoices ────────────────────────────────────────────────────────
 @router.get("/invoices")
-def get_invoices(limit: int = Query(default=50)):
+def get_invoices(
+    limit: int = Query(default=50, alias="pageSize"),
+    page: int = Query(default=1),
+    sortBy: Optional[str] = None,
+    sortOrder: Optional[str] = None
+):
+    invoices = [
+        {"id": "INV-001", "invoiceNumber": "INV-2024-001", "customerName": "Customer C1001", "totalAmount": 90.00, "status": "PAID", "dueDate": "2024-06-01"},
+        {"id": "INV-002", "invoiceNumber": "INV-2024-002", "customerName": "Customer C1002", "totalAmount": 25.00, "status": "PAID", "dueDate": "2024-06-15"},
+        {"id": "INV-003", "invoiceNumber": "INV-2024-003", "customerName": "Customer C1003", "totalAmount": 105.00, "status": "PAID", "dueDate": "2024-06-20"},
+        {"id": "INV-004", "invoiceNumber": "INV-2024-004", "customerName": "Customer C1004", "totalAmount": 60.00, "status": "PAID", "dueDate": "2024-06-25"}
+    ]
     return {
         "success": True,
-        "data": [
-            {"id": "INV-001", "invoiceNumber": "INV-2024-001", "customerName": "Acme Corp", "totalAmount": 450.00, "status": "PAID", "dueDate": "2024-06-01"},
-            {"id": "INV-002", "invoiceNumber": "INV-2024-002", "customerName": "Stark Retail", "totalAmount": 890.50, "status": "UNPAID", "dueDate": "2024-06-15"}
-        ]
+        "data": invoices,
+        "pagination": {
+            "total": len(invoices),
+            "page": page,
+            "pageSize": limit,
+            "totalPages": 1
+        }
     }
 
 @router.get("/invoices/revenue/summary")
@@ -254,7 +296,7 @@ def get_invoices_revenue_summary():
         "success": True,
         "data": {
             "totalRevenue": 284520.50,
-            "paidRevenue": 240000.00,
-            "unpaidRevenue": 44520.50
+            "paidRevenue": 284520.50,
+            "unpaidRevenue": 0.00
         }
     }
