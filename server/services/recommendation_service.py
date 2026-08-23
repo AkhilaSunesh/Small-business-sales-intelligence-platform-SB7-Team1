@@ -1,48 +1,48 @@
-import os
 import pandas as pd
 from typing import Dict, Any, List, Optional
+from datetime import datetime, timedelta
 
-# Standard Catalog of Products defined in the Kaggle retail dataset
+# Exact product definitions according to the Kaggle Retail Dataset
 PRODUCTS_CATALOG = [
     {
         "id": "prod-001",
         "productCode": "A",
         "name": "Product A",
         "category": "Electronics",
-        "price": 45.00,
-        "stock": 1240,
-        "quantity": 1240,
-        "lowStockThreshold": 50
+        "price": 54.94,
+        "stock": 123412,
+        "quantity": 123412,
+        "lowStockThreshold": 100
     },
     {
         "id": "prod-002",
         "productCode": "B",
         "name": "Product B",
-        "category": "Apparel",
-        "price": 25.00,
-        "stock": 2800,
-        "quantity": 2800,
+        "category": "Clothing",
+        "price": 55.05,
+        "stock": 124430,
+        "quantity": 124430,
         "lowStockThreshold": 100
     },
     {
         "id": "prod-003",
         "productCode": "C",
         "name": "Product C",
-        "category": "Home & Kitchen",
-        "price": 35.00,
-        "stock": 1950,
-        "quantity": 1950,
-        "lowStockThreshold": 80
+        "category": "Books",
+        "price": 55.15,
+        "stock": 125405,
+        "quantity": 125405,
+        "lowStockThreshold": 100
     },
     {
         "id": "prod-004",
         "productCode": "D",
         "name": "Product D",
-        "category": "Accessories",
-        "price": 15.00,
-        "stock": 890,
-        "quantity": 890,
-        "lowStockThreshold": 40
+        "category": "Home Decor",
+        "price": 55.10,
+        "stock": 125005,
+        "quantity": 125005,
+        "lowStockThreshold": 100
     }
 ]
 

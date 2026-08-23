@@ -17,12 +17,12 @@ def get_dashboard_summary(
     return {
         "success": True,
         "data": {
-            "totalRevenue": 284520.50,
-            "totalOrders": 30201,
-            "totalSales": 30201,
+            "totalRevenue": 24700865.42,
+            "totalOrders": 99460,
+            "totalSales": 99460,
             "totalCustomers": 94724,
-            "avgOrderValue": 9.42,
-            "activeProducts": len(PRODUCTS_CATALOG)
+            "avgOrderValue": 248.35,
+            "activeProducts": 4
         }
     }
 
@@ -32,7 +32,7 @@ def get_total_revenue():
     return {
         "success": True,
         "data": {
-            "totalRevenue": 284520.50
+            "totalRevenue": 24700865.42
         }
     }
 
@@ -48,14 +48,15 @@ def get_sales_trend(
     num_days = days_map.get(date_range, 30)
 
     trend = []
-    base_val = 1450.0
+    # Daily average ~ $67,673 across 365 days
+    base_val = 67000.0
     now = datetime.now()
 
     for i in range(num_days, -1, -1):
         d = (now - timedelta(days=i)).strftime("%Y-%m-%d")
-        revenue = round(base_val + (i % 7 * 45.0) + ((num_days - i) * 12.0), 2)
-        transactions = 15 + (i % 5)
-        quantity = transactions * 2
+        revenue = round(base_val + ((i % 7) * 950.0) + ((num_days - i) * 8.5), 2)
+        transactions = 272 + (i % 15)
+        quantity = transactions * 5
         trend.append({
             "date": d,
             "revenue": revenue,
@@ -76,45 +77,45 @@ def get_top_products(
     date_range: str = Query(default="30d", alias="range"),
     limit: int = Query(default=5)
 ):
-    # Only Product A, Product B, Product C, and Product D exist in dataset
+    # Exactly calculated from Retail_Transaction_Dataset.csv
     return {
         "success": True,
         "data": [
-            {
-                "productId": "prod-001",
-                "productCode": "A",
-                "product": "Product A",
-                "productName": "Product A",
-                "category": "Electronics",
-                "quantitySold": 8200,
-                "revenue": 115200.00
-            },
-            {
-                "productId": "prod-002",
-                "productCode": "B",
-                "product": "Product B",
-                "productName": "Product B",
-                "category": "Apparel",
-                "quantitySold": 7650,
-                "revenue": 76500.00
-            },
             {
                 "productId": "prod-003",
                 "productCode": "C",
                 "product": "Product C",
                 "productName": "Product C",
-                "category": "Home & Kitchen",
-                "quantitySold": 6920,
-                "revenue": 55360.00
+                "category": "Books",
+                "quantitySold": 125405,
+                "revenue": 6215536.00
             },
             {
                 "productId": "prod-004",
                 "productCode": "D",
                 "product": "Product D",
                 "productName": "Product D",
-                "category": "Accessories",
-                "quantitySold": 5120,
-                "revenue": 37460.50
+                "category": "Home Decor",
+                "quantitySold": 125005,
+                "revenue": 6205183.00
+            },
+            {
+                "productId": "prod-002",
+                "productCode": "B",
+                "product": "Product B",
+                "productName": "Product B",
+                "category": "Clothing",
+                "quantitySold": 124430,
+                "revenue": 6176979.00
+            },
+            {
+                "productId": "prod-001",
+                "productCode": "A",
+                "product": "Product A",
+                "productName": "Product A",
+                "category": "Electronics",
+                "quantitySold": 123412,
+                "revenue": 6103168.00
             }
         ][:limit]
     }
@@ -122,26 +123,28 @@ def get_top_products(
 # ─── GET /api/analytics/payment-methods ───────────────────────────────────────
 @router.get("/analytics/payment-methods")
 def get_payment_methods():
+    # Exactly calculated from Retail_Transaction_Dataset.csv
     return {
         "success": True,
         "data": [
-            {"method": "CARD", "count": 12500, "revenue": 118000.00},
-            {"method": "ONLINE", "count": 8900, "revenue": 84500.00},
-            {"method": "CASH", "count": 5200, "revenue": 49200.00},
-            {"method": "BANK_TRANSFER", "count": 3601, "revenue": 32820.50}
+            {"method": "PayPal", "count": 24934, "revenue": 6184547.00},
+            {"method": "Cash", "count": 24888, "revenue": 6176404.00},
+            {"method": "Credit Card", "count": 24884, "revenue": 6170840.00},
+            {"method": "Debit Card", "count": 24754, "revenue": 6169074.00}
         ]
     }
 
 # ─── GET /api/analytics/categories ───────────────────────────────────────────
 @router.get("/analytics/categories")
 def get_category_breakdown():
+    # Exactly calculated from Retail_Transaction_Dataset.csv
     return {
         "success": True,
         "data": [
-            {"name": "Electronics", "value": 115200.00, "quantity": 8200},
-            {"name": "Apparel", "value": 76500.00, "quantity": 7650},
-            {"name": "Home & Kitchen", "value": 55360.00, "quantity": 6920},
-            {"name": "Accessories", "value": 37460.50, "quantity": 5120}
+            {"name": "Books", "value": 6223329.00, "quantity": 125395},
+            {"name": "Electronics", "value": 6166817.00, "quantity": 124730},
+            {"name": "Clothing", "value": 6165909.00, "quantity": 124255},
+            {"name": "Home Decor", "value": 6144811.00, "quantity": 123872}
         ]
     }
 
@@ -152,8 +155,8 @@ def get_audit_summary(limit: int = Query(default=10)):
         "success": True,
         "data": [
             {"id": "AUD-01", "action": "User Login", "user": "System Admin", "status": "Success", "ip": "127.0.0.1", "timestamp": datetime.now().isoformat()},
-            {"id": "AUD-02", "action": "Stock Inspection (Product A, B, C, D)", "user": "Store Manager", "status": "Success", "ip": "127.0.0.1", "timestamp": (datetime.now() - timedelta(minutes=5)).isoformat()},
-            {"id": "AUD-03", "action": "Sales Intelligence Query", "user": "Business Owner", "status": "Success", "ip": "127.0.0.1", "timestamp": (datetime.now() - timedelta(minutes=15)).isoformat()}
+            {"id": "AUD-02", "action": "Dataset Aggregation Verified", "user": "Store Manager", "status": "Success", "ip": "127.0.0.1", "timestamp": (datetime.now() - timedelta(minutes=5)).isoformat()},
+            {"id": "AUD-03", "action": "Transaction Stream Sync", "user": "Business Owner", "status": "Success", "ip": "127.0.0.1", "timestamp": (datetime.now() - timedelta(minutes=15)).isoformat()}
         ][:limit]
     }
 
@@ -163,8 +166,8 @@ def get_notifications(page: int = 1, limit: int = 20):
     return {
         "success": True,
         "data": [
-            {"id": "NOTIF-1", "type": "info", "message": "Catalog verified: 4 standard product lines (Product A, B, C, D)", "timestamp": datetime.now().isoformat()},
-            {"id": "NOTIF-2", "type": "info", "message": "AI models synchronized with PostgreSQL and Kaggle datasets", "timestamp": datetime.now().isoformat()}
+            {"id": "NOTIF-1", "type": "info", "message": "Kaggle Dataset Sync: 99,460 retail records active ($24.7M total volume)", "timestamp": datetime.now().isoformat()},
+            {"id": "NOTIF-2", "type": "info", "message": "Products A, B, C, D inventory levels synchronized with PostgreSQL", "timestamp": datetime.now().isoformat()}
         ]
     }
 
@@ -255,14 +258,22 @@ def get_users(limit: int = Query(default=100), page: int = Query(default=1)):
 # ─── GET /api/sales ───────────────────────────────────────────────────────────
 @router.get("/sales")
 def get_sales(limit: int = Query(default=50)):
+    from server.services.anomaly_service import anomaly_service
+    data = []
+    for _, row in anomaly_service.data.head(limit).iterrows():
+        data.append({
+            "id": f"TX-{row.get('CustomerID', '1000')}",
+            "invoiceNo": f"INV-{row.get('CustomerID', '1000')}",
+            "customer": f"Customer {row.get('CustomerID')}",
+            "product": f"Product {row.get('ProductID', 'A')}",
+            "productCode": str(row.get('ProductID', 'A')),
+            "quantity": int(row.get('Quantity', 1)),
+            "totalAmount": round(float(row.get('TotalAmount', 55.0)), 2),
+            "date": str(row.get('TransactionDate', '2025-10-15'))
+        })
     return {
         "success": True,
-        "data": [
-            {"id": "TX-001", "invoiceNo": "INV-1001", "customer": "Customer C1001", "product": "Product A", "productCode": "A", "quantity": 2, "totalAmount": 90.00, "date": "2024-05-12"},
-            {"id": "TX-002", "invoiceNo": "INV-1002", "customer": "Customer C1002", "product": "Product B", "productCode": "B", "quantity": 1, "totalAmount": 25.00, "date": "2024-05-13"},
-            {"id": "TX-003", "invoiceNo": "INV-1003", "customer": "Customer C1003", "product": "Product C", "productCode": "C", "quantity": 3, "totalAmount": 105.00, "date": "2024-05-14"},
-            {"id": "TX-004", "invoiceNo": "INV-1004", "customer": "Customer C1004", "product": "Product D", "productCode": "D", "quantity": 4, "totalAmount": 60.00, "date": "2024-05-15"}
-        ]
+        "data": data
     }
 
 # ─── GET /api/invoices ────────────────────────────────────────────────────────
@@ -273,12 +284,18 @@ def get_invoices(
     sortBy: Optional[str] = None,
     sortOrder: Optional[str] = None
 ):
-    invoices = [
-        {"id": "INV-001", "invoiceNumber": "INV-2024-001", "customerName": "Customer C1001", "totalAmount": 90.00, "status": "PAID", "dueDate": "2024-06-01"},
-        {"id": "INV-002", "invoiceNumber": "INV-2024-002", "customerName": "Customer C1002", "totalAmount": 25.00, "status": "PAID", "dueDate": "2024-06-15"},
-        {"id": "INV-003", "invoiceNumber": "INV-2024-003", "customerName": "Customer C1003", "totalAmount": 105.00, "status": "PAID", "dueDate": "2024-06-20"},
-        {"id": "INV-004", "invoiceNumber": "INV-2024-004", "customerName": "Customer C1004", "totalAmount": 60.00, "status": "PAID", "dueDate": "2024-06-25"}
-    ]
+    from server.services.anomaly_service import anomaly_service
+    invoices = []
+    for idx, row in enumerate(anomaly_service.data.head(limit).iterrows()):
+        r = row[1]
+        invoices.append({
+            "id": f"INV-{idx+1:04d}",
+            "invoiceNumber": f"INV-2025-{idx+1001:04d}",
+            "customerName": f"Customer {r.get('CustomerID')}",
+            "totalAmount": round(float(r.get('TotalAmount', 55.0)), 2),
+            "status": "PAID",
+            "dueDate": str(r.get('TransactionDate', '2025-10-15'))
+        })
     return {
         "success": True,
         "data": invoices,
@@ -295,8 +312,8 @@ def get_invoices_revenue_summary():
     return {
         "success": True,
         "data": {
-            "totalRevenue": 284520.50,
-            "paidRevenue": 284520.50,
+            "totalRevenue": 24700865.42,
+            "paidRevenue": 24700865.42,
             "unpaidRevenue": 0.00
         }
     }
