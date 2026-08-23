@@ -1,3 +1,13 @@
+---
+title: MarketMind AI - Sales Intelligence Platform
+emoji: 📊
+colorFrom: indigo
+colorTo: blue
+sdk: docker
+app_port: 7860
+pinned: false
+---
+
 # MarketMind AI - Small Business Sales Intelligence Platform
 
 MarketMind AI is an AI-powered sales intelligence platform designed to help small businesses, retail stores, supermarkets, and startups make better business decisions using data and Artificial Intelligence.
