@@ -100,11 +100,13 @@ class ForecastService:
         }
 
     def get_forecast(self, days: int = 30, lookback: int = 90, window: int = 7) -> Dict[str, Any]:
-        # Try Prophet model first
-        res = self.generate_prophet_forecast(days=days)
-        if res:
-            return res
-        # Fallback to Statistical Moving Average
+        try:
+            res = self.generate_prophet_forecast(days=days)
+            if res:
+                return res
+        except Exception as e:
+            print(f"[ForecastService] Prophet error: {e}")
         return self.generate_sma_fallback(days=days, lookback=lookback, window=window)
 
 forecast_service = ForecastService()
+
