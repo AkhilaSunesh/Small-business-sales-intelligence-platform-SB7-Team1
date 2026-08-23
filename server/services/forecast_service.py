@@ -3,13 +3,11 @@ from typing import Dict, Any, List, Optional
 from datetime import datetime, timedelta
 from server.config import DATA_DIR
 
-# Anchor to reference today: August 23, 2026
-CURRENT_DATE = datetime(2026, 8, 23)
-
 class ForecastService:
     def __init__(self):
         self.csv_path = DATA_DIR / "Retail_Transaction_Dataset.csv"
         self._daily_cache: Optional[pd.DataFrame] = None
+        self.last_dataset_date: Optional[datetime] = None
         self._load_historical_data()
 
     def _load_historical_data(self):
@@ -22,16 +20,13 @@ class ForecastService:
                     transactions=('TotalAmount', 'count'),
                     quantity=('Quantity', 'sum')
                 ).reset_index()
-                daily = daily.sort_values(by='TransactionDate').reset_index(drop=True)
-                
-                # Shift historical dates up to 2026-08-23
-                n = len(daily)
-                adjusted_dates = [(CURRENT_DATE - timedelta(days=n - 1 - i)).strftime("%Y-%m-%d") for i in range(n)]
-                daily['date'] = adjusted_dates
+                daily['date'] = daily['TransactionDate'].astype(str)
+                daily = daily.sort_values(by='date').reset_index(drop=True)
                 self._daily_cache = daily
-                print(f"[ForecastService] Aggregated {len(daily)} historical daily series anchored to {CURRENT_DATE.strftime('%Y-%m-%d')}")
+                self.last_dataset_date = datetime.strptime(daily['date'].iloc[-1], "%Y-%m-%d")
+                print(f"[ForecastService] Aggregated {len(daily)} raw historical daily records from dataset (ends {daily['date'].iloc[-1]})")
             except Exception as e:
-                print(f"[ForecastService] Error aggregating dataset: {e}")
+                print(f"[ForecastService] Error loading dataset: {e}")
 
     def get_forecast(self, days: int = 30, lookback: int = 90, window: int = 7) -> Dict[str, Any]:
         if self._daily_cache is None or self._daily_cache.empty:
@@ -48,7 +43,7 @@ class ForecastService:
                     "quantity": int(r["quantity"])
                 })
 
-        # Calculate forecast points based on moving averages of actual dataset
+        # Calculate forecast points based on moving average of actual dataset window
         if historical_records:
             avg_rev = sum(item["revenue"] for item in historical_records[-window:]) / window
             avg_tx = sum(item["transactions"] for item in historical_records[-window:]) / window
@@ -57,7 +52,8 @@ class ForecastService:
             avg_tx = 273.0
 
         forecast_points = []
-        start_date = CURRENT_DATE
+        # Raw dataset ends on 2026-04-28 -> forecasting starts from 2026-04-29
+        start_date = self.last_dataset_date if self.last_dataset_date else datetime(2026, 4, 28)
 
         for i in range(1, days + 1):
             target_date = (start_date + timedelta(days=i)).strftime("%Y-%m-%d")
@@ -85,7 +81,7 @@ class ForecastService:
             "lookback": lookback,
             "smaWindow": window,
             "confidence": "99.2%",
-            "generatedAt": CURRENT_DATE.strftime("%Y-%m-%dT%H:%M:%S"),
+            "generatedAt": start_date.strftime("%Y-%m-%dT%H:%M:%S"),
             "forecast": forecast_points,
             "historical": historical_records
         }
