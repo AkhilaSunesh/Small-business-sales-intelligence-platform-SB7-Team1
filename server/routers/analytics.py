@@ -1,3 +1,4 @@
+import builtins
 from fastapi import APIRouter, Query, HTTPException
 from typing import Optional, Dict, Any, List
 from datetime import datetime, timedelta
@@ -8,7 +9,7 @@ router = APIRouter(prefix="/api", tags=["Dashboard & Analytics & System"])
 # ─── GET /api/dashboard/summary ───────────────────────────────────────────────
 @router.get("/dashboard/summary")
 def get_dashboard_summary(
-    range: str = Query(default="30d"),
+    date_range: str = Query(default="30d", alias="range"),
     category: str = Query(default="all"),
     startDate: Optional[str] = None,
     endDate: Optional[str] = None
@@ -25,6 +26,7 @@ def get_dashboard_summary(
         }
     }
 
+
 # ─── GET /api/dashboard/total-revenue ─────────────────────────────────────────
 @router.get("/dashboard/total-revenue")
 def get_total_revenue():
@@ -38,19 +40,20 @@ def get_total_revenue():
 # ─── GET /api/dashboard/sales-trend ───────────────────────────────────────────
 @router.get("/dashboard/sales-trend")
 def get_sales_trend(
-    range: str = Query(default="30d"),
+    date_range: str = Query(default="30d", alias="range"),
     category: str = Query(default="all"),
     startDate: Optional[str] = None,
     endDate: Optional[str] = None
 ):
     days_map = {"7d": 7, "30d": 30, "90d": 90, "3m": 90, "6m": 180, "1y": 365, "today": 1}
-    num_days = days_map.get(range, 30)
+    num_days = days_map.get(date_range, 30)
 
     trend = []
     base_val = 1450.0
     now = datetime.now()
 
     for i in range(num_days, -1, -1):
+
         d = (now - timedelta(days=i)).strftime("%Y-%m-%d")
         revenue = round(base_val + (i % 7 * 45.0) + ((num_days - i) * 12.0), 2)
         transactions = 15 + (i % 5)
@@ -65,14 +68,14 @@ def get_sales_trend(
     return {
         "success": True,
         "data": trend,
-        "range": range,
+        "range": date_range,
         "days": num_days
     }
 
 # ─── GET /api/dashboard/top-products ──────────────────────────────────────────
 @router.get("/dashboard/top-products")
 def get_top_products(
-    range: str = Query(default="30d"),
+    date_range: str = Query(default="30d", alias="range"),
     limit: int = Query(default=5)
 ):
     return {
@@ -85,6 +88,7 @@ def get_top_products(
             {"productId": "P-105", "product": "Smart Fitness Band", "productName": "Smart Fitness Band", "category": "Electronics", "quantitySold": 190, "revenue": 9481.0}
         ][:limit]
     }
+
 
 # ─── GET /api/analytics/payment-methods ───────────────────────────────────────
 @router.get("/analytics/payment-methods")
