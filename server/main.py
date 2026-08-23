@@ -17,11 +17,14 @@ app = FastAPI(
 # ── CORS Middleware ────────────────────────────────────────────────────────────
 app.add_middleware(
     CORSMiddleware,
+    allow_origin_regex=r"^https?:\/\/.*",
     allow_origins=["*"],
-    allow_credentials=True,
+    allow_credentials=False,
     allow_methods=["*"],
     allow_headers=["*"],
+    expose_headers=["*"],
 )
+
 
 # ── Mount Service Routers ──────────────────────────────────────────────────────
 app.include_router(auth.router)
