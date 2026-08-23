@@ -44,25 +44,35 @@ def get_sales_trend(
     startDate: Optional[str] = None,
     endDate: Optional[str] = None
 ):
+    from server.services.forecast_service import forecast_service
     days_map = {"7d": 7, "30d": 30, "90d": 90, "3m": 90, "6m": 180, "1y": 365, "today": 1}
     num_days = days_map.get(date_range, 30)
 
-    trend = []
-    # Daily average ~ $67,673 across 365 days
-    base_val = 67000.0
-    now = datetime.now()
-
-    for i in range(num_days, -1, -1):
-        d = (now - timedelta(days=i)).strftime("%Y-%m-%d")
-        revenue = round(base_val + ((i % 7) * 950.0) + ((num_days - i) * 8.5), 2)
-        transactions = 272 + (i % 15)
-        quantity = transactions * 5
-        trend.append({
-            "date": d,
-            "revenue": revenue,
-            "transactions": transactions,
-            "quantity": quantity
-        })
+    if forecast_service._daily_cache is not None and not forecast_service._daily_cache.empty:
+        trend = []
+        subset = forecast_service._daily_cache.tail(num_days)
+        for _, r in subset.iterrows():
+            trend.append({
+                "date": r["date"],
+                "revenue": round(float(r["revenue"]), 2),
+                "transactions": int(r["transactions"]),
+                "quantity": int(r["quantity"])
+            })
+    else:
+        trend = []
+        base_val = 67000.0
+        now = datetime.now()
+        for i in range(num_days, -1, -1):
+            d = (now - timedelta(days=i)).strftime("%Y-%m-%d")
+            revenue = round(base_val + ((i % 7) * 950.0) + ((num_days - i) * 8.5), 2)
+            transactions = 272 + (i % 15)
+            quantity = transactions * 5
+            trend.append({
+                "date": d,
+                "revenue": revenue,
+                "transactions": transactions,
+                "quantity": quantity
+            })
 
     return {
         "success": True,
@@ -70,6 +80,7 @@ def get_sales_trend(
         "range": date_range,
         "days": num_days
     }
+
 
 # ─── GET /api/dashboard/top-products ──────────────────────────────────────────
 @router.get("/dashboard/top-products")
