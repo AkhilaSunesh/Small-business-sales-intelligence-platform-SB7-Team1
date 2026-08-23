@@ -13,8 +13,48 @@ from server.config import REFRESH_TOKEN_SECRET
 
 router = APIRouter(prefix="/api/auth", tags=["Authentication"])
 
-# In-memory mock user store / demo admin fallback when direct DB connection is not configured
+# System accounts matching the original seed data and test credentials
 MOCK_USERS: Dict[str, Dict[str, Any]] = {
+    "admin@marketmind.dev": {
+        "id": "f7eb3703-0645-49d4-be71-962b3d283cba",
+        "name": "System Admin",
+        "email": "admin@marketmind.dev",
+        "password": get_password_hash("Password1!"),
+        "roleId": 4,
+        "role": "Admin",
+        "isActive": True,
+        "isPending": False
+    },
+    "owner@marketmind.dev": {
+        "id": "4005dfa6-3c04-4e2d-8ee8-7f38536d23b0",
+        "name": "Business Owner",
+        "email": "owner@marketmind.dev",
+        "password": get_password_hash("Password1!"),
+        "roleId": 1,
+        "role": "Owner",
+        "isActive": True,
+        "isPending": False
+    },
+    "manager@marketmind.dev": {
+        "id": "4c49c904-69ff-43ea-a26d-18d47fd354ff",
+        "name": "Store Manager",
+        "email": "manager@marketmind.dev",
+        "password": get_password_hash("Password1!"),
+        "roleId": 2,
+        "role": "Store Manager",
+        "isActive": True,
+        "isPending": False
+    },
+    "sales@marketmind.dev": {
+        "id": "5bf90d45-a1e6-487a-9615-3c80c3502161",
+        "name": "Sales Executive",
+        "email": "sales@marketmind.dev",
+        "password": get_password_hash("Password1!"),
+        "roleId": 3,
+        "role": "Sales Executive",
+        "isActive": True,
+        "isPending": False
+    },
     "admin@marketmind.ai": {
         "id": "usr-admin-001",
         "name": "MarketMind Admin",
@@ -24,18 +64,9 @@ MOCK_USERS: Dict[str, Dict[str, Any]] = {
         "role": "Admin",
         "isActive": True,
         "isPending": False
-    },
-    "owner@marketmind.ai": {
-        "id": "usr-owner-001",
-        "name": "Store Owner",
-        "email": "owner@marketmind.ai",
-        "password": get_password_hash("Owner@123"),
-        "roleId": 1,
-        "role": "Owner",
-        "isActive": True,
-        "isPending": False
     }
 }
+
 
 class RegisterRequest(BaseModel):
     name: str
