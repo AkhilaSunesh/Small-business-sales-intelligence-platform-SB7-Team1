@@ -3,6 +3,9 @@ from typing import Dict, Any, List, Optional
 from datetime import datetime, timedelta
 from server.config import DATA_DIR
 
+# Anchor to reference today: August 23, 2026
+CURRENT_DATE = datetime(2026, 8, 23)
+
 class ForecastService:
     def __init__(self):
         self.csv_path = DATA_DIR / "Retail_Transaction_Dataset.csv"
@@ -19,10 +22,14 @@ class ForecastService:
                     transactions=('TotalAmount', 'count'),
                     quantity=('Quantity', 'sum')
                 ).reset_index()
-                daily['date'] = daily['TransactionDate'].astype(str)
-                daily = daily.sort_values(by='date')
+                daily = daily.sort_values(by='TransactionDate').reset_index(drop=True)
+                
+                # Shift historical dates up to 2026-08-23
+                n = len(daily)
+                adjusted_dates = [(CURRENT_DATE - timedelta(days=n - 1 - i)).strftime("%Y-%m-%d") for i in range(n)]
+                daily['date'] = adjusted_dates
                 self._daily_cache = daily
-                print(f"[ForecastService] Aggregated {len(daily)} historical daily series from dataset")
+                print(f"[ForecastService] Aggregated {len(daily)} historical daily series anchored to {CURRENT_DATE.strftime('%Y-%m-%d')}")
             except Exception as e:
                 print(f"[ForecastService] Error aggregating dataset: {e}")
 
@@ -50,7 +57,7 @@ class ForecastService:
             avg_tx = 273.0
 
         forecast_points = []
-        start_date = datetime.now()
+        start_date = CURRENT_DATE
 
         for i in range(1, days + 1):
             target_date = (start_date + timedelta(days=i)).strftime("%Y-%m-%d")
@@ -78,7 +85,7 @@ class ForecastService:
             "lookback": lookback,
             "smaWindow": window,
             "confidence": "99.2%",
-            "generatedAt": datetime.now().isoformat(),
+            "generatedAt": CURRENT_DATE.strftime("%Y-%m-%dT%H:%M:%S"),
             "forecast": forecast_points,
             "historical": historical_records
         }
