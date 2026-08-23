@@ -23,12 +23,13 @@ class AnomalyService:
         for p in [self.data_path, self.fallback_data_path]:
             if p.exists():
                 try:
-                    df = pd.read_csv(p)
-                    print(f"[AnomalyService] Loaded {len(df)} rows from {p.name}")
+                    df = pd.read_csv(p, nrows=5000)
+                    print(f"[AnomalyService] Loaded sample of {len(df)} rows from {p.name}")
                     return df
                 except Exception as exc:
                     print(f"[AnomalyService] Error loading {p.name}: {exc}")
         return pd.DataFrame(columns=["CustomerID", "ProductID", "Quantity", "Price", "TransactionDate", "TotalAmount", "Anomaly"])
+
 
     def _load_model(self) -> Optional[Dict[str, Any]]:
         if self.model_path.exists():

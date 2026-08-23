@@ -33,14 +33,15 @@ class SegmentationService:
         for p in [self.improved_data, self.fallback_data]:
             if p.exists():
                 try:
-                    df = pd.read_csv(p)
-                    print(f"[SegmentationService] Loaded {len(df)} rows from {p.name}")
+                    df = pd.read_csv(p, nrows=5000)
+                    print(f"[SegmentationService] Loaded sample of {len(df)} rows from {p.name}")
                     if self.GROUP_COLUMN in df.columns and df[self.GROUP_COLUMN].dtype.kind in "ifu":
                         df[self.GROUP_COLUMN] = df[self.GROUP_COLUMN].astype(int)
                     return df
                 except Exception as exc:
                     print(f"[SegmentationService] Error loading {p.name}: {exc}")
         return pd.DataFrame(columns=["CustomerID", "TotalSpent", "QuantityPurchased", "Frequency", "AverageOrderValue", "AverageQuantityPerTransaction", "Recency", self.GROUP_COLUMN])
+
 
     def _load_model(self):
         if self.model_path.exists():

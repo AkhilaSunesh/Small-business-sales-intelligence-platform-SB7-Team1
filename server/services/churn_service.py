@@ -12,12 +12,13 @@ class ChurnService:
         for p in [self.improved_data_path, self.data_path]:
             if p.exists():
                 try:
-                    df = pd.read_csv(p)
-                    print(f"[ChurnService] Loaded {len(df)} rows from {p.name}")
+                    df = pd.read_csv(p, nrows=5000)
+                    print(f"[ChurnService] Loaded sample of {len(df)} rows from {p.name}")
                     return df
                 except Exception as exc:
                     print(f"[ChurnService] Error loading {p.name}: {exc}")
         return pd.DataFrame(columns=["CustomerID", "ChurnRisk"])
+
 
     def get_summary(self) -> Dict[str, Any]:
         if self.data.empty:
