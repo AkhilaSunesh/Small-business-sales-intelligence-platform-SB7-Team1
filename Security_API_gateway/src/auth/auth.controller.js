@@ -112,7 +112,22 @@ exports.login = async (req, res) => {
             });
         }
 
-        // Reject login for deactivated accounts
+        // Reject login for pending approval or deactivated accounts
+        if (user.isPending) {
+            logEvent("warn", "Login Failure", {
+                userId: user.id,
+                ip: req.ip || req.headers["x-forwarded-for"],
+                endpoint: req.originalUrl,
+                status: 403,
+                reason: "Account pending approval"
+            });
+
+            return res.status(403).json({
+                success: false,
+                message: "Your account is pending admin approval. Please wait for an administrator to approve your account."
+            });
+        }
+
         if (user.isActive === false) {
             logEvent("warn", "Login Failure", {
                 userId: user.id,

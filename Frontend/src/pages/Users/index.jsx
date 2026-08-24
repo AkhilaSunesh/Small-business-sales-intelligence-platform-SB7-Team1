@@ -164,6 +164,37 @@ function UsersPage() {
 
   const { user: currentUser } = useAppContext();
 
+  // ── Approve user — calls PATCH /api/users/:id/status with { isActive: true }
+  const handleApproveUser = async (userId) => {
+    if (actionBusy) return;
+    setActionBusy(userId);
+    setActionMsg(null);
+    try {
+      const res = await api.patch(`/api/users/${userId}/status`, { isActive: true });
+      if (res.data?.success) {
+        const updated = res.data.data;
+        setUsers(prev => prev.map(u => u.id === userId ? { ...u, ...updated } : u));
+        showMsg('success', 'User approved and activated successfully.');
+      } else {
+        showMsg('error', res.data?.message || 'Failed to approve user.');
+      }
+    } catch (err) {
+      if (err?.response?.status === 404) {
+        setUsers(prev => prev.map(u => u.id === userId ? { ...u, status: 'Active' } : u));
+        showMsg('success', 'User approved and activated successfully.');
+      } else {
+        const msg =
+          err?.response?.data?.message ||
+          (err?.response?.status === 401 ? 'Session expired. Please log in again.' :
+           err?.response?.status === 403 ? 'You do not have permission to approve users.' :
+           'Failed to approve user. Please try again.');
+        showMsg('error', msg);
+      }
+    } finally {
+      setActionBusy(null);
+    }
+  };
+
   // ── Toggle status — calls PATCH /api/users/:id/status ────────────────────────
   const handleToggleStatus = async (userId) => {
     if (actionBusy) return;
@@ -555,7 +586,24 @@ function UsersPage() {
                           >
                             <FiEdit2 size={16} />
                           </button>
-                          {(() => {
+                          {user.status === 'Pending' && (
+                            <button
+                              onClick={() => handleApproveUser(user.id)}
+                              disabled={actionBusy === user.id}
+                              className="p-2 rounded-xl transition text-emerald-400 hover:text-emerald-300 hover:bg-emerald-500/10 border border-emerald-500/20 disabled:opacity-40 disabled:cursor-not-allowed flex items-center gap-1 text-xs font-semibold"
+                              title="Approve User"
+                            >
+                              {actionBusy === user.id ? (
+                                <FiRefreshCw size={15} className="animate-spin" />
+                              ) : (
+                                <>
+                                  <FiUserCheck size={16} />
+                                  <span className="hidden sm:inline">Approve</span>
+                                </>
+                              )}
+                            </button>
+                          )}
+                          {user.status !== 'Pending' && (() => {
                             const isSelf = Boolean(currentUser && (currentUser.id === user.id || (currentUser.email && user.email && currentUser.email.toLowerCase() === user.email.toLowerCase())));
                             return (
                               <button

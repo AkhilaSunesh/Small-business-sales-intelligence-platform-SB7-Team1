@@ -2,12 +2,12 @@ import PropTypes from 'prop-types';
 import { FiCalendar, FiFilter, FiX, FiRefreshCw } from 'react-icons/fi';
 
 const RANGE_LABELS = {
-  today: 'Today',
-  '7d': 'Last 7 Days',
-  '30d': 'Last 30 Days',
-  '3m': 'Last 3 Months',
-  '6m': 'Last 6 Months',
   '1y': 'Last Year',
+  '6m': 'Last 6 Months',
+  '3m': 'Last 3 Months',
+  '7d': 'Last Week',
+  '30d': 'Last 30 Days',
+  today: 'Today',
   custom: 'Custom Range',
 };
 

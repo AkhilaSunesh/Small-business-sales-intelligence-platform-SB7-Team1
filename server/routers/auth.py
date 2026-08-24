@@ -94,8 +94,8 @@ def register(body: RegisterRequest):
         "password": get_password_hash(body.password),
         "roleId": body.roleId,
         "role": "Sales Executive" if body.roleId == 3 else "User",
-        "isActive": True,
-        "isPending": False
+        "isActive": False,
+        "isPending": True
     }
     MOCK_USERS[email] = new_user
 
@@ -117,6 +117,9 @@ def login(body: LoginRequest):
 
     if not user or not verify_password(body.password, user["password"]):
         raise HTTPException(status_code=401, detail="Invalid email or password.")
+
+    if user.get("isPending"):
+        raise HTTPException(status_code=403, detail="Your account is pending admin approval. Please wait for an administrator to approve your account.")
 
     if not user.get("isActive", True):
         raise HTTPException(status_code=403, detail="Your account has been disabled.")

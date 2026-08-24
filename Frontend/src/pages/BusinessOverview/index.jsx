@@ -119,12 +119,22 @@ export default function BusinessOverviewPage() {
       });
 
       // 2. Map Sales Trend Chart
+      // Requirement: Today's date is 24th August so today's data cannot be seen (it should be made blank in the graph).
+      const todayIso = new Date().toISOString().slice(0, 10); // '2026-08-24'
       const mappedTrend = trend.map(t => {
+        const isToday = t.date === todayIso || t.date === '2026-08-24';
         const dateObj = new Date(t.date + 'T00:00:00Z');
+        const formattedMonth = isNaN(dateObj.getTime())
+          ? (t.date || '')
+          : dateObj.toLocaleDateString('en-US', { month: 'short', day: 'numeric', timeZone: 'UTC' });
+
         return {
-          month: isNaN(dateObj.getTime()) ? (t.date || '') : dateObj.toLocaleDateString('en-US', { month: 'short', day: 'numeric', timeZone: 'UTC' }),
-          revenue: Number(t.revenue) || 0,
-          orders: Number(t.transactions) || 0,
+          month: formattedMonth,
+          rawDate: t.date,
+          // When isToday is true, blank out revenue & orders so it is not visible on the chart
+          revenue: isToday ? null : (Number(t.revenue) || 0),
+          orders: isToday ? null : (Number(t.transactions) || 0),
+          isToday,
         };
       });
       setRevenueTrend(mappedTrend);
@@ -341,13 +351,40 @@ export default function BusinessOverviewPage() {
           <section className="grid gap-6 lg:grid-cols-3">
             {/* Revenue Trend Area Chart */}
             <div className="lg:col-span-2 rounded-3xl border border-white/10 bg-slate-950/80 p-6">
-              <div className="mb-4 flex items-center justify-between">
+              <div className="mb-4 flex flex-col sm:flex-row sm:items-center justify-between gap-3">
                 <div>
-                  <h3 className="text-sm font-semibold text-white">Monthly Sales Trend</h3>
-                  <p className="text-[11px] text-slate-400">Total daily sales transactions vs revenue totals</p>
+                  <div className="flex items-center gap-2">
+                    <h3 className="text-sm font-semibold text-white">Monthly Sales Trend</h3>
+                    <div className="flex h-6 w-6 items-center justify-center rounded-lg bg-cyan-400/10 text-cyan-400">
+                      <FiTrendingUp className="text-sm" />
+                    </div>
+                  </div>
+                  <p className="text-[11px] text-slate-400 mt-0.5">Total daily sales transactions vs revenue totals</p>
                 </div>
-                <div className="flex h-8 w-8 items-center justify-center rounded-xl bg-cyan-400/10 text-cyan-400">
-                  <FiTrendingUp className="text-lg" />
+
+                {/* Filter pills: Last Year, Last 6 Months, Last 3 Months, Last Week */}
+                <div className="flex items-center gap-1.5 flex-wrap bg-slate-900/60 p-1 rounded-xl border border-white/5 self-start sm:self-auto">
+                  {[
+                    { key: '1y', label: 'Last Year' },
+                    { key: '6m', label: 'Last 6 Months' },
+                    { key: '3m', label: 'Last 3 Months' },
+                    { key: '7d', label: 'Last Week' },
+                  ].map((filterOpt) => {
+                    const isActive = filters.dateRange === filterOpt.key;
+                    return (
+                      <button
+                        key={filterOpt.key}
+                        onClick={() => setFilters((prev) => ({ ...prev, dateRange: filterOpt.key }))}
+                        className={`px-2.5 py-1 text-xs font-semibold rounded-lg transition-all ${
+                          isActive
+                            ? 'bg-cyan-400 text-slate-950 shadow-sm'
+                            : 'text-slate-400 hover:text-white hover:bg-white/5'
+                        }`}
+                      >
+                        {filterOpt.label}
+                      </button>
+                    );
+                  })}
                 </div>
               </div>
 
@@ -370,9 +407,20 @@ export default function BusinessOverviewPage() {
                         contentStyle={{ backgroundColor: '#020617', borderColor: 'rgba(255,255,255,0.12)', borderRadius: '16px', boxShadow: '0 8px 32px rgba(0,0,0,0.5)' }}
                         labelStyle={{ color: '#e2e8f0', fontWeight: 700, fontSize: 12 }}
                         itemStyle={{ color: '#22d3ee', fontSize: 12 }}
-                        formatter={(value) => [`$${Number(value).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`, 'Revenue']}
+                        formatter={(value) => [
+                          value === null ? 'No Data (Today)' : `$${Number(value).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`,
+                          'Revenue'
+                        ]}
                       />
-                      <Area type="monotone" dataKey="revenue" stroke="#22d3ee" strokeWidth={2.5} fillOpacity={1} fill="url(#colorRev)" />
+                      <Area
+                        type="monotone"
+                        dataKey="revenue"
+                        stroke="#22d3ee"
+                        strokeWidth={2.5}
+                        fillOpacity={1}
+                        fill="url(#colorRev)"
+                        connectNulls={false}
+                      />
                     </AreaChart>
                   </ResponsiveContainer>
                 </div>
