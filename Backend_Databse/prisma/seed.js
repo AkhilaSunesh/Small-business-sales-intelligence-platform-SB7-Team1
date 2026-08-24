@@ -44,7 +44,8 @@ const SYSTEM_USERS = [
     { id: "4005dfa6-3c04-4e2d-8ee8-7f38536d23b0", name: "Business Owner",  email: "owner@marketmind.dev",   roleId: 1 },
     { id: "4c49c904-69ff-43ea-a26d-18d47fd354ff", name: "Store Manager",   email: "manager@marketmind.dev", roleId: 2 },
     { id: "5bf90d45-a1e6-487a-9615-3c80c3502161", name: "Sales Executive", email: "sales@marketmind.dev",   roleId: 3 },
-    { id: "f7eb3703-0645-49d4-be71-962b3d283cba", name: "System Admin",    email: "admin@marketmind.dev",   roleId: 4 }
+    { id: "f7eb3703-0645-49d4-be71-962b3d283cba", name: "System Admin",    email: "admin@marketmind.dev",   roleId: 4 },
+    { id: "usr-admin-001",                         name: "MarketMind Admin", email: "admin@marketmind.ai",    roleId: 4 }
 ];
 
 const bcrypt = require("bcrypt");

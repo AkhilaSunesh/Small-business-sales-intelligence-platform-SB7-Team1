@@ -56,6 +56,9 @@ const forward = async (req, res, backendPath) => {
 // GET    /api/users              — list users (paginated)
 router.get(    "/",               (req, res) => forward(req, res, "/users"));
 
+// POST   /api/users              — create new user
+router.post(   "/",               (req, res) => forward(req, res, "/users"));
+
 // GET    /api/users/:id          — single user by UUID
 router.get(    "/:id",            (req, res) => forward(req, res, `/users/${req.params.id}`));
 

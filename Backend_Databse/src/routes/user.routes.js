@@ -6,6 +6,9 @@ const userController = require("../controllers/user.controller");
 // GET /api/users              — list all users (paginated, searchable)
 router.get("/",    userController.getUsers);
 
+// POST /api/users             — create a new user
+router.post("/",   userController.createUser);
+
 // GET /api/users/:id          — single user by UUID
 router.get("/:id", userController.getUserById);
 

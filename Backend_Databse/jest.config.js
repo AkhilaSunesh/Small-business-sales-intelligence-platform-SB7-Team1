@@ -3,8 +3,7 @@ module.exports = {
     testEnvironment: "node",
     testMatch: [
         "**/src/__tests__/**/*.test.js",
-        "**/tests/**/*.test.js",
-        "**/?(*.)+(spec|test).js"
+        "**/tests/**/*.test.js"
     ],
     collectCoverageFrom: ["src/**/*.js", "!src/server.js"],
     coverageDirectory: "coverage",

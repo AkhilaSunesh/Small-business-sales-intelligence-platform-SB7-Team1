@@ -7,6 +7,7 @@
  * This controller NEVER returns password hashes or authentication tokens.
  */
 
+const bcrypt = require("bcrypt");
 const prisma = require("../config/prisma");
 
 // ─── Role name → display label mapping ───────────────────────────────────────
@@ -319,3 +320,102 @@ exports.updateUser = async (req, res) => {
         return res.status(500).json({ success: false, message: error.message });
     }
 };
+
+// ─── POST /api/users ──────────────────────────────────────────────────────────
+// Creates a new user in PostgreSQL database.
+exports.createUser = async (req, res) => {
+    try {
+        const { name, email, role, roleId, status, password } = req.body;
+
+        if (!name || typeof name !== "string" || name.trim().length < 2) {
+            return res.status(400).json({
+                success: false,
+                message: "A valid name (min 2 characters) is required."
+            });
+        }
+
+        if (!email || typeof email !== "string") {
+            return res.status(400).json({
+                success: false,
+                message: "A valid email address is required."
+            });
+        }
+
+        const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+        if (!emailRegex.test(email.trim())) {
+            return res.status(400).json({
+                success: false,
+                message: "Please provide a valid email address."
+            });
+        }
+
+        const normalizedEmail = email.trim().toLowerCase();
+        const existing = await prisma.user.findUnique({
+            where: { email: normalizedEmail }
+        });
+
+        if (existing) {
+            return res.status(409).json({
+                success: false,
+                message: "Email address is already in use by another user."
+            });
+        }
+
+        // Determine roleId
+        let parsedRoleId = 3; // default: Sales Executive
+        if (roleId !== undefined) {
+            const parsed = parseInt(roleId, 10);
+            if (!isNaN(parsed) && parsed >= 1 && parsed <= 4) parsedRoleId = parsed;
+        } else if (role) {
+            const roleMap = {
+                'Owner': 1,
+                'Business Owner': 1,
+                'Store Manager': 2,
+                'Sales Executive': 3,
+                'Admin': 4,
+                'System Administrator': 4,
+                'System Admin': 4
+            };
+            if (roleMap[role]) parsedRoleId = roleMap[role];
+        }
+
+        // Determine active/pending status
+        let isActive = true;
+        let isPending = false;
+        if (status === 'Inactive') {
+            isActive = false;
+            isPending = false;
+        } else if (status === 'Pending') {
+            isActive = false;
+            isPending = true;
+        }
+
+        const rawPassword = password && typeof password === "string" && password.length >= 6
+            ? password
+            : "Password1!";
+        const hashedPassword = await bcrypt.hash(rawPassword, 10);
+
+        const newUser = await prisma.user.create({
+            data: {
+                name: name.trim(),
+                email: normalizedEmail,
+                password: hashedPassword,
+                roleId: parsedRoleId,
+                isActive,
+                isPending,
+                isDeleted: false
+            },
+            select: SAFE_SELECT
+        });
+
+        return res.status(201).json({
+            success: true,
+            message: `User "${newUser.name}" created successfully.`,
+            data: mapUser(newUser)
+        });
+    } catch (error) {
+        console.error("[user.controller] createUser:", error);
+        return res.status(500).json({ success: false, message: error.message });
+    }
+};
+

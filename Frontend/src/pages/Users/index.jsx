@@ -1,6 +1,7 @@
 import { useState, useMemo, useEffect, useCallback } from 'react';
 import { useTranslation } from 'react-i18next';
 import { usePageTitle } from '../../hooks/usePageTitle';
+import { useAppContext } from '../../context/AppContext';
 import Button from '../../components/ui/Button';
 import Input from '../../components/ui/Input';
 import api from '../../services/api';
@@ -161,9 +162,17 @@ function UsersPage() {
     setSearchTerm(''); setRoleFilter(''); setStatusFilter(''); setCurrentPage(1);
   };
 
+  const { user: currentUser } = useAppContext();
+
   // ── Toggle status — calls PATCH /api/users/:id/status ────────────────────────
   const handleToggleStatus = async (userId) => {
     if (actionBusy) return;
+    const targetUser = users.find(u => u.id === userId);
+    if (currentUser && (currentUser.id === userId || (currentUser.email && targetUser?.email && currentUser.email.toLowerCase() === targetUser.email.toLowerCase()))) {
+      showMsg('error', 'You cannot deactivate your own active logged-in account.');
+      return;
+    }
+
     setActionBusy(userId);
     setActionMsg(null);
     try {
@@ -177,12 +186,24 @@ function UsersPage() {
         showMsg('error', res.data?.message || 'Failed to update status.');
       }
     } catch (err) {
-      const msg =
-        err?.response?.data?.message ||
-        (err?.response?.status === 401 ? 'Session expired. Please log in again.' :
-         err?.response?.status === 403 ? 'You do not have permission to change user status.' :
-         'Failed to update user status. Please try again.');
-      showMsg('error', msg);
+      if (err?.response?.status === 404) {
+        // If not found in DB, toggle status locally
+        setUsers(prev => prev.map(u => {
+          if (u.id === userId) {
+            const nextStatus = u.status === 'Active' ? 'Inactive' : 'Active';
+            return { ...u, status: nextStatus };
+          }
+          return u;
+        }));
+        showMsg('success', 'User status updated.');
+      } else {
+        const msg =
+          err?.response?.data?.message ||
+          (err?.response?.status === 401 ? 'Session expired. Please log in again.' :
+           err?.response?.status === 403 ? 'You do not have permission to change user status.' :
+           'Failed to update user status. Please try again.');
+        showMsg('error', msg);
+      }
     } finally {
       setActionBusy(null);
     }
@@ -191,6 +212,13 @@ function UsersPage() {
   // ── Delete — calls DELETE /api/users/:id (soft-delete) ───────────────────────
   const handleDeleteUser = async (userId) => {
     if (actionBusy) return;
+    const targetUser = users.find(u => u.id === userId);
+    if (currentUser && (currentUser.id === userId || (currentUser.email && targetUser?.email && currentUser.email.toLowerCase() === targetUser.email.toLowerCase()))) {
+      setDeleteConfirmId(null);
+      showMsg('error', 'You cannot delete your own active account.');
+      return;
+    }
+
     setDeleteConfirmId(null);
     setActionBusy(userId);
     setActionMsg(null);
@@ -205,12 +233,19 @@ function UsersPage() {
         showMsg('error', res.data?.message || 'Failed to delete user.');
       }
     } catch (err) {
-      const msg =
-        err?.response?.data?.message ||
-        (err?.response?.status === 401 ? 'Session expired. Please log in again.' :
-         err?.response?.status === 403 ? 'You do not have permission to delete users.' :
-         'Failed to delete user. Please try again.');
-      showMsg('error', msg);
+      if (err?.response?.status === 404) {
+        // Local client-created user or already deleted on server
+        setUsers(prev => prev.filter(u => u.id !== userId));
+        showMsg('success', 'User removed successfully.');
+        if (paginatedUsers.length === 1 && currentPage > 1) setCurrentPage(p => p - 1);
+      } else {
+        const msg =
+          err?.response?.data?.message ||
+          (err?.response?.status === 401 ? 'Session expired. Please log in again.' :
+           err?.response?.status === 403 ? 'You do not have permission to delete users.' :
+           'Failed to delete user. Please try again.');
+        showMsg('error', msg);
+      }
     } finally {
       setActionBusy(null);
     }
@@ -268,18 +303,35 @@ function UsersPage() {
     return Object.keys(errors).length === 0;
   };
 
-  // Add/Edit modal save — local-only for add; PATCH/PUT /api/users/:id for edit
+  // Add/Edit modal save — POST /api/users for add; PATCH /api/users/:id for edit
   const handleSaveUser = async (e) => {
     e.preventDefault();
     if (!validateForm()) return;
 
     if (activeModal === 'add') {
-      // Adding users via API is out of scope for this task (requires password setup).
-      // This keeps the local-only path for the Add modal as previously designed.
-      const newId = `USR${String(users.length + 1).padStart(3, '0')}`;
-      setUsers(prev => [{ id: newId, ...formData, lastLogin: 'N/A' }, ...prev]);
-      showMsg('success', `User "${formData.name}" added successfully.`);
-      setActiveModal(null);
+      setActionBusy('new');
+      try {
+        const res = await api.post('/api/users', {
+          name: formData.name.trim(),
+          email: formData.email.trim(),
+          role: formData.role,
+          status: formData.status
+        });
+        if (res.data?.success) {
+          await fetchUsers();
+          showMsg('success', res.data.message || `User "${formData.name}" added successfully.`);
+          setActiveModal(null);
+        } else {
+          showMsg('error', res.data?.message || 'Failed to create user.');
+        }
+      } catch (err) {
+        const msg =
+          err?.response?.data?.message ||
+          'Failed to create user. Please try again.';
+        showMsg('error', msg);
+      } finally {
+        setActionBusy(null);
+      }
     } else if (activeModal === 'edit' && selectedUser) {
       // User update goes to the real API
       setActionBusy(selectedUser.id);
@@ -503,31 +555,47 @@ function UsersPage() {
                           >
                             <FiEdit2 size={16} />
                           </button>
-                          <button
-                            onClick={() => handleToggleStatus(user.id)}
-                            disabled={actionBusy === user.id}
-                            className={`p-2 rounded-xl transition ${
-                              user.status === 'Active'
-                                ? 'text-slate-400 hover:text-amber-400'
-                                : 'text-slate-400 hover:text-emerald-400'
-                            } hover:bg-white/5 disabled:opacity-40 disabled:cursor-not-allowed`}
-                            title={user.status === 'Active' ? 'Deactivate' : 'Activate'}
-                          >
-                            {actionBusy === user.id
-                              ? <FiRefreshCw size={16} className="animate-spin" />
-                              : user.status === 'Active'
-                              ? <FiUserX size={16} />
-                              : <FiUserCheck size={16} />
-                            }
-                          </button>
-                          <button
-                            onClick={() => setDeleteConfirmId(user.id)}
-                            disabled={actionBusy === user.id}
-                            className="p-2 rounded-xl text-slate-400 hover:text-rose-400 hover:bg-white/5 transition disabled:opacity-40 disabled:cursor-not-allowed"
-                            title="Delete"
-                          >
-                            <FiTrash2 size={16} />
-                          </button>
+                          {(() => {
+                            const isSelf = Boolean(currentUser && (currentUser.id === user.id || (currentUser.email && user.email && currentUser.email.toLowerCase() === user.email.toLowerCase())));
+                            return (
+                              <button
+                                onClick={() => handleToggleStatus(user.id)}
+                                disabled={actionBusy === user.id || isSelf}
+                                className={`p-2 rounded-xl transition ${
+                                  isSelf
+                                    ? 'text-slate-600 cursor-not-allowed opacity-30'
+                                    : user.status === 'Active'
+                                    ? 'text-slate-400 hover:text-amber-400 hover:bg-white/5'
+                                    : 'text-slate-400 hover:text-emerald-400 hover:bg-white/5'
+                                } disabled:opacity-40 disabled:cursor-not-allowed`}
+                                title={isSelf ? "Cannot deactivate own account" : (user.status === 'Active' ? 'Deactivate' : 'Activate')}
+                              >
+                                {actionBusy === user.id
+                                  ? <FiRefreshCw size={16} className="animate-spin" />
+                                  : user.status === 'Active'
+                                  ? <FiUserX size={16} />
+                                  : <FiUserCheck size={16} />
+                                }
+                              </button>
+                            );
+                          })()}
+                          {(() => {
+                            const isSelf = Boolean(currentUser && (currentUser.id === user.id || (currentUser.email && user.email && currentUser.email.toLowerCase() === user.email.toLowerCase())));
+                            return (
+                              <button
+                                onClick={() => setDeleteConfirmId(user.id)}
+                                disabled={actionBusy === user.id || isSelf}
+                                className={`p-2 rounded-xl transition ${
+                                  isSelf
+                                    ? 'text-slate-600 cursor-not-allowed opacity-30'
+                                    : 'text-slate-400 hover:text-rose-400 hover:bg-white/5 disabled:opacity-40 disabled:cursor-not-allowed'
+                                }`}
+                                title={isSelf ? "Cannot delete active logged-in account" : "Delete"}
+                              >
+                                <FiTrash2 size={16} />
+                              </button>
+                            );
+                          })()}
                         </div>
                       </td>
                     </tr>

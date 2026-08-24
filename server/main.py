@@ -6,7 +6,7 @@ from fastapi.staticfiles import StaticFiles
 from fastapi.responses import FileResponse
 
 from server.config import PORT
-from server.routers import auth, anomaly, churn, recommendations, segmentation, forecast, analytics
+from server.routers import auth, anomaly, churn, recommendations, segmentation, forecast, analytics, users
 
 app = FastAPI(
     title="MarketMind AI — Unified Intelligence Platform",
@@ -28,6 +28,7 @@ app.add_middleware(
 
 # ── Mount Service Routers ──────────────────────────────────────────────────────
 app.include_router(auth.router)
+app.include_router(users.router)
 app.include_router(anomaly.router)
 app.include_router(churn.router)
 app.include_router(recommendations.router)

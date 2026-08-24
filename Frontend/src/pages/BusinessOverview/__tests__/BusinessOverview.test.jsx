@@ -7,6 +7,8 @@ jest.mock('../../../services/dashboardService', () => ({
   getSalesTrend: jest.fn(() => Promise.resolve({ data: [] })),
   getTopProducts: jest.fn(() => Promise.resolve({ data: [] })),
   getAuditSummary: jest.fn(() => Promise.resolve({ data: { recentEntries: [] } })),
+  getCategoryBreakdown: jest.fn(() => Promise.resolve({ data: [] })),
+  getPaymentMethods: jest.fn(() => Promise.resolve({ data: [] })),
 }));
 
 jest.mock('../../../services/notificationService', () => ({
@@ -50,59 +52,37 @@ describe('BusinessOverviewPage Component Tests', () => {
     expect(screen.getByText('Recent Activity Timeline')).toBeInTheDocument();
   });
 
-  test('handles interactive demo controls - Toggle Demo States dropdown', async () => {
+  test('handles refresh data click and re-fetches telemetry', async () => {
     render(<BusinessOverviewPage />);
 
     await waitFor(() => {
       expect(screen.getByText('Total Revenue')).toBeInTheDocument();
     }, { timeout: 1500 });
 
-    const toggleBtn = screen.getByRole('button', { name: /Toggle Demo States/i });
-    fireEvent.click(toggleBtn);
+    const refreshBtn = screen.getByRole('button', { name: /Refresh Data/i });
+    expect(refreshBtn).toBeInTheDocument();
+    fireEvent.click(refreshBtn);
 
-    // Dropdown options should appear
-    expect(screen.getByText('Enable Loading')).toBeInTheDocument();
-    expect(screen.getByText('Enable Error State')).toBeInTheDocument();
-    expect(screen.getByText('Enable Empty State')).toBeInTheDocument();
-
-    // Click Enable Error State
-    const errorBtn = screen.getByText('Enable Error State');
-    fireEvent.click(errorBtn);
-
-    // Should render connection error state panel
-    expect(screen.getByText('Pipeline Offline')).toBeInTheDocument();
-
-    // Click Re-initialize Gateway to recover
-    const recoverBtn = screen.getByRole('button', { name: /Re-initialize Gateway/i });
-    fireEvent.click(recoverBtn);
-
-    // Verify recovery loading, then success
     await waitFor(() => {
       expect(screen.getByText('Total Revenue')).toBeInTheDocument();
     }, { timeout: 1500 });
   });
 
-  test('handles empty telemetry state display and dummy insert trigger', async () => {
+  test('renders error panel on fetch failure and allows retry', async () => {
+    const dashboardService = require('../../../services/dashboardService');
+    dashboardService.getDashboardSummary.mockRejectedValueOnce(new Error('Network Error'));
+
     render(<BusinessOverviewPage />);
 
     await waitFor(() => {
-      expect(screen.getByText('Total Revenue')).toBeInTheDocument();
+      expect(screen.getByText('Pipeline Offline')).toBeInTheDocument();
     }, { timeout: 1500 });
 
-    const toggleBtn = screen.getByRole('button', { name: /Toggle Demo States/i });
-    fireEvent.click(toggleBtn);
+    expect(screen.getByText('Network Error')).toBeInTheDocument();
 
-    const emptyBtn = screen.getByText('Enable Empty State');
-    fireEvent.click(emptyBtn);
+    const retryBtn = screen.getByRole('button', { name: /Re-initialize Gateway/i });
+    fireEvent.click(retryBtn);
 
-    // Should show empty state message
-    expect(screen.getByText('Dashboard Telemetry Empty')).toBeInTheDocument();
-    expect(screen.getByText(/Telemetry or sales data reported on the intelligence stream/i)).toBeInTheDocument();
-
-    const insertBtn = screen.getByRole('button', { name: /Insert Dummy Data/i });
-    fireEvent.click(insertBtn);
-
-    // Should restore telemetry
     await waitFor(() => {
       expect(screen.getByText('Total Revenue')).toBeInTheDocument();
     }, { timeout: 1500 });
