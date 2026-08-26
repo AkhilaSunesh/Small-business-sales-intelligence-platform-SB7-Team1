@@ -317,32 +317,94 @@ def get_audit_summary(limit: int = Query(default=10)):
 # ─── GET /api/notifications ──────────────────────────────────────────────────
 @router.get("/notifications")
 def get_notifications(page: int = 1, limit: int = 20):
+    from server.services.anomaly_service import anomaly_service
     alerts = []
+    
+    # 1. Invoices pending / overdue
+    # From in-memory store
     for inv in INVOICE_STORE:
-        if inv.get("status") in ["OVERDUE", "UNPAID"]:
+        if inv.get("status") in ["OVERDUE", "UNPAID", "PARTIALLY_PAID"]:
             alerts.append({
                 "id": inv.get("id"),
-                "message": f"Invoice {inv.get('invoiceNumber', inv.get('id'))} for {inv.get('customerName')} (${inv.get('totalAmount')}) is pending payment.",
+                "message": f"Invoice {inv.get('invoiceNumber', inv.get('id'))} for {inv.get('customerName')} (${inv.get('totalAmount')}) is {inv.get('status').lower().replace('_', ' ')}.",
                 "severity": "CRITICAL" if inv.get("status") == "OVERDUE" else "WARNING",
-                "time": "Just now",
+                "time": "Recent",
                 "createdAt": inv.get("createdAt")
             })
+            
+    # From base dataset
+    for idx, row in enumerate(anomaly_service.data.head(50).iterrows()):
+        r = row[1]
+        cid = str(r.get("CustomerID", "1000"))
+        tot = round(float(r.get("TotalAmount", 55.0)), 2)
+        inv_key = f"INV-{idx+1:04d}"
+        inv_num = f"INV-2026-{idx+1001:04d}"
+        if any(inv["id"] == inv_key or inv["invoiceNumber"] == inv_num for inv in INVOICE_STORE):
+            continue
+        if idx % 6 == 0:
+            alerts.append({
+                "id": inv_key,
+                "message": f"Invoice {inv_num} for Customer {cid} (${tot}) is partially paid.",
+                "severity": "WARNING",
+                "time": "Pending",
+                "createdAt": str(r.get("TransactionDate", "2026-04-28"))
+            })
+        elif idx % 7 == 0:
+            alerts.append({
+                "id": inv_key,
+                "message": f"Invoice {inv_num} for Customer {cid} (${tot}) is awaiting payment.",
+                "severity": "WARNING",
+                "time": "Pending",
+                "createdAt": str(r.get("TransactionDate", "2026-04-28"))
+            })
+        elif idx % 9 == 0:
+            alerts.append({
+                "id": inv_key,
+                "message": f"Invoice {inv_num} for Customer {cid} (${tot}) is overdue.",
+                "severity": "CRITICAL",
+                "time": "Overdue",
+                "createdAt": str(r.get("TransactionDate", "2026-04-28"))
+            })
+
+    # 2. Inventory alerts
+    for prod in PRODUCTS_CATALOG:
+        stock_qty = prod.get("stock", 0)
+        thresh = prod.get("lowStockThreshold", 100)
+        if stock_qty <= thresh:
+            alerts.append({
+                "id": f"ALERT-STOCK-{prod.get('id')}",
+                "message": f"Low stock alert: {prod.get('name')} has only {stock_qty} units remaining (threshold: {thresh}).",
+                "severity": "CRITICAL" if stock_qty == 0 else "WARNING",
+                "time": "Inventory",
+                "createdAt": datetime.utcnow().isoformat()
+            })
+
+    start = (page - 1) * limit
     return {
         "success": True,
-        "data": alerts[:limit]
+        "data": alerts[start:start+limit],
+        "pagination": {
+            "total": len(alerts),
+            "page": page,
+            "limit": limit,
+            "totalPages": max(1, (len(alerts) + limit - 1) // limit)
+        }
     }
 
 @router.get("/notifications/counts")
 def get_notifications_counts():
-    mem = _get_in_memory_metrics()
+    notifs_res = get_notifications(page=1, limit=100)
+    alerts = notifs_res.get("data", [])
+    crit = sum(1 for a in alerts if a.get("severity") == "CRITICAL")
+    warn = sum(1 for a in alerts if a.get("severity") == "WARNING")
     return {
         "success": True,
         "data": {
-            "total": mem["pending_count"],
-            "unread": mem["pending_count"],
-            "lowStock": 0,
-            "overdue": mem["overdue_count"],
-            "overdueInvoices": mem["pending_count"]
+            "total": len(alerts),
+            "unread": len(alerts),
+            "lowStock": sum(1 for a in alerts if "stock" in a.get("message", "").lower()),
+            "overdue": crit,
+            "overdueInvoices": warn + crit
         }
     }
 
@@ -350,13 +412,22 @@ def get_notifications_counts():
 def get_notifications_low_stock():
     return {
         "success": True,
-        "data": []
+        "data": [
+            {
+                "id": prod.get("id"),
+                "product": prod.get("name"),
+                "stock": prod.get("stock"),
+                "threshold": prod.get("lowStockThreshold")
+            }
+            for prod in PRODUCTS_CATALOG if prod.get("stock", 0) <= prod.get("lowStockThreshold", 100)
+        ]
     }
 
 @router.get("/notifications/overdue-invoices")
 def get_notifications_overdue():
+    notifs_res = get_notifications(page=1, limit=100)
     overdue_list = [
-        inv for inv in INVOICE_STORE if inv.get("status") in ["OVERDUE", "UNPAID"]
+        a for a in notifs_res.get("data", []) if a.get("severity") == "CRITICAL"
     ]
     return {
         "success": True,
@@ -558,9 +629,30 @@ def get_invoices(
         r = row[1]
         cid = str(r.get("CustomerID", "1000"))
         tot = round(float(r.get("TotalAmount", 55.0)), 2)
+        inv_key = f"INV-{idx+1:04d}"
+        inv_num = f"INV-2026-{idx+1001:04d}"
+        
+        # Check if already modified in INVOICE_STORE
+        if any(inv["id"] == inv_key or inv["invoiceNumber"] == inv_num for inv in INVOICE_STORE):
+            continue
+            
+        # Realistic initial distribution
+        if idx % 6 == 0:
+            inv_status = "PARTIALLY_PAID"
+            payments = [{"amount": round(tot * 0.5, 2), "method": "UPI", "reference": "PARTIAL_SEED"}]
+        elif idx % 7 == 0:
+            inv_status = "UNPAID"
+            payments = []
+        elif idx % 9 == 0:
+            inv_status = "OVERDUE"
+            payments = []
+        else:
+            inv_status = "PAID"
+            payments = [{"amount": tot, "method": "CARD", "reference": "SEED_DATA"}]
+
         base_invoices.append({
-            "id": f"INV-{idx+1:04d}",
-            "invoiceNumber": f"INV-2026-{idx+1001:04d}",
+            "id": inv_key,
+            "invoiceNumber": inv_num,
             "customerId": cid,
             "customer": {"name": f"Customer {cid}"},
             "customerName": f"Customer {cid}",
@@ -568,7 +660,7 @@ def get_invoices(
             "subtotal": tot,
             "taxAmount": 0.0,
             "discountAmount": 0.0,
-            "status": "PAID",
+            "status": inv_status,
             "dueDate": str(r.get("TransactionDate", "2026-04-28")),
             "createdAt": str(r.get("TransactionDate", "2026-04-28")),
             "lineItems": [
@@ -579,9 +671,7 @@ def get_invoices(
                     "unitPrice": round(float(r.get("Price", 55.0)), 2)
                 }
             ],
-            "payments": [
-                {"amount": tot, "method": "CARD", "reference": "SEED_DATA"}
-            ]
+            "payments": payments
         })
     
     all_invoices = INVOICE_STORE + base_invoices
@@ -725,6 +815,77 @@ def check_overdue_invoices():
         "message": "0 invoice(s) marked as overdue",
         "data": {"updatedCount": 0}
     }
+
+class UpdateInvoiceModel(BaseModel):
+    status: Optional[str] = None
+    amount: Optional[float] = None
+    customer: Optional[str] = None
+
+@router.put("/invoices/{invoice_id}")
+@router.patch("/invoices/{invoice_id}")
+def update_invoice(invoice_id: str, body: UpdateInvoiceModel):
+    # Check in INVOICE_STORE first
+    for inv in INVOICE_STORE:
+        if inv["id"] == invoice_id or inv["invoiceNumber"] == invoice_id:
+            if body.status:
+                inv["status"] = body.status.upper().replace(" ", "_")
+            if body.amount is not None:
+                inv["totalAmount"] = round(float(body.amount), 2)
+            if body.customer:
+                inv["customerName"] = body.customer
+                inv["customer"] = {"name": body.customer}
+            return {
+                "success": True,
+                "message": "Invoice updated successfully",
+                "data": inv
+            }
+            
+    # If not in INVOICE_STORE, it may be a base dataset invoice — promote it to INVOICE_STORE
+    from server.services.anomaly_service import anomaly_service
+    for idx, row in enumerate(anomaly_service.data.head(50).iterrows()):
+        r = row[1]
+        cid = str(r.get("CustomerID", "1000"))
+        inv_key = f"INV-{idx+1:04d}"
+        inv_num = f"INV-2026-{idx+1001:04d}"
+        if invoice_id in [inv_key, inv_num, cid]:
+            tot = round(float(r.get("TotalAmount", 55.0)), 2)
+            new_status = body.status.upper().replace(" ", "_") if body.status else "PAID"
+            new_amount = round(float(body.amount), 2) if body.amount is not None else tot
+            new_cust = body.customer or f"Customer {cid}"
+            
+            created_inv = {
+                "id": inv_key,
+                "invoiceNumber": inv_num,
+                "customerId": cid,
+                "customer": {"name": new_cust},
+                "customerName": new_cust,
+                "totalAmount": new_amount,
+                "subtotal": new_amount,
+                "taxAmount": 0.0,
+                "discountAmount": 0.0,
+                "status": new_status,
+                "dueDate": str(r.get("TransactionDate", "2026-04-28")),
+                "createdAt": str(r.get("TransactionDate", "2026-04-28")),
+                "lineItems": [
+                    {
+                        "productId": str(r.get("ProductID", "A")),
+                        "productName": f"Product {r.get('ProductID', 'A')}",
+                        "quantity": int(r.get("Quantity", 1)),
+                        "unitPrice": round(float(r.get("Price", 55.0)), 2)
+                    }
+                ],
+                "payments": [
+                    {"amount": new_amount, "method": "CARD", "reference": "UPDATED_DATA"}
+                ]
+            }
+            INVOICE_STORE.insert(0, created_inv)
+            return {
+                "success": True,
+                "message": "Invoice updated successfully",
+                "data": created_inv
+            }
+
+    raise HTTPException(status_code=404, detail="Invoice not found")
 
 @router.patch("/invoices/bulk")
 def bulk_update_invoices(body: BulkStatusUpdateModel):

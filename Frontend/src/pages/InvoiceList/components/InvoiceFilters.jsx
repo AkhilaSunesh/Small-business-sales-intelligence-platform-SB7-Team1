@@ -12,7 +12,7 @@ function InvoiceFilters({
   setDateFilter,
   onClear
 }) {
-  const statusOptions = ['All', 'Paid', 'Partially Paid', 'Unpaid'];
+  const statusOptions = ['All', 'Paid', 'Partially Paid', 'Unpaid', 'Overdue'];
   const methodOptions = ['All', 'UPI', 'Bank Transfer', 'Card', 'Cash'];
 
   // Check if any filters are active to conditionally show the "Clear Filters" button
