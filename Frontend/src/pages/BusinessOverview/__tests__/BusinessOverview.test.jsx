@@ -49,7 +49,8 @@ describe('BusinessOverviewPage Component Tests', () => {
     expect(screen.getByText('Monthly Sales Trend')).toBeInTheDocument();
     expect(screen.getByText('Sales by Category')).toBeInTheDocument();
     expect(screen.getByText('Top Selling Products')).toBeInTheDocument();
-    expect(screen.getByText('Recent Activity Timeline')).toBeInTheDocument();
+    expect(screen.getByText('Notifications')).toBeInTheDocument();
+    expect(screen.getByText('Recent System Logs')).toBeInTheDocument();
   });
 
   test('handles refresh data click and re-fetches telemetry', async () => {

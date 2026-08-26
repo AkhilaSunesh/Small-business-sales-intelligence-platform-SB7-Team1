@@ -11,7 +11,7 @@ import {
 } from 'recharts';
 import { 
   FiTrendingUp, FiShoppingBag, FiUsers, FiBox, FiAlertTriangle, 
-  FiZap, FiRefreshCw, FiGrid, FiActivity
+  FiZap, FiRefreshCw, FiGrid, FiActivity, FiBell
 } from 'react-icons/fi';
 import dashboardService from '../../services/dashboardService';
 import { getPaymentMethods, getCategoryBreakdown } from '../../services/dashboardService';
@@ -659,15 +659,26 @@ export default function BusinessOverviewPage() {
               )}
             </div>
 
-            {/* Recent Alerts Panel */}
+            {/* Notifications Panel */}
             <div className="rounded-3xl border border-white/10 bg-slate-950/80 p-6 flex flex-col justify-between">
               <div>
-                <h3 className="text-sm font-semibold text-white mb-4">Recent System Logs</h3>
+                <div className="mb-4 flex items-center justify-between">
+                  <h3 className="text-sm font-semibold text-white">Notifications</h3>
+                  <span className="text-[10px] uppercase font-bold text-cyan-400 bg-cyan-500/10 px-2 py-0.5 rounded-full border border-cyan-400/20">
+                    {recentAlerts.length} Active
+                  </span>
+                </div>
                 
                 {loading ? (
                   <div className="space-y-3 animate-pulse">
-                    <div className="h-10 bg-white/5 rounded"></div>
-                    <div className="h-10 bg-white/5 rounded"></div>
+                    <div className="h-12 bg-white/5 rounded-2xl"></div>
+                    <div className="h-12 bg-white/5 rounded-2xl"></div>
+                  </div>
+                ) : recentAlerts.length === 0 ? (
+                  <div className="p-6 text-center rounded-2xl border border-dashed border-white/10 bg-white/[0.01]">
+                    <FiBell className="text-2xl text-slate-600 mx-auto mb-2" />
+                    <p className="text-xs font-semibold text-slate-300">No active notifications</p>
+                    <p className="text-[10px] text-slate-500 mt-0.5">All stock levels and invoices are in good standing.</p>
                   </div>
                 ) : (
                   <div className="space-y-3">
@@ -698,15 +709,26 @@ export default function BusinessOverviewPage() {
             </div>
           </section>
 
-          {/* Section 5: Latest AI Recommendations & Activity Timeline */}
+          {/* Section 5: Latest AI Recommendations & Recent System Logs */}
           <section className="grid gap-6 md:grid-cols-2">
             {/* Recommendations List */}
             <div className="rounded-3xl border border-white/10 bg-slate-950/80 p-6">
-              <h3 className="text-sm font-semibold text-white mb-4">Latest AI Recommendations</h3>
+              <div className="mb-4 flex items-center justify-between">
+                <h3 className="text-sm font-semibold text-white">Latest AI Recommendations</h3>
+                <span className="text-[10px] uppercase font-bold text-purple-400 bg-purple-500/10 px-2 py-0.5 rounded-full border border-purple-400/20">
+                  {aiRecs.length} Recs
+                </span>
+              </div>
               {loading ? (
                 <div className="space-y-4 animate-pulse">
                   <div className="h-14 bg-white/5 rounded-2xl"></div>
                   <div className="h-14 bg-white/5 rounded-2xl"></div>
+                </div>
+              ) : aiRecs.length === 0 ? (
+                <div className="p-6 text-center rounded-2xl border border-dashed border-white/10 bg-white/[0.01]">
+                  <FiZap className="text-2xl text-slate-600 mx-auto mb-2" />
+                  <p className="text-xs font-semibold text-slate-300">No recommendations available</p>
+                  <p className="text-[10px] text-slate-500 mt-0.5">AI engine will generate cross-selling suggestions as transactions grow.</p>
                 </div>
               ) : (
                 <div className="space-y-3">
@@ -731,12 +753,23 @@ export default function BusinessOverviewPage() {
               )}
             </div>
 
-            {/* Recent Activity Timeline */}
+            {/* Recent System Logs Timeline */}
             <div className="rounded-3xl border border-white/10 bg-slate-950/80 p-6">
-              <h3 className="text-sm font-semibold text-white mb-4">Recent Activity Timeline</h3>
+              <div className="mb-4 flex items-center justify-between">
+                <h3 className="text-sm font-semibold text-white">Recent System Logs</h3>
+                <span className="text-[10px] uppercase font-bold text-cyan-400 bg-cyan-500/10 px-2 py-0.5 rounded-full border border-cyan-400/20">
+                  {recentActivity.length} Events
+                </span>
+              </div>
               {loading ? (
                 <div className="space-y-4 animate-pulse">
                   <div className="h-20 bg-white/5 rounded-2xl"></div>
+                </div>
+              ) : recentActivity.length === 0 ? (
+                <div className="p-6 text-center rounded-2xl border border-dashed border-white/10 bg-white/[0.01]">
+                  <FiActivity className="text-2xl text-slate-600 mx-auto mb-2" />
+                  <p className="text-xs font-semibold text-slate-300">No system log activity recorded</p>
+                  <p className="text-[10px] text-slate-500 mt-0.5">Gateway API transactions will appear here as requests occur.</p>
                 </div>
               ) : (
                 <div className="relative pl-4 border-l border-white/10 space-y-5">
