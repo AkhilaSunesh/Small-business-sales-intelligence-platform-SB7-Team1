@@ -37,13 +37,13 @@ app.include_router(forecast.router)
 app.include_router(analytics.router)
 
 # ── Health & Diagnostics ───────────────────────────────────────────────────────
-@app.get("/health")
-@app.get("/api/health")
+@app.api_route("/health", methods=["GET", "HEAD"])
+@app.api_route("/api/health", methods=["GET", "HEAD"])
 def health_check():
     return {
         "status": "UP",
         "service": "MarketMind AI Monolith",
-        "platform": "Hugging Face Spaces",
+        "platform": "Unified Cloud Platform",
         "port": PORT,
         "services": {
             "anomalyDetection": "online",
@@ -55,7 +55,7 @@ def health_check():
         }
     }
 
-@app.get("/api")
+@app.api_route("/api", methods=["GET", "HEAD"])
 def api_root():
     return {
         "message": "Welcome to MarketMind AI Unified API Platform",
@@ -78,18 +78,18 @@ FRONTEND_DIST = Path(__file__).resolve().parent.parent / "Frontend" / "dist"
 if FRONTEND_DIST.exists():
     app.mount("/assets", StaticFiles(directory=FRONTEND_DIST / "assets"), name="assets")
 
-    @app.get("/{full_path:path}")
+    @app.api_route("/{full_path:path}", methods=["GET", "HEAD"])
     def serve_frontend(full_path: str):
         requested_file = FRONTEND_DIST / full_path
         if requested_file.exists() and requested_file.is_file():
             return FileResponse(requested_file)
         return FileResponse(FRONTEND_DIST / "index.html")
 else:
-    @app.get("/")
+    @app.api_route("/", methods=["GET", "HEAD"])
     def index():
         return {
             "service": "MarketMind AI Unified Platform",
-            "status": "Running on Hugging Face Spaces",
+            "status": "Online",
             "apiDocumentation": "/docs",
             "healthCheck": "/health"
         }
