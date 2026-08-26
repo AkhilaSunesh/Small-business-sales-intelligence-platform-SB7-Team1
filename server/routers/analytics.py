@@ -86,34 +86,43 @@ def get_sales_trend(
     days_map = {"7d": 7, "30d": 30, "90d": 90, "3m": 90, "6m": 180, "1y": 365, "today": 1}
     num_days = days_map.get(date_range, 30)
 
+    # Anchor the timeline up to current dynamic date
+    today = datetime.now()
+    base_val = 67850.0
+    trend = []
+    
+    # Check if historical dataset cache exists to use real variations
     if forecast_service._daily_cache is not None and not forecast_service._daily_cache.empty:
-        trend = []
-        subset = forecast_service._daily_cache.tail(num_days)
-        for _, r in subset.iterrows():
-            trend.append({
-                "date": r["date"],
-                "revenue": round(float(r["revenue"]), 2),
-                "transactions": int(r["transactions"]),
-                "quantity": int(r["quantity"])
-            })
+        raw_tail = forecast_service._daily_cache.tail(num_days)
+        history_map = {row["date"]: row for _, row in raw_tail.iterrows()}
+        hist_rows = list(raw_tail.iterrows())
     else:
-        trend = []
-        base_val = 67850.0
-        start_date = datetime(2026, 4, 28)
-        for i in range(num_days - 1, -1, -1):
-            d = (start_date - timedelta(days=i)).strftime("%Y-%m-%d")
-            revenue = round(base_val + ((i % 7) * 950.0) + ((num_days - i) * 8.5), 2)
-            transactions = 273 + (i % 15)
-            quantity = transactions * 5
-            trend.append({
-                "date": d,
-                "revenue": revenue,
-                "transactions": transactions,
-                "quantity": quantity
-            })
+        history_map = {}
+        hist_rows = []
+
+    for i in range(num_days - 1, -1, -1):
+        d_obj = today - timedelta(days=i)
+        d_str = d_obj.strftime("%Y-%m-%d")
+        
+        if hist_rows and len(hist_rows) > 0:
+            sample_r = hist_rows[(num_days - 1 - i) % len(hist_rows)][1]
+            rev = round(float(sample_r["revenue"]), 2)
+            tx = int(sample_r["transactions"])
+            qty = int(sample_r["quantity"])
+        else:
+            rev = round(base_val + ((i % 7) * 950.0) + ((num_days - i) * 8.5), 2)
+            tx = 273 + (i % 15)
+            qty = tx * 5
+            
+        trend.append({
+            "date": d_str,
+            "revenue": rev,
+            "transactions": tx,
+            "quantity": qty
+        })
 
     # Add in-memory invoice revenue and transactions to trend if date matches or on today
-    today_str = datetime.utcnow().strftime("%Y-%m-%d")
+    today_str = today.strftime("%Y-%m-%d")
     for inv in INVOICE_STORE:
         inv_date = (inv.get("createdAt") or today_str)[:10]
         inv_amt = float(inv.get("totalAmount", 0.0))
@@ -247,19 +256,30 @@ def get_payment_methods():
 # ─── GET /api/analytics/categories ───────────────────────────────────────────
 @router.get("/analytics/categories")
 def get_category_breakdown():
-    books_rev = 6223329.00
-    books_qty = 125395
-    elec_rev = 6166817.00
-    elec_qty = 124730
+    books_rev = 6215536.00
+    books_qty = 125405
+    home_rev = 6205183.00
+    home_qty = 125005
+    clothing_rev = 6176979.00
+    clothing_qty = 124430
+    elec_rev = 6103168.00
+    elec_qty = 123412
     
     for inv in INVOICE_STORE:
         for item in inv.get("lineItems", []):
             qty = int(item.get("quantity", 1))
             amt = qty * float(item.get("unitPrice", 0.0))
             name = str(item.get("productName", "")).lower()
-            if "book" in name or "c" in name:
+            pid = str(item.get("productId", "")).upper()
+            if "book" in name or pid == "C" or pid == "PROD-003":
                 books_rev += amt
                 books_qty += qty
+            elif "clothing" in name or pid == "B" or pid == "PROD-002":
+                clothing_rev += amt
+                clothing_qty += qty
+            elif "decor" in name or "home" in name or pid == "D" or pid == "PROD-004":
+                home_rev += amt
+                home_qty += qty
             else:
                 elec_rev += amt
                 elec_qty += qty
@@ -268,6 +288,8 @@ def get_category_breakdown():
         "success": True,
         "data": [
             {"name": "Books", "value": round(books_rev, 2), "quantity": books_qty},
+            {"name": "Home Decor", "value": round(home_rev, 2), "quantity": home_qty},
+            {"name": "Clothing", "value": round(clothing_rev, 2), "quantity": clothing_qty},
             {"name": "Electronics", "value": round(elec_rev, 2), "quantity": elec_qty}
         ]
     }

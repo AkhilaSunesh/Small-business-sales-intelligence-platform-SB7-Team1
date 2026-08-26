@@ -119,10 +119,7 @@ export default function BusinessOverviewPage() {
       });
 
       // 2. Map Sales Trend Chart
-      // Requirement: Today's date is 24th August so today's data cannot be seen (it should be made blank in the graph).
-      const todayIso = new Date().toISOString().slice(0, 10); // '2026-08-24'
       const mappedTrend = trend.map(t => {
-        const isToday = t.date === todayIso || t.date === '2026-08-24';
         const dateObj = new Date(t.date + 'T00:00:00Z');
         const formattedMonth = isNaN(dateObj.getTime())
           ? (t.date || '')
@@ -131,10 +128,8 @@ export default function BusinessOverviewPage() {
         return {
           month: formattedMonth,
           rawDate: t.date,
-          // When isToday is true, blank out revenue & orders so it is not visible on the chart
-          revenue: isToday ? null : (Number(t.revenue) || 0),
-          orders: isToday ? null : (Number(t.transactions) || 0),
-          isToday,
+          revenue: Number(t.revenue) || 0,
+          orders: Number(t.transactions) || 0,
         };
       });
       setRevenueTrend(mappedTrend);
@@ -408,7 +403,7 @@ export default function BusinessOverviewPage() {
                         labelStyle={{ color: '#e2e8f0', fontWeight: 700, fontSize: 12 }}
                         itemStyle={{ color: '#22d3ee', fontSize: 12 }}
                         formatter={(value) => [
-                          value === null ? 'No Data (Today)' : `$${Number(value).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`,
+                          `$${Number(value || 0).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`,
                           'Revenue'
                         ]}
                       />
