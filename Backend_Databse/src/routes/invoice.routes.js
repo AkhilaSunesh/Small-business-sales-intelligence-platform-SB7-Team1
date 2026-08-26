@@ -30,8 +30,14 @@ router.post("/:id/payments", validateRecordPayment, invoiceController.recordPaym
 // GET  /api/invoices/:id/download   — download invoice as text receipt
 router.get("/:id/download", invoiceController.downloadInvoice);
 
-// GET  /api/invoices/:id             — single invoice by UUID (must be last)
+// GET  /api/invoices/:id             — single invoice by UUID
 router.get("/:id", invoiceController.getInvoiceById);
+
+// PUT  /api/invoices/:id             — update invoice details
+router.put("/:id", invoiceController.updateInvoice);
+
+// PATCH /api/invoices/:id            — update invoice details (alias)
+router.patch("/:id", invoiceController.updateInvoice);
 
 // DELETE /api/invoices/:id          — delete invoice by UUID
 router.delete("/:id", invoiceController.deleteInvoice);

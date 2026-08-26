@@ -177,13 +177,33 @@ async function main() {
     const existingInventoryIds = new Set(existingInventory.map(inv => inv.productId));
 
     const inventoriesToInsert = [];
+    let pIdx = 0;
     for (const product of allProducts) {
         if (existingInventoryIds.has(product.id)) continue;
+        // Seed realistic inventory levels:
+        // A few products are out of stock (0) or low stock (3-8), others well-stocked (150-1000)
+        let qty = 250;
+        let threshold = 10;
+        if (pIdx % 25 === 0) {
+            qty = 0; // out of stock
+            threshold = 15;
+        } else if (pIdx % 10 === 0) {
+            qty = 5; // low stock
+            threshold = 10;
+        } else if (pIdx % 7 === 0) {
+            qty = 8; // low stock
+            threshold = 12;
+        } else {
+            qty = 150 + ((pIdx * 37) % 850);
+            threshold = 10;
+        }
+
         inventoriesToInsert.push({
             productId: product.id,
-            quantity: 1000,
-            lowStockThreshold: 10
+            quantity: qty,
+            lowStockThreshold: threshold
         });
+        pIdx++;
     }
     let inventoryInserted = inventoriesToInsert.length;
     if (inventoriesToInsert.length > 0) {
@@ -283,6 +303,22 @@ async function main() {
             transactionDate: txDate
         });
 
+        // Status calculation:
+        // Transactions with PaymentMethod "OTHER" or older transactions past due date (10% of records)
+        // are left UNPAID/OVERDUE to generate authentic real overdue notifications.
+        let invoiceStatus = "PAID";
+        const isPastDue = dueDate < new Date();
+        if (paymentMethod === "OTHER") {
+            invoiceStatus = isPastDue ? "OVERDUE" : "UNPAID";
+        } else if (i % 12 === 0 && isPastDue) {
+            invoiceStatus = "OVERDUE";
+        } else if (i % 20 === 0) {
+            invoiceStatus = "PARTIALLY_PAID";
+        }
+
+        const isPaidInFull = invoiceStatus === "PAID";
+        const isPartial = invoiceStatus === "PARTIALLY_PAID";
+
         invoicesToInsert.push({
             id:                 invoiceId,
             invoiceNumber,
@@ -294,7 +330,7 @@ async function main() {
             discountRate:       discountPct,
             discountAmount:     discountAmt,
             totalAmount:        invoiceTotal,
-            status:             paymentMethod !== "OTHER" ? "PAID" : "UNPAID",
+            status:             invoiceStatus,
             dueDate,
             createdById:        systemUser.id,
             lineItems:          [{
@@ -306,13 +342,23 @@ async function main() {
             }]
         });
 
-        if (paymentMethod !== "OTHER") {
+        if (isPaidInFull) {
             paymentsToInsert.push({
                 id:           uuidv4(),
                 invoiceId,
                 amount:       invoiceTotal,
-                method:       paymentMethod,
+                method:       paymentMethod === "OTHER" ? "CASH" : paymentMethod,
                 reference:    invoiceNo,
+                paidAt:       txDate,
+                recordedById: systemUser.id
+            });
+        } else if (isPartial) {
+            paymentsToInsert.push({
+                id:           uuidv4(),
+                invoiceId,
+                amount:       parseFloat((invoiceTotal * 0.4).toFixed(2)),
+                method:       paymentMethod === "OTHER" ? "CASH" : paymentMethod,
+                reference:    `PARTIAL-${invoiceNo}`,
                 paidAt:       txDate,
                 recordedById: systemUser.id
             });

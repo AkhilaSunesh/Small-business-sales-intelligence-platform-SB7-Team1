@@ -84,7 +84,7 @@ export default function BusinessOverviewPage() {
         dashboardService.getTopProducts(filters),
         recommendationService.getRecommendations().catch(() => ({ data: [] })),
         notificationService.getNotificationCounts().catch(() => ({ data: { lowStock: 0, overdueInvoices: 0, total: 0 } })),
-        notificationService.getNotifications({ page: 1, limit: 5 }).catch(() => ({ data: [] })),
+        notificationService.getNotifications({ page: 1, limit: 10 }).catch(() => ({ data: [] })),
         dashboardService.getAuditSummary(5).catch(() => ({ data: { recentEntries: [] } })),
         getCategoryBreakdown().catch(() => ({ data: [] })),
         getPaymentMethods().catch(() => ({ data: [] })),

@@ -215,13 +215,19 @@ function InvoiceListPage() {
       else if (updatedInvoice.status === 'Overdue') backendStatus = 'OVERDUE';
       else if (updatedInvoice.status === 'Cancelled') backendStatus = 'CANCELLED';
 
-      await invoiceService.updateInvoiceStatus([updatedInvoice.dbId], backendStatus);
+      const targetId = updatedInvoice.dbId || updatedInvoice.id;
+      await invoiceService.updateInvoice(targetId, {
+        status: backendStatus,
+        amount: updatedInvoice.amount,
+        customer: updatedInvoice.customer
+      });
       
       setInvoices((prev) =>
         prev.map((inv) => (inv.id === updatedInvoice.id ? updatedInvoice : inv))
       );
       showToast(`Invoice ${updatedInvoice.id} successfully updated.`, 'success');
       setEditInvoice(null);
+      fetchLiveInvoices();
     } catch (err) {
       showToast(`Failed to update invoice: ${err.message}`, 'error');
     }

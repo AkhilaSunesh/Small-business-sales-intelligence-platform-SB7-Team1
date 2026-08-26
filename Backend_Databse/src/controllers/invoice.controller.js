@@ -332,6 +332,58 @@ exports.downloadInvoice = async (req, res, next) => {
   } catch (error) {
     next(error);
   }
+// ─── PUT /api/invoices/:id ──────────────────────────────────────────────────
+// Update an existing invoice (status, amount, customer name, etc.)
+exports.updateInvoice = async (req, res, next) => {
+  try {
+    const { id } = req.params;
+    const { status, amount, customer } = req.body;
+
+    const existing = await invoiceService.getInvoiceById(id);
+    if (!existing) {
+      return res.status(404).json({ success: false, message: "Invoice not found" });
+    }
+
+    const dataToUpdate = {};
+    if (status) {
+      const validStatuses = ["PAID", "UNPAID", "PARTIALLY_PAID", "OVERDUE", "CANCELLED"];
+      const upperStatus = status.toUpperCase().replace(/\s+/g, "_");
+      if (validStatuses.includes(upperStatus)) {
+        dataToUpdate.status = upperStatus;
+      }
+    }
+    if (amount !== undefined && !isNaN(Number(amount))) {
+      dataToUpdate.totalAmount = Number(amount);
+    }
+
+    const prisma = require("../config/prisma");
+    const updated = await prisma.$transaction(async (tx) => {
+      // If customer name changed, update customer name as well
+      if (customer && existing.customerId) {
+        await tx.customer.update({
+          where: { id: existing.customerId },
+          data: { name: customer }
+        });
+      }
+
+      return await tx.invoice.update({
+        where: { id },
+        data: dataToUpdate,
+        include: {
+          customer: true,
+          payments: true
+        }
+      });
+    });
+
+    return res.status(200).json({
+      success: true,
+      message: "Invoice updated successfully",
+      data: updated
+    });
+  } catch (error) {
+    next(error);
+  }
 };
 
 // ─── DELETE /api/invoices/:id ──────────────────────────────────────────────

@@ -84,6 +84,12 @@ router.get("/:id/download", async (req, res) => {
 // GET /api/invoices/:id — single invoice
 router.get("/:id", (req, res) => forward(req, res, `/invoices/${req.params.id}`));
 
+// PUT /api/invoices/:id — update invoice details
+router.put("/:id", auditSuccessfulAction("Invoice Updated", "update"), (req, res) => forward(req, res, `/invoices/${req.params.id}`));
+
+// PATCH /api/invoices/:id — update invoice details (alias)
+router.patch("/:id", auditSuccessfulAction("Invoice Updated", "update"), (req, res) => forward(req, res, `/invoices/${req.params.id}`));
+
 // DELETE /api/invoices/:id — delete invoice
 router.delete("/:id", auditSuccessfulAction("Invoice Deleted", "delete"), (req, res) => forward(req, res, `/invoices/${req.params.id}`));
 
