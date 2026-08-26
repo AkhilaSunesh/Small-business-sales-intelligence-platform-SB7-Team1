@@ -14,6 +14,21 @@ router = APIRouter(prefix="/api", tags=["Dashboard & Analytics & System"])
 INVOICE_STORE: List[Dict[str, Any]] = []
 PAYMENTS_STORE: Dict[str, List[Dict[str, Any]]] = {}
 
+# ─── Helper to compute real-time dynamic dashboard metrics ─────────────────────
+def _get_in_memory_metrics():
+    user_inv_rev = sum(inv.get("totalAmount", 0.0) for inv in INVOICE_STORE if inv.get("status") == "PAID")
+    user_inv_unpaid = sum(inv.get("totalAmount", 0.0) for inv in INVOICE_STORE if inv.get("status") in ["UNPAID", "OVERDUE", "PARTIALLY_PAID"])
+    user_inv_orders = len(INVOICE_STORE)
+    overdue_count = sum(1 for inv in INVOICE_STORE if inv.get("status") == "OVERDUE")
+    pending_count = sum(1 for inv in INVOICE_STORE if inv.get("status") in ["UNPAID", "OVERDUE", "PARTIALLY_PAID"])
+    return {
+        "user_rev": user_inv_rev,
+        "user_unpaid": user_inv_unpaid,
+        "user_orders": user_inv_orders,
+        "overdue_count": overdue_count,
+        "pending_count": pending_count,
+    }
+
 # ─── GET /api/dashboard/summary ───────────────────────────────────────────────
 @router.get("/dashboard/summary")
 def get_dashboard_summary(
@@ -22,14 +37,28 @@ def get_dashboard_summary(
     startDate: Optional[str] = None,
     endDate: Optional[str] = None
 ):
+    mem = _get_in_memory_metrics()
+    base_revenue = 24700865.42
+    base_orders = 99460
+    base_customers = 94724
+    
+    total_rev = round(base_revenue + mem["user_rev"], 2)
+    total_orders = base_orders + mem["user_orders"]
+    
+    # Calculate unique new customer names if any
+    new_customers = len({inv.get("customerName") for inv in INVOICE_STORE if inv.get("customerName")})
+    total_customers = base_customers + max(0, new_customers)
+    
+    avg_order = round(total_rev / total_orders, 2) if total_orders > 0 else 248.35
+    
     return {
         "success": True,
         "data": {
-            "totalRevenue": 24700865.42,
-            "totalOrders": 99460,
-            "totalSales": 99460,
-            "totalCustomers": 94724,
-            "avgOrderValue": 248.35,
+            "totalRevenue": total_rev,
+            "totalOrders": total_orders,
+            "totalSales": total_orders,
+            "totalCustomers": total_customers,
+            "avgOrderValue": avg_order,
             "activeProducts": 4
         }
     }
@@ -37,10 +66,11 @@ def get_dashboard_summary(
 # ─── GET /api/dashboard/total-revenue ─────────────────────────────────────────
 @router.get("/dashboard/total-revenue")
 def get_total_revenue():
+    mem = _get_in_memory_metrics()
     return {
         "success": True,
         "data": {
-            "totalRevenue": 24700865.42
+            "totalRevenue": round(24700865.42 + mem["user_rev"], 2)
         }
     }
 
@@ -82,6 +112,23 @@ def get_sales_trend(
                 "quantity": quantity
             })
 
+    # Add in-memory invoice revenue and transactions to trend if date matches or on today
+    today_str = datetime.utcnow().strftime("%Y-%m-%d")
+    for inv in INVOICE_STORE:
+        inv_date = (inv.get("createdAt") or today_str)[:10]
+        inv_amt = float(inv.get("totalAmount", 0.0))
+        # Find entry in trend
+        matched = False
+        for t in trend:
+            if t["date"] == inv_date:
+                t["revenue"] = round(t["revenue"] + inv_amt, 2)
+                t["transactions"] += 1
+                matched = True
+                break
+        if not matched and len(trend) > 0:
+            trend[-1]["revenue"] = round(trend[-1]["revenue"] + inv_amt, 2)
+            trend[-1]["transactions"] += 1
+
     return {
         "success": True,
         "data": trend,
@@ -95,100 +142,185 @@ def get_top_products(
     date_range: str = Query(default="30d", alias="range"),
     limit: int = Query(default=5)
 ):
-    # Exactly calculated from Retail_Transaction_Dataset.csv
+    # Calculate base products
+    prods = [
+        {
+            "productId": "prod-003",
+            "productCode": "C",
+            "product": "Product C",
+            "productName": "Product C",
+            "category": "Books",
+            "quantitySold": 125405,
+            "revenue": 6215536.00
+        },
+        {
+            "productId": "prod-004",
+            "productCode": "D",
+            "product": "Product D",
+            "productName": "Product D",
+            "category": "Home Decor",
+            "quantitySold": 125005,
+            "revenue": 6205183.00
+        },
+        {
+            "productId": "prod-002",
+            "productCode": "B",
+            "product": "Product B",
+            "productName": "Product B",
+            "category": "Clothing",
+            "quantitySold": 124430,
+            "revenue": 6176979.00
+        },
+        {
+            "productId": "prod-001",
+            "productCode": "A",
+            "product": "Product A",
+            "productName": "Product A",
+            "category": "Electronics",
+            "quantitySold": 123412,
+            "revenue": 6103168.00
+        }
+    ]
+    # Add quantities and revenues from invoice line items
+    for inv in INVOICE_STORE:
+        for item in inv.get("lineItems", []):
+            pid = str(item.get("productId", ""))
+            qty = int(item.get("quantity", 1))
+            unit_price = float(item.get("unitPrice", 0.0))
+            amt = qty * unit_price
+            for p in prods:
+                if p["productId"] == pid or p["productCode"] == pid or p["product"] == pid or p["productName"] == item.get("productName"):
+                    p["quantitySold"] += qty
+                    p["revenue"] = round(p["revenue"] + amt, 2)
+                    break
+
+    prods.sort(key=lambda x: x["revenue"], reverse=True)
     return {
         "success": True,
-        "data": [
-            {
-                "productId": "prod-003",
-                "productCode": "C",
-                "product": "Product C",
-                "productName": "Product C",
-                "category": "Books",
-                "quantitySold": 125405,
-                "revenue": 6215536.00
-            },
-            {
-                "productId": "prod-004",
-                "productCode": "D",
-                "product": "Product D",
-                "productName": "Product D",
-                "category": "Home Decor",
-                "quantitySold": 125005,
-                "revenue": 6205183.00
-            },
-            {
-                "productId": "prod-002",
-                "productCode": "B",
-                "product": "Product B",
-                "productName": "Product B",
-                "category": "Clothing",
-                "quantitySold": 124430,
-                "revenue": 6176979.00
-            },
-            {
-                "productId": "prod-001",
-                "productCode": "A",
-                "product": "Product A",
-                "productName": "Product A",
-                "category": "Electronics",
-                "quantitySold": 123412,
-                "revenue": 6103168.00
-            }
-        ][:limit]
+        "data": prods[:limit]
     }
 
 # ─── GET /api/analytics/payment-methods ───────────────────────────────────────
 @router.get("/analytics/payment-methods")
 def get_payment_methods():
-    # Only Cash and Card as requested by business requirements
+    card_count = 74572
+    card_rev = 18524461.42
+    cash_count = 24888
+    cash_rev = 6176404.00
+    upi_count = 0
+    upi_rev = 0.0
+    bank_count = 0
+    bank_rev = 0.0
+
+    for inv in INVOICE_STORE:
+        amt = float(inv.get("totalAmount", 0.0))
+        for p in inv.get("payments", []):
+            m = str(p.get("method", "UPI")).upper()
+            p_amt = float(p.get("amount", amt))
+            if "CARD" in m:
+                card_count += 1
+                card_rev += p_amt
+            elif "CASH" in m:
+                cash_count += 1
+                cash_rev += p_amt
+            elif "UPI" in m:
+                upi_count += 1
+                upi_rev += p_amt
+            elif "BANK" in m or "TRANSFER" in m:
+                bank_count += 1
+                bank_rev += p_amt
+
+    methods = [
+        {"method": "CARD", "count": card_count, "revenue": round(card_rev, 2)},
+        {"method": "CASH", "count": cash_count, "revenue": round(cash_rev, 2)}
+    ]
+    if upi_count > 0:
+        methods.append({"method": "UPI", "count": upi_count, "revenue": round(upi_rev, 2)})
+    if bank_count > 0:
+        methods.append({"method": "BANK TRANSFER", "count": bank_count, "revenue": round(bank_rev, 2)})
+
     return {
         "success": True,
-        "data": [
-            {"method": "CARD", "count": 74572, "revenue": 18524461.42},
-            {"method": "CASH", "count": 24888, "revenue": 6176404.00}
-        ]
+        "data": methods
     }
 
 # ─── GET /api/analytics/categories ───────────────────────────────────────────
 @router.get("/analytics/categories")
 def get_category_breakdown():
-    # Only Electronics and Books as requested by business requirements
+    books_rev = 6223329.00
+    books_qty = 125395
+    elec_rev = 6166817.00
+    elec_qty = 124730
+    
+    for inv in INVOICE_STORE:
+        for item in inv.get("lineItems", []):
+            qty = int(item.get("quantity", 1))
+            amt = qty * float(item.get("unitPrice", 0.0))
+            name = str(item.get("productName", "")).lower()
+            if "book" in name or "c" in name:
+                books_rev += amt
+                books_qty += qty
+            else:
+                elec_rev += amt
+                elec_qty += qty
+
     return {
         "success": True,
         "data": [
-            {"name": "Books", "value": 6223329.00, "quantity": 125395},
-            {"name": "Electronics", "value": 6166817.00, "quantity": 124730}
+            {"name": "Books", "value": round(books_rev, 2), "quantity": books_qty},
+            {"name": "Electronics", "value": round(elec_rev, 2), "quantity": elec_qty}
         ]
     }
 
 # ─── GET /api/audit-summary ──────────────────────────────────────────────────
 @router.get("/audit-summary")
 def get_audit_summary(limit: int = Query(default=10)):
+    entries = []
+    for inv in INVOICE_STORE[:limit]:
+        entries.append({
+            "timestamp": inv.get("createdAt", datetime.utcnow().isoformat()),
+            "userId": inv.get("customerId", "System"),
+            "event": f"Invoice Created: {inv.get('invoiceNumber', inv.get('id'))}",
+            "method": "POST",
+            "endpoint": "/api/invoices",
+            "status": 201
+        })
     return {
         "success": True,
         "data": {
-            "recentEntries": []
+            "recentEntries": entries
         }
     }
 
 # ─── GET /api/notifications ──────────────────────────────────────────────────
 @router.get("/notifications")
 def get_notifications(page: int = 1, limit: int = 20):
+    alerts = []
+    for inv in INVOICE_STORE:
+        if inv.get("status") in ["OVERDUE", "UNPAID"]:
+            alerts.append({
+                "id": inv.get("id"),
+                "message": f"Invoice {inv.get('invoiceNumber', inv.get('id'))} for {inv.get('customerName')} (${inv.get('totalAmount')}) is pending payment.",
+                "severity": "CRITICAL" if inv.get("status") == "OVERDUE" else "WARNING",
+                "time": "Just now",
+                "createdAt": inv.get("createdAt")
+            })
     return {
         "success": True,
-        "data": []
+        "data": alerts[:limit]
     }
 
 @router.get("/notifications/counts")
 def get_notifications_counts():
+    mem = _get_in_memory_metrics()
     return {
         "success": True,
         "data": {
-            "total": 0,
-            "unread": 0,
+            "total": mem["pending_count"],
+            "unread": mem["pending_count"],
             "lowStock": 0,
-            "overdue": 0
+            "overdue": mem["overdue_count"],
+            "overdueInvoices": mem["pending_count"]
         }
     }
 
@@ -201,9 +333,12 @@ def get_notifications_low_stock():
 
 @router.get("/notifications/overdue-invoices")
 def get_notifications_overdue():
+    overdue_list = [
+        inv for inv in INVOICE_STORE if inv.get("status") in ["OVERDUE", "UNPAID"]
+    ]
     return {
         "success": True,
-        "data": []
+        "data": overdue_list
     }
 
 # ─── GET /api/inventory & /api/products ───────────────────────────────────────
@@ -504,12 +639,17 @@ def create_invoice(body: CreateInvoiceModel):
 
 @router.get("/invoices/revenue/summary")
 def get_invoices_revenue_summary():
+    mem = _get_in_memory_metrics()
+    base_revenue = 24700865.42
+    total_rev = round(base_revenue + mem["user_rev"] + mem["user_unpaid"], 2)
+    paid_rev = round(base_revenue + mem["user_rev"], 2)
+    unpaid_rev = round(mem["user_unpaid"], 2)
     return {
         "success": True,
         "data": {
-            "totalRevenue": 24700865.42,
-            "paidRevenue": 24700865.42,
-            "unpaidRevenue": 0.00
+            "totalRevenue": total_rev,
+            "paidRevenue": paid_rev,
+            "unpaidRevenue": unpaid_rev
         }
     }
 
