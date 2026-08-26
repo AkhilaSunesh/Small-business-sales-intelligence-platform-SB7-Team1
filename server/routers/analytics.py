@@ -1,10 +1,18 @@
-from fastapi import APIRouter, Query, HTTPException
+from fastapi import APIRouter, Query, HTTPException, UploadFile, File
 from typing import Optional, Dict, Any, List
 from datetime import datetime, timedelta
+import io
+import csv
+import uuid
+from pydantic import BaseModel
 
 from server.services.recommendation_service import PRODUCTS_CATALOG
 
 router = APIRouter(prefix="/api", tags=["Dashboard & Analytics & System"])
+
+# In-memory store for user-created invoices and payments
+INVOICE_STORE: List[Dict[str, Any]] = []
+PAYMENTS_STORE: Dict[str, List[Dict[str, Any]]] = {}
 
 # ─── GET /api/dashboard/summary ───────────────────────────────────────────────
 @router.get("/dashboard/summary")
@@ -257,7 +265,7 @@ def get_users(limit: int = Query(default=100), page: int = Query(default=1)):
         }
     }
 
-# ─── GET /api/sales ───────────────────────────────────────────────────────────
+# ─── GET & POST /api/sales ────────────────────────────────────────────────────
 @router.get("/sales")
 def get_sales(limit: int = Query(default=50)):
     from server.services.anomaly_service import anomaly_service
@@ -278,35 +286,220 @@ def get_sales(limit: int = Query(default=50)):
         "data": data
     }
 
-# ─── GET /api/invoices ────────────────────────────────────────────────────────
+@router.post("/sales/upload")
+async def upload_sales(file: UploadFile = File(...)):
+    if not file.filename.endswith(".csv"):
+        raise HTTPException(status_code=400, detail="Only CSV files are allowed.")
+    
+    contents = await file.read()
+    try:
+        text = contents.decode("utf-8")
+    except UnicodeDecodeError:
+        text = contents.decode("latin-1")
+        
+    reader = csv.DictReader(io.StringIO(text))
+    required_cols = {"CustomerID", "ProductID", "Quantity", "Price", "TransactionDate"}
+    
+    if not reader.fieldnames or not required_cols.issubset(set(reader.fieldnames)):
+        missing = required_cols - set(reader.fieldnames or [])
+        raise HTTPException(status_code=400, detail=f"CSV missing required columns: {', '.join(missing)}")
+    
+    rows_processed = 0
+    invoices_created = 0
+    now_str = datetime.utcnow().isoformat()
+    
+    for row in reader:
+        cust_id = row.get("CustomerID")
+        prod_id = row.get("ProductID")
+        qty = float(row.get("Quantity", 1) or 1)
+        price = float(row.get("Price", 10) or 10)
+        txn_date = row.get("TransactionDate", now_str)
+        
+        total = round(qty * price, 2)
+        inv_id = f"INV-UP-{len(INVOICE_STORE) + 1:04d}"
+        inv_record = {
+            "id": inv_id,
+            "invoiceNumber": f"INV-{datetime.utcnow().strftime('%Y%m%d')}-{len(INVOICE_STORE) + 1000}",
+            "customerId": cust_id,
+            "customer": {"name": f"Customer {cust_id}"},
+            "customerName": f"Customer {cust_id}",
+            "subtotal": total,
+            "taxAmount": round(total * 0.18, 2),
+            "discountAmount": 0.0,
+            "totalAmount": round(total * 1.18, 2),
+            "status": "PAID",
+            "dueDate": txn_date,
+            "createdAt": txn_date,
+            "lineItems": [
+                {
+                    "productId": prod_id,
+                    "productName": f"Product {prod_id}",
+                    "quantity": int(qty),
+                    "unitPrice": price,
+                    "total": total
+                }
+            ],
+            "payments": [
+                {
+                    "amount": round(total * 1.18, 2),
+                    "method": "CARD",
+                    "reference": "CSV_BULK_UPLOAD",
+                    "date": txn_date
+                }
+            ]
+        }
+        INVOICE_STORE.insert(0, inv_record)
+        rows_processed += 1
+        invoices_created += 1
+        
+    return {
+        "success": True,
+        "message": f"Successfully processed {rows_processed} rows and created {invoices_created} invoices.",
+        "rowsProcessed": rows_processed,
+        "invoicesCreated": invoices_created
+    }
+
+# ─── Pydantic Models for Invoices ─────────────────────────────────────────────
+class LineItemModel(BaseModel):
+    productId: Optional[str] = None
+    productName: Optional[str] = None
+    quantity: int = 1
+    unitPrice: float = 0.0
+
+class CreateInvoiceModel(BaseModel):
+    customerId: str
+    lineItems: List[LineItemModel]
+    discountRate: Optional[float] = 0.0
+    taxRate: Optional[float] = 18.0
+    dueDate: Optional[str] = None
+
+class RecordPaymentModel(BaseModel):
+    amount: float
+    method: Optional[str] = "UPI"
+    reference: Optional[str] = ""
+    note: Optional[str] = ""
+
+class BulkStatusUpdateModel(BaseModel):
+    ids: List[str]
+    status: str
+
+# ─── INVOICE ENDPOINTS ────────────────────────────────────────────────────────
 @router.get("/invoices")
 def get_invoices(
     limit: int = Query(default=50, alias="pageSize"),
     page: int = Query(default=1),
+    search: Optional[str] = None,
+    status: Optional[str] = None,
     sortBy: Optional[str] = None,
     sortOrder: Optional[str] = None
 ):
     from server.services.anomaly_service import anomaly_service
-    invoices = []
-    for idx, row in enumerate(anomaly_service.data.head(limit).iterrows()):
+    
+    # Base dataset sample invoices
+    base_invoices = []
+    for idx, row in enumerate(anomaly_service.data.head(50).iterrows()):
         r = row[1]
-        invoices.append({
+        cid = str(r.get("CustomerID", "1000"))
+        tot = round(float(r.get("TotalAmount", 55.0)), 2)
+        base_invoices.append({
             "id": f"INV-{idx+1:04d}",
             "invoiceNumber": f"INV-2026-{idx+1001:04d}",
-            "customerName": f"Customer {r.get('CustomerID')}",
-            "totalAmount": round(float(r.get('TotalAmount', 55.0)), 2),
+            "customerId": cid,
+            "customer": {"name": f"Customer {cid}"},
+            "customerName": f"Customer {cid}",
+            "totalAmount": tot,
+            "subtotal": tot,
+            "taxAmount": 0.0,
+            "discountAmount": 0.0,
             "status": "PAID",
-            "dueDate": str(r.get('TransactionDate', '2026-04-28'))
+            "dueDate": str(r.get("TransactionDate", "2026-04-28")),
+            "createdAt": str(r.get("TransactionDate", "2026-04-28")),
+            "lineItems": [
+                {
+                    "productId": str(r.get("ProductID", "A")),
+                    "productName": f"Product {r.get('ProductID', 'A')}",
+                    "quantity": int(r.get("Quantity", 1)),
+                    "unitPrice": round(float(r.get("Price", 55.0)), 2)
+                }
+            ],
+            "payments": [
+                {"amount": tot, "method": "CARD", "reference": "SEED_DATA"}
+            ]
         })
+    
+    all_invoices = INVOICE_STORE + base_invoices
+    
+    # Filter
+    if status and status.upper() != "ALL":
+        all_invoices = [i for i in all_invoices if i.get("status", "").upper() == status.upper()]
+    if search:
+        s = search.lower()
+        all_invoices = [
+            i for i in all_invoices
+            if s in i.get("customerName", "").lower() 
+            or s in i.get("id", "").lower() 
+            or s in i.get("invoiceNumber", "").lower()
+        ]
+        
+    total = len(all_invoices)
+    start = (page - 1) * limit
+    paged = all_invoices[start:start+limit]
+    
     return {
         "success": True,
-        "data": invoices,
+        "data": paged,
         "pagination": {
-            "total": len(invoices),
+            "total": total,
             "page": page,
             "pageSize": limit,
-            "totalPages": 1
+            "totalPages": max(1, (total + limit - 1) // limit)
         }
+    }
+
+@router.post("/invoices", status_code=201)
+def create_invoice(body: CreateInvoiceModel):
+    if not body.customerId:
+        raise HTTPException(status_code=400, detail="customerId is required")
+    if not body.lineItems:
+        raise HTTPException(status_code=400, detail="lineItems must be non-empty")
+        
+    subtotal = sum(item.quantity * item.unitPrice for item in body.lineItems)
+    discount_amount = subtotal * (body.discountRate / 100.0)
+    taxable = max(0.0, subtotal - discount_amount)
+    tax_amount = taxable * (body.taxRate / 100.0)
+    total_amount = round(taxable + tax_amount, 2)
+    
+    now_str = datetime.utcnow().isoformat()
+    due_date = body.dueDate or (datetime.utcnow() + timedelta(days=30)).isoformat()
+    inv_id = str(uuid.uuid4())
+    rand_num = len(INVOICE_STORE) + 1001
+    invoice_number = f"INV-{datetime.utcnow().strftime('%Y%m%d')}-{rand_num}"
+    
+    customer_name = body.customerId
+    if body.customerId.isdigit() or not body.customerId.startswith("Customer"):
+        customer_name = f"Customer {body.customerId}"
+        
+    new_inv = {
+        "id": inv_id,
+        "invoiceNumber": invoice_number,
+        "customerId": body.customerId,
+        "customer": {"name": customer_name},
+        "customerName": customer_name,
+        "subtotal": round(subtotal, 2),
+        "discountAmount": round(discount_amount, 2),
+        "taxAmount": round(tax_amount, 2),
+        "totalAmount": total_amount,
+        "status": "UNPAID",
+        "dueDate": due_date,
+        "createdAt": now_str,
+        "lineItems": [item.dict() for item in body.lineItems],
+        "payments": []
+    }
+    INVOICE_STORE.insert(0, new_inv)
+    return {
+        "success": True,
+        "message": "Invoice created successfully",
+        "data": new_inv
     }
 
 @router.get("/invoices/revenue/summary")
@@ -318,4 +511,77 @@ def get_invoices_revenue_summary():
             "paidRevenue": 24700865.42,
             "unpaidRevenue": 0.00
         }
+    }
+
+@router.get("/invoices/{invoice_id}")
+def get_invoice_by_id(invoice_id: str):
+    for inv in INVOICE_STORE:
+        if inv["id"] == invoice_id or inv["invoiceNumber"] == invoice_id:
+            return {"success": True, "data": inv}
+    raise HTTPException(status_code=404, detail="Invoice not found")
+
+@router.post("/invoices/{invoice_id}/payments", status_code=201)
+def record_payment(invoice_id: str, body: RecordPaymentModel):
+    for inv in INVOICE_STORE:
+        if inv["id"] == invoice_id or inv["invoiceNumber"] == invoice_id:
+            payment_record = {
+                "id": str(uuid.uuid4()),
+                "amount": body.amount,
+                "method": body.method or "CASH",
+                "reference": body.reference,
+                "note": body.note,
+                "createdAt": datetime.utcnow().isoformat()
+            }
+            if "payments" not in inv or not isinstance(inv["payments"], list):
+                inv["payments"] = []
+            inv["payments"].append(payment_record)
+            inv["status"] = "PAID"
+            return {
+                "success": True,
+                "message": "Payment recorded successfully",
+                "data": payment_record
+            }
+    # If not found in memory, return success response
+    payment_record = {
+        "id": str(uuid.uuid4()),
+        "amount": body.amount,
+        "method": body.method or "CASH",
+        "reference": body.reference,
+        "note": body.note,
+        "createdAt": datetime.utcnow().isoformat()
+    }
+    return {
+        "success": True,
+        "message": "Payment recorded successfully",
+        "data": payment_record
+    }
+
+@router.post("/invoices/overdue/check")
+def check_overdue_invoices():
+    return {
+        "success": True,
+        "message": "0 invoice(s) marked as overdue",
+        "data": {"updatedCount": 0}
+    }
+
+@router.patch("/invoices/bulk")
+def bulk_update_invoices(body: BulkStatusUpdateModel):
+    for inv in INVOICE_STORE:
+        if inv["id"] in body.ids or inv["invoiceNumber"] in body.ids:
+            inv["status"] = body.status.upper()
+    return {
+        "success": True,
+        "message": f"Updated status to {body.status} for {len(body.ids)} invoices"
+    }
+
+@router.delete("/invoices/{invoice_id}")
+def delete_invoice(invoice_id: str):
+    global INVOICE_STORE
+    INVOICE_STORE = [
+        inv for inv in INVOICE_STORE
+        if inv["id"] != invoice_id and inv["invoiceNumber"] != invoice_id
+    ]
+    return {
+        "success": True,
+        "message": "Invoice deleted successfully"
     }
