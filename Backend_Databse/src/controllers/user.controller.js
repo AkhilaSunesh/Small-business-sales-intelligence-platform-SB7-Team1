@@ -33,15 +33,16 @@ const SAFE_SELECT = {
 // ─── Map Prisma row → API shape ───────────────────────────────────────────────
 function mapUser(u) {
     return {
-        id:        u.id,
-        name:      u.name,
-        email:     u.email,
-        roleId:    u.roleId,
-        role:      u.role?.name || ROLE_LABELS[u.roleId] || "Unknown",
-        status:    u.isPending ? "Pending" : (u.isActive ? "Active" : "Inactive"),
-        lastLogin: u.lastLoginAt
-            ? new Date(u.lastLoginAt).toLocaleString("en-IN", { timeZone: "Asia/Kolkata" })
-            : "N/A"
+        id:          u.id,
+        name:        u.name,
+        email:       u.email,
+        roleId:      u.roleId,
+        role:        u.role?.name || ROLE_LABELS[u.roleId] || "Unknown",
+        status:      u.isPending ? "Pending" : (u.isActive ? "Active" : "Inactive"),
+        lastLoginAt: u.lastLoginAt ? u.lastLoginAt.toISOString() : null,
+        lastLogin:   u.lastLoginAt
+            ? new Date(u.lastLoginAt).toLocaleString("en-IN", { timeZone: "Asia/Kolkata", dateStyle: "medium", timeStyle: "short" })
+            : "Never"
     };
 }
 

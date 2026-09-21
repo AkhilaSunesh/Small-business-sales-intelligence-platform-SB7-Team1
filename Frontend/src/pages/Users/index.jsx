@@ -130,6 +130,11 @@ function UsersPage() {
     }
     if (statusFilter) result = result.filter(u => u.status === statusFilter);
     result.sort((a, b) => {
+      if (sortField === 'lastLogin' || sortField === 'lastLoginAt') {
+        const timeA = a.lastLoginAt ? new Date(a.lastLoginAt).getTime() : 0;
+        const timeB = b.lastLoginAt ? new Date(b.lastLoginAt).getTime() : 0;
+        return sortOrder === 'asc' ? timeA - timeB : timeB - timeA;
+      }
       let aVal = a[sortField] ?? '';
       let bVal = b[sortField] ?? '';
       if (typeof aVal === 'string') { aVal = aVal.toLowerCase(); bVal = bVal.toLowerCase(); }

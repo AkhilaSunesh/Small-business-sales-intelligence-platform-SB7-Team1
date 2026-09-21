@@ -76,7 +76,16 @@ function LoginPage() {
     // ── Backend authentication ────────────────────────────────────────────────
     setIsLoading(true);
     try {
-      const data = await loginUser(form.email, form.password);
+      const data = await loginUser(form.email, form.password, form.role);
+
+      // Verify returned user role matches selected form role if provided
+      const roleIdToName = { 1: 'Owner', 2: 'Store Manager', 3: 'Sales Executive', 4: 'Admin' };
+      const returnedRoleName = data.user?.roleId ? roleIdToName[data.user.roleId] : null;
+      const normalizeRole = (r) => (r || '').toLowerCase().replace(/[\s_-]+/g, '');
+
+      if (returnedRoleName && normalizeRole(returnedRoleName) !== normalizeRole(form.role)) {
+        throw new Error(`Role mismatch: Your account is registered as "${returnedRoleName}", not "${form.role}". Please select "${returnedRoleName}".`);
+      }
 
       // Store the JWT so api.js interceptor picks it up for all future requests
       if (staySignedIn) {
@@ -96,14 +105,31 @@ function LoginPage() {
         id:    data.user?.id,
         name:  data.user?.name,
         email: form.email,
-        role:  form.role,
+        role:  returnedRoleName || form.role,
         staySignedIn,
       });
 
       navigate('/dashboard');
     } catch (err) {
-      // Offline fallback: if the backend is unreachable, use mock token and proceed
+      // Offline fallback: if the backend is unreachable, validate standard seeded emails and proceed
       if (err.message.includes('Unable to reach') || err.message.includes('Backend is offline') || err.message.includes('offline or unreachable')) {
+        const emailToRoleMap = {
+          'owner@marketmind.dev': 'Owner',
+          'manager@marketmind.dev': 'Store Manager',
+          'sales@marketmind.dev': 'Sales Executive',
+          'admin@marketmind.dev': 'Admin',
+          'admin@marketmind.ai': 'Admin'
+        };
+
+        const expectedRole = emailToRoleMap[form.email.toLowerCase()];
+        if (expectedRole && expectedRole !== form.role) {
+          setError(`Role mismatch: Account "${form.email}" is assigned the role "${expectedRole}", not "${form.role}".`);
+          setForm((prev) => ({ ...prev, captchaInput: '' }));
+          generateCaptcha();
+          setIsLoading(false);
+          return;
+        }
+
         if (staySignedIn) {
           localStorage.setItem('authToken', 'offline-mock-token');
         } else {

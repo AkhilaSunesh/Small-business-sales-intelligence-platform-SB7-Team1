@@ -15,12 +15,13 @@ import api from './api';
  *
  * @param {string} email
  * @param {string} password
+ * @param {string} [role]
  * @returns {{ accessToken: string, refreshToken: string, user: object }}
  * @throws Error with a human-readable message for the Login page to display
  */
-export async function loginUser(email, password) {
+export async function loginUser(email, password, role) {
   try {
-    const { data } = await api.post('/api/auth/login', { email, password });
+    const { data } = await api.post('/api/auth/login', { email, password, role });
     return data; // { success, accessToken, refreshToken, user: { id, name, email, roleId } }
   } catch (err) {
     // Network / connection error — backend is unreachable
@@ -34,6 +35,12 @@ export async function loginUser(email, password) {
     // 401 Unauthorized — wrong credentials
     if (err.response.status === 401) {
       throw new Error('Invalid email or password. Please try again.');
+    }
+
+    // 403 Forbidden — role mismatch or deactivated / pending
+    if (err.response.status === 403) {
+      const backendMessage = err.response?.data?.message;
+      throw new Error(backendMessage || 'Access denied. Please check your role and credentials.');
     }
 
     // 429 Too Many Requests

@@ -21,17 +21,13 @@ function Start-ServiceWindow {
     Write-Host "Starting $Name..." -ForegroundColor Green
     $fullPath = Join-Path $root $Path
     
-    $fullCommand = if ($UseVenv) {
-        ". '$venvPath'; $Command"
+    if ($UseVenv) {
+        $cmdToRun = "Set-Location '$fullPath'; . '$venvPath'; Write-Host '[$Name] Starting...' -ForegroundColor Cyan; $Command"
     } else {
-        $Command
+        $cmdToRun = "Set-Location '$fullPath'; Write-Host '[$Name] Starting...' -ForegroundColor Cyan; $Command"
     }
 
-    Start-Process powershell -ArgumentList `
-        "-NoExit", `
-        "-Command", `
-        "cd '$fullPath'; Write-Host '[$Name] Starting...' -ForegroundColor Cyan; $fullCommand" `
-        -WindowStyle Normal
+    Start-Process powershell -ArgumentList "-NoExit", "-Command", $cmdToRun -WindowStyle Normal
     Start-Sleep -Milliseconds 500
 }
 
