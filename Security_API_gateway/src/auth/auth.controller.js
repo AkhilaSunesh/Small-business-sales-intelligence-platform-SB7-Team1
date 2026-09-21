@@ -160,6 +160,42 @@ exports.login = async (req, res) => {
             });
         }
 
+        // Validate selected role if provided by client
+        const requestedRole = req.body.role;
+        if (requestedRole) {
+            const roleNameMap = {
+                1: "Owner",
+                2: "Store Manager",
+                3: "Sales Executive",
+                4: "Admin"
+            };
+            const userActualRole = roleNameMap[user.roleId] || "Unknown";
+            const normalizeRole = (r) => (r || '').toLowerCase().replace(/[\s_-]+/g, '');
+
+            const isRoleMatch = normalizeRole(userActualRole) === normalizeRole(requestedRole) ||
+                (normalizeRole(requestedRole) === 'businessowner' && normalizeRole(userActualRole) === 'owner') ||
+                (normalizeRole(requestedRole) === 'owner' && normalizeRole(userActualRole) === 'businessowner') ||
+                (normalizeRole(requestedRole) === 'systemadministrator' && normalizeRole(userActualRole) === 'admin') ||
+                (normalizeRole(requestedRole) === 'admin' && normalizeRole(userActualRole) === 'systemadministrator');
+
+            if (!isRoleMatch) {
+                logEvent("warn", "Login Failure", {
+                    userId: user.id,
+                    ip: req.ip || req.headers["x-forwarded-for"],
+                    endpoint: req.originalUrl,
+                    status: 403,
+                    reason: "Role mismatch",
+                    requestedRole,
+                    actualRole: userActualRole
+                });
+
+                return res.status(403).json({
+                    success: false,
+                    message: `Role mismatch: This account is registered as "${userActualRole}", not "${requestedRole}". Please select the correct role to log in.`
+                });
+            }
+        }
+
         // Persist last login timestamp
         await prisma.user.update({
             where: { id: user.id },

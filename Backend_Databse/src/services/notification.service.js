@@ -110,24 +110,72 @@ async function getOverdueInvoiceAlerts({ page = 1, limit = 20 } = {}) {
     };
 }
 
+// ─── Pending user role request alerts ──────────────────────────────────────────
+async function getPendingUserAlerts({ page = 1, limit = 20 } = {}) {
+    const skip = (Math.max(1, page) - 1) * Math.min(100, Math.max(1, limit));
+    const take = Math.min(100, Math.max(1, limit));
+
+    const roleNameMap = { 1: "Owner", 2: "Store Manager", 3: "Sales Executive", 4: "Admin" };
+
+    const [total, pendingUsers] = await Promise.all([
+        prisma.user.count({
+            where: { isPending: true, isDeleted: false }
+        }),
+        prisma.user.findMany({
+            where: { isPending: true, isDeleted: false },
+            skip,
+            take,
+            orderBy: { id: "desc" },
+            include: { role: { select: { id: true, name: true } } }
+        })
+    ]);
+
+    return {
+        data: pendingUsers.map(user => {
+            const roleName = user.role?.name || roleNameMap[user.roleId] || "User";
+            return {
+                type:        "PENDING_USER_APPROVAL",
+                severity:    "WARNING",
+                userId:      user.id,
+                userName:    user.name,
+                userEmail:   user.email,
+                requestedRole: roleName,
+                status:      "Pending",
+                message:     `New user "${user.name}" (${user.email}) requested access for role "${roleName}". Approval pending.`
+            };
+        }),
+        pagination: {
+            total,
+            page:  Math.max(1, page),
+            limit: take,
+            totalPages: Math.ceil(total / take)
+        }
+    };
+}
+
 // ─── Combined notifications ───────────────────────────────────────────────────
 async function getAllNotifications({ page = 1, limit = 20, type } = {}) {
     if (type === "LOW_STOCK") {
         const result = await getLowStockAlerts({ page, limit });
-        return { ...result, summary: buildSummary(result.data, []) };
+        return { ...result, summary: buildSummary(result.data, [], []) };
     }
     if (type === "OVERDUE_INVOICE") {
         const result = await getOverdueInvoiceAlerts({ page, limit });
-        return { ...result, summary: buildSummary([], result.data) };
+        return { ...result, summary: buildSummary([], result.data, []) };
+    }
+    if (type === "PENDING_USER_APPROVAL") {
+        const result = await getPendingUserAlerts({ page, limit });
+        return { ...result, summary: buildSummary([], [], result.data) };
     }
 
-    // Both types — fetch separately then merge for summary
-    const [lowStock, overdue] = await Promise.all([
+    // All types — fetch separately then merge for summary
+    const [lowStock, overdue, pendingUsers] = await Promise.all([
         getLowStockAlerts({ page: 1, limit: 1000 }),
-        getOverdueInvoiceAlerts({ page: 1, limit: 1000 })
+        getOverdueInvoiceAlerts({ page: 1, limit: 1000 }),
+        getPendingUserAlerts({ page: 1, limit: 1000 })
     ]);
 
-    const allNotifications = [...lowStock.data, ...overdue.data]
+    const allNotifications = [...pendingUsers.data, ...lowStock.data, ...overdue.data]
         .sort((a, b) => {
             const severityOrder = { CRITICAL: 0, WARNING: 1 };
             return (severityOrder[a.severity] ?? 2) - (severityOrder[b.severity] ?? 2);
@@ -146,17 +194,18 @@ async function getAllNotifications({ page = 1, limit = 20, type } = {}) {
             limit:      take,
             totalPages: Math.ceil(totalItems / take)
         },
-        summary: buildSummary(lowStock.data, overdue.data)
+        summary: buildSummary(lowStock.data, overdue.data, pendingUsers.data)
     };
 }
 
-function buildSummary(lowStockItems, overdueItems) {
+function buildSummary(lowStockItems, overdueItems, pendingUserItems = []) {
     return {
-        totalNotifications: lowStockItems.length + overdueItems.length,
+        totalNotifications: lowStockItems.length + overdueItems.length + pendingUserItems.length,
         lowStockCount:      lowStockItems.length,
         overdueInvoiceCount: overdueItems.length,
-        criticalCount:      [...lowStockItems, ...overdueItems].filter(n => n.severity === "CRITICAL").length,
-        warningCount:       [...lowStockItems, ...overdueItems].filter(n => n.severity === "WARNING").length
+        pendingUserCount:   pendingUserItems.length,
+        criticalCount:      [...lowStockItems, ...overdueItems, ...pendingUserItems].filter(n => n.severity === "CRITICAL").length,
+        warningCount:       [...lowStockItems, ...overdueItems, ...pendingUserItems].filter(n => n.severity === "WARNING").length
     };
 }
 
@@ -164,13 +213,16 @@ function buildSummary(lowStockItems, overdueItems) {
 async function getNotificationCounts() {
     const now = new Date();
 
-    const [lowStockItems, overdueCount] = await Promise.all([
+    const [lowStockItems, overdueCount, pendingUserCount] = await Promise.all([
         prisma.inventory.findMany({ select: { quantity: true, lowStockThreshold: true } }),
         prisma.invoice.count({
             where: {
                 dueDate: { lt: now },
                 status:  { in: ["UNPAID", "PARTIALLY_PAID", "OVERDUE"] }
             }
+        }),
+        prisma.user.count({
+            where: { isPending: true, isDeleted: false }
         })
     ]);
 
@@ -178,9 +230,10 @@ async function getNotificationCounts() {
     const criticalCount = lowStockItems.filter(i => i.quantity === 0).length;
 
     return {
-        total:         lowStockCount + overdueCount,
+        total:         lowStockCount + overdueCount + pendingUserCount,
         lowStock:      lowStockCount,
         overdueInvoices: overdueCount,
+        pendingUsers:  pendingUserCount,
         critical:      criticalCount
     };
 }
@@ -188,6 +241,7 @@ async function getNotificationCounts() {
 module.exports = {
     getLowStockAlerts,
     getOverdueInvoiceAlerts,
+    getPendingUserAlerts,
     getAllNotifications,
     getNotificationCounts
 };

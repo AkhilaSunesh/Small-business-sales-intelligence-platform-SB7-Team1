@@ -9,7 +9,9 @@ const registerSchema = Joi.object({
 
 const loginSchema = Joi.object({
     email: Joi.string().email().trim().lowercase().required(),
-    password: Joi.string().required()
+    password: Joi.string().required(),
+    role: Joi.string().optional().allow(""),
+    roleId: Joi.number().integer().optional()
 });
 
 const validateRegister = (req, res, next) => {

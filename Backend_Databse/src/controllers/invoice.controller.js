@@ -15,6 +15,7 @@ exports.getInvoices = async (req, res, next) => {
       sortBy: req.query.sortBy || "createdAt",
       sortOrder: req.query.sortOrder || "desc",
       status: req.query.status || undefined,
+      paymentMethod: req.query.method || req.query.paymentMethod || undefined,
       search: req.query.search || undefined,
       customerSearch: req.query.customerSearch || undefined,
       invoiceSearch: req.query.invoiceSearch || undefined,
@@ -332,6 +333,8 @@ exports.downloadInvoice = async (req, res, next) => {
   } catch (error) {
     next(error);
   }
+};
+
 // ─── PUT /api/invoices/:id ──────────────────────────────────────────────────
 // Update an existing invoice (status, amount, customer name, etc.)
 exports.updateInvoice = async (req, res, next) => {

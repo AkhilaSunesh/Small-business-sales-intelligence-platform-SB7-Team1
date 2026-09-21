@@ -23,6 +23,7 @@ async function listInvoices({
   sortBy = "createdAt",
   sortOrder = "desc",
   status,
+  paymentMethod,
   search,
   customerSearch,
   invoiceSearch,
@@ -37,6 +38,16 @@ async function listInvoices({
   // Filter by status
   if (status) {
     where.status = status;
+  }
+
+  // Filter by payment method
+  if (paymentMethod && paymentMethod !== 'All') {
+    const methodNorm = paymentMethod.toUpperCase().replace(/\s+/g, '_');
+    where.payments = {
+      some: {
+        method: methodNorm
+      }
+    };
   }
 
   // Search by invoice number

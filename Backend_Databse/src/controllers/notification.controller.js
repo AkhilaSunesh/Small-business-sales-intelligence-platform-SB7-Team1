@@ -17,7 +17,7 @@ exports.getNotifications = async (req, res) => {
         const type  = req.query.type || undefined;
 
         // Validate type if provided
-        const validTypes = ["LOW_STOCK", "OVERDUE_INVOICE"];
+        const validTypes = ["LOW_STOCK", "OVERDUE_INVOICE", "PENDING_USER_APPROVAL"];
         if (type && !validTypes.includes(type)) {
             return res.status(400).json({
                 success: false,

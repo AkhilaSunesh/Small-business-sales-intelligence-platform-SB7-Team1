@@ -24,7 +24,15 @@ import { jsPDF } from 'jspdf';
 
 // Helper function to map backend invoice structures to what frontend tables expect
 const mapBackendInvoice = (inv) => {
-  const method = inv.payments && inv.payments.length > 0 ? inv.payments[0].method : 'UPI';
+  let method = 'UPI';
+  if (inv.payments && inv.payments.length > 0 && inv.payments[0].method) {
+    const rawMethod = inv.payments[0].method;
+    if (rawMethod === 'BANK_TRANSFER') method = 'Bank Transfer';
+    else if (rawMethod === 'CARD' || rawMethod === 'Credit Card') method = 'Card';
+    else if (rawMethod === 'CASH') method = 'Cash';
+    else if (rawMethod === 'ONLINE' || rawMethod === 'UPI') method = 'UPI';
+    else method = rawMethod;
+  }
   const reference = inv.payments && inv.payments.length > 0 ? inv.payments[0].reference : '';
   const date = inv.createdAt ? inv.createdAt.split('T')[0] : '';
   const dueDate = inv.dueDate ? inv.dueDate.split('T')[0] : '';
@@ -96,6 +104,7 @@ function InvoiceListPage() {
     setError(null);
     try {
       const backendStatus = statusFilter === 'All' ? undefined : statusFilter.toUpperCase().replace(' ', '_');
+      const backendMethod = methodFilter === 'All' ? undefined : methodFilter;
       
       // Convert sort keys to match backend expected keys
       let backendSortBy = 'createdAt';
@@ -109,6 +118,7 @@ function InvoiceListPage() {
         pageSize: rowsPerPage,
         search: searchTerm || undefined,
         status: backendStatus,
+        method: backendMethod,
         sortBy: backendSortBy,
         sortOrder: sortConfig.direction
       });
@@ -135,14 +145,14 @@ function InvoiceListPage() {
     } finally {
       setLoading(false);
     }
-  }, [currentPage, rowsPerPage, searchTerm, statusFilter, sortConfig]);
+  }, [currentPage, rowsPerPage, searchTerm, statusFilter, methodFilter, sortConfig]);
 
   // Load invoices
   useEffect(() => {
     fetchLiveInvoices();
   }, [fetchLiveInvoices]);
 
-  // Filter Logic: local filter (used for local mock/fallback data)
+  // Filter Logic: local filter (used for client-side filtering as fallback and instant response)
   const filteredInvoices = useMemo(() => {
     return invoices.filter((inv) => {
       const matchesSearch = searchTerm
@@ -151,7 +161,11 @@ function InvoiceListPage() {
         : true;
         
       const matchesStatus = statusFilter === 'All' ? true : inv.status === statusFilter;
-      const matchesMethod = methodFilter === 'All' ? true : inv.method === methodFilter;
+      const normalizeMethod = (m) => (m || '').toLowerCase().replace(/[\s_-]+/g, '');
+      const matchesMethod = methodFilter === 'All' 
+        ? true 
+        : normalizeMethod(inv.method) === normalizeMethod(methodFilter) ||
+          (normalizeMethod(methodFilter) === 'card' && normalizeMethod(inv.method).includes('card'));
       const matchesDate = dateFilter ? inv.date === dateFilter : true;
       
       return matchesSearch && matchesStatus && matchesMethod && matchesDate;

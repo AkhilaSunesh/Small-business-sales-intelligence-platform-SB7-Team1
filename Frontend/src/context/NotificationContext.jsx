@@ -53,6 +53,19 @@ export function NotificationProvider({ children }) {
 
       // Map live items from backend to UI format
       const mappedLiveItems = liveItems.map((item, idx) => {
+        if (item.type === 'PENDING_USER_APPROVAL') {
+          return {
+            id: `live-user-${item.userId || idx}`,
+            title: `Role Access Request: ${item.requestedRole}`,
+            description: item.message,
+            time: 'Pending Approval',
+            priority: 'high',
+            category: 'security',
+            read: false,
+            link: '/users'
+          };
+        }
+
         const isLowStock = item.type === 'LOW_STOCK';
         const priority = item.severity === 'CRITICAL' ? 'critical' : 'high';
         const category = isLowStock ? 'inventory' : 'invoice';
@@ -78,8 +91,10 @@ export function NotificationProvider({ children }) {
         filteredLive = mappedLiveItems.filter(item => item.category === 'inventory');
       } else if (roleKey === 'Sales Executive') {
         filteredLive = mappedLiveItems.filter(item => item.category === 'invoice');
+      } else if (roleKey === 'Owner') {
+        filteredLive = mappedLiveItems.filter(item => item.type !== 'PENDING_USER_APPROVAL');
       }
-      // Owner and Admin see all notification types
+      // Admin sees all notification types including PENDING_USER_APPROVAL
 
       // Apply persistent read/deleted state from localStorage
       const storedRead    = JSON.parse(localStorage.getItem('marketmind:read-notifications')    || '[]');
