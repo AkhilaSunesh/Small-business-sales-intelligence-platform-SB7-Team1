@@ -1,12 +1,3 @@
----
-title: MarketMind AI - Sales Intelligence Platform
-emoji: 📊
-colorFrom: indigo
-colorTo: blue
-sdk: docker
-app_port: 7860
-pinned: false
----
 
 # MarketMind AI - Small Business Sales Intelligence Platform
 
